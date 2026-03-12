@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+langchain
+langchain-community
+chromadb
+presidio-analyzer
+presidio-anonymizer
+spacy
+unstructured
+python-multipart

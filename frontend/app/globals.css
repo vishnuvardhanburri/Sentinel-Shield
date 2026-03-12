@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  --background: #000000;
+  --foreground: #ededed;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* 🛡️ VISHNULABS CLEAN-ROOM CSS 🛡️ */
+/* Hide ALL Next.js / Turbopack / Vercel branding, toasts, and portals */
+nextjs-portal,
+[data-nextjs-portal],
+[data-nextjs-toast],
+[data-nextjs-dialog],
+[data-next-indicator],
+[data-nextjs-static-indicator],
+.nextjs-static-indicator,
+#__next-build-watcher,
+#virtual-console,
+#nextjs-dev-overlay,
+.nextjs-dev-overlay {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -9999 !important;
+}

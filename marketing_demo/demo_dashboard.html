@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel Shield Version 1 | VishnuLabs Enterprise Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .glass {
+            background: rgba(10, 10, 10, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .emerald-glow {
+            box-shadow: 0 0 50px rgba(16, 185, 129, 0.2);
+        }
+
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: .5;
+            }
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .chat-msg {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #demo-caption {
+            transition: all 0.8s ease-in-out;
+        }
+
+        .shield-icon-spin {
+            animation: spin 4s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="selection:bg-emerald-500/30">
+    <!-- NARRATION CAPTION OVERLAY -->
+    <div id="demo-caption"
+        class="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 bg-emerald-500/90 backdrop-blur-md text-black px-12 py-5 rounded-full font-bold text-2xl shadow-[0_0_40px_rgba(16,185,129,0.5)] opacity-0 transform translate-y-10">
+        Initializing Security Shield...
+    </div>
+
+    <!-- Background Gradients -->
+    <div class="fixed top-0 left-0 w-full h-full pointer-events-none -z-10">
+        <div class="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-emerald-500/10 blur-[150px] rounded-full">
+        </div>
+        <div class="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-500/5 blur-[150px] rounded-full">
+        </div>
+    </div>
+
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-80 glass border-r border-white/5 p-8 flex flex-col">
+            <div class="flex items-center gap-4 mb-16">
+                <div class="w-14 h-14 bg-emerald-500 rounded-2xl flex items-center justify-center emerald-glow">
+                    <i data-lucide="shield" class="text-black w-8 h-8 shield-icon-spin"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight">SENTINEL<span class="text-emerald-500">VAULT</span>
+                    </h1>
+                    <p class="text-[10px] uppercase tracking-[0.3em] text-emerald-500/80 font-bold">VISHNULABS ELITE</p>
+                </div>
+            </div>
+
+            <nav class="space-y-4 flex-1">
+                <button onclick="showTab('core')" id="tab-btn-core"
+                    class="w-full flex items-center gap-4 p-5 rounded-2xl transition-all bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <i data-lucide="layout-dashboard" size="24"></i>
+                    <span class="font-semibold text-lg">Security Core</span>
+                </button>
+                <button onclick="showTab('intel')" id="tab-btn-intel"
+                    class="w-full flex items-center gap-4 p-5 rounded-2xl transition-all text-slate-500 hover:bg-white/5">
+                    <i data-lucide="brain-circuit" size="24"></i>
+                    <span class="font-semibold text-lg">Intelligence</span>
+                </button>
+                <button onclick="showTab('compliance')" id="tab-btn-compliance"
+                    class="w-full flex items-center gap-4 p-5 rounded-2xl transition-all text-slate-500 hover:bg-white/5">
+                    <i data-lucide="file-check" size="24"></i>
+                    <span class="font-semibold text-lg">Compliance</span>
+                </button>
+            </nav>
+
+            <div class="mt-auto p-6 rounded-3xl bg-emerald-500/5 border border-emerald-500/10 scale-95 origin-bottom">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span class="text-[11px] font-bold text-emerald-500 uppercase tracking-widest">Hardware Armed</span>
+                </div>
+                <p class="text-xs text-slate-400 leading-relaxed font-mono">
+                    AES-256 GCM ACTIVE<br />
+                    SYSTEM: VAULT-01-VLBS
+                </p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-16 overflow-y-auto scrollbar-hide">
+            <!-- HEADER -->
+            <header class="flex justify-between items-start mb-16">
+                <div>
+                    <h2 class="text-5xl font-extrabold text-white mb-4 tracking-tight" id="main-title">Mission
+                        Intelligence</h2>
+                    <p class="text-slate-400 text-xl font-light" id="main-subtitle">Autonomous Air-Gapped Documentation
+                        Defense.</p>
+                </div>
+                <div class="flex items-center gap-6">
+                    <div class="px-8 py-4 rounded-full glass border-emerald-500/30 flex items-center gap-4 group">
+                        <i data-lucide="rss" class="text-emerald-500 animate-pulse"></i>
+                        <span class="text-sm font-bold tracking-widest uppercase">100% AIR-GAPPED</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- TAB: SECURITY CORE -->
+            <section id="tab-core" class="tab-content active">
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-3 gap-10 mb-16">
+                    <div
+                        class="p-10 rounded-[50px] glass relative overflow-hidden group hover:emerald-glow transition-all duration-500">
+                        <div class="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 blur-[60px]"></div>
+                        <p class="text-slate-500 text-xs font-bold uppercase tracking-[0.3em] mb-6">Liability Protection
+                        </p>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-7xl font-bold text-white tracking-tighter">$</span>
+                            <span id="stat-money" class="text-7xl font-bold text-white tracking-tighter">9,195</span>
+                        </div>
+                        <p class="text-emerald-400 text-sm font-bold mt-6 flex items-center gap-3 italic">
+                            <i data-lucide="shield-check" size="20"></i> Active Shielding
+                        </p>
+                    </div>
+
+                    <div
+                        class="p-10 rounded-[50px] glass relative overflow-hidden group hover:border-rose-500/30 transition-all duration-500">
+                        <div class="absolute top-0 right-0 w-40 h-40 bg-rose-500/5 blur-[60px]"></div>
+                        <p class="text-slate-500 text-xs font-bold uppercase tracking-[0.3em] mb-6">Critical Intercepts
+                        </p>
+                        <span id="stat-leaks" class="text-7xl font-bold text-rose-500 tracking-tighter">27</span>
+                        <p class="text-rose-400 text-sm font-bold mt-6 flex items-center gap-3 italic">
+                            <i data-lucide="zap-off" size="20"></i> Data Leak Stopped
+                        </p>
+                    </div>
+
+                    <div
+                        class="p-10 rounded-[50px] glass relative overflow-hidden group hover:border-blue-500/30 transition-all duration-500">
+                        <div class="absolute top-0 right-0 w-40 h-40 bg-blue-500/5 blur-[60px]"></div>
+                        <p class="text-slate-500 text-xs font-bold uppercase tracking-[0.3em] mb-6">Manual Hours Saved
+                        </p>
+                        <span id="stat-hours" class="text-7xl font-bold text-blue-400 tracking-tighter">18.5</span>
+                        <p class="text-blue-400 text-sm font-bold mt-6 flex items-center gap-3 italic">
+                            <i data-lucide="clock" size="20"></i> Automated Audit
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="glass rounded-[50px] p-12">
+                    <h3 class="text-2xl font-bold mb-10 flex items-center gap-4">
+                        <i data-lucide="activity" class="text-emerald-500"></i> Local Activity Stream
+                    </h3>
+                    <div id="core-feed" class="space-y-6">
+                        <div
+                            class="p-8 rounded-3xl bg-rose-500/5 border border-rose-500/10 flex items-center justify-between group animate-pulse">
+                            <div class="flex items-center gap-8">
+                                <div
+                                    class="w-16 h-16 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500">
+                                    <i data-lucide="alert-triangle" size="32"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xl font-bold text-white mb-2">High-Risk Intercept: test_leak.txt
+                                    </h4>
+                                    <p class="text-slate-500">Masked SSN and AWS Secret Key before archival.</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-rose-500 font-bold text-sm tracking-widest uppercase">Risk: 9.3</span>
+                                <p class="text-xs text-slate-500 mt-2">SECURED IN VAULT</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: INTELLIGENCE -->
+            <section id="tab-intel" class="tab-content h-[650px] flex flex-col">
+                <div class="flex-1 glass rounded-[50px] p-12 mb-10 flex flex-col overflow-hidden">
+                    <div id="chat-window" class="flex-1 overflow-y-auto space-y-8 mb-8 pr-4 scrollbar-hide">
+                        <div class="chat-msg flex items-start gap-6">
+                            <div
+                                class="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-black font-bold">
+                                V</div>
+                            <div
+                                class="bg-white/5 p-8 rounded-[40px] rounded-tl-none border border-white/5 max-w-[85%]">
+                                <p class="text-slate-200 text-lg leading-relaxed">Secure Node Active. Analyzing
+                                    air-gapped vault... I found evidence of sensitive data redaction in 27 files. How
+                                    can I assist with your compliance audit?</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-6">
+                        <input type="text" id="chat-input" placeholder="Search the air-gapped vault..."
+                            class="flex-1 bg-white/5 border border-white/10 rounded-full px-10 py-6 text-xl focus:outline-none focus:border-emerald-500 transition-all text-white placeholder:text-slate-600">
+                        <button onclick="handleQuery()"
+                            class="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center text-black hover:scale-110 active:scale-95 transition-all shadow-xl">
+                            <i data-lucide="arrow-right" size="32"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: COMPLIANCE -->
+            <section id="tab-compliance" class="tab-content">
+                <div class="glass rounded-[50px] p-16">
+                    <div class="flex justify-between items-center mb-16">
+                        <div>
+                            <h3 class="text-3xl font-bold mb-4">Regulatory Compliance Hub</h3>
+                            <p class="text-slate-500 text-lg">Hardware-bound audit trails for professional verification.
+                            </p>
+                        </div>
+                        <button onclick="handleExport()"
+                            class="px-10 py-5 bg-white text-black rounded-full font-bold text-lg hover:bg-emerald-500 hover:scale-105 active:scale-95 transition-all flex items-center gap-4 shadow-xl">
+                            <i data-lucide="file-down" size="24"></i> Download Final Audit Log
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-white/5">
+                                    <th class="pb-8 font-bold uppercase tracking-[0.2em] text-sm">Timestamp</th>
+                                    <th class="pb-8 font-bold uppercase tracking-[0.2em] text-sm">Target File</th>
+                                    <th class="pb-8 font-bold uppercase tracking-[0.2em] text-sm text-center">Risk Index
+                                    </th>
+                                    <th class="pb-8 font-bold uppercase tracking-[0.2em] text-sm text-right">Security
+                                        Pulse</th>
+                                </tr>
+                            </thead>
+                            <tbody id="compliance-table-body" class="divide-y divide-white/5">
+                                <!-- Replaced with real data -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        function setCaption(text) {
+            const el = document.getElementById('demo-caption');
+            if (!text) {
+                el.classList.add('opacity-0', 'translate-y-10');
+            } else {
+                el.innerText = text;
+                el.classList.remove('opacity-0', 'translate-y-10');
+            }
+        }
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(btn => {
+                btn.classList.remove('bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/20');
+                btn.classList.add('text-slate-500');
+            });
+
+            document.getElementById('tab-' + tabId).classList.add('active');
+            const activeBtn = document.getElementById('tab-btn-' + tabId);
+            activeBtn.classList.add('bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/20');
+            activeBtn.classList.remove('text-slate-500');
+
+            const titles = { core: "Mission Intelligence", intel: "Intelligence Layer", compliance: "Compliance Vault" };
+            document.getElementById('main-title').innerText = titles[tabId];
+        }
+
+        async function syncData() {
+            try {
+                const response = await fetch('http://localhost:8000/status');
+                const data = await response.json();
+                if (data.stats) {
+                    document.getElementById('stat-money').innerText = Math.round(data.stats.money_saved).toLocaleString();
+                    document.getElementById('stat-leaks').innerText = data.stats.leaks_blocked;
+                    document.getElementById('stat-hours').innerText = data.stats.hours_saved;
+                }
+                const tbody = document.getElementById('compliance-table-body');
+                tbody.innerHTML = "";
+                const files = Object.entries(data.processed_files || {});
+                files.reverse().slice(0, 5).forEach(([name, meta]) => {
+                    const statusClass = meta.score > 7 ? 'text-rose-500' : 'text-emerald-500';
+                    const row = `
+                        <tr class="hover:bg-white/[0.02] transition-colors">
+                            <td class="py-10 text-lg text-slate-400 font-mono">${meta.timestamp || '03.08.2026'}</td>
+                            <td class="py-10 font-bold text-white text-xl">${name}</td>
+                            <td class="py-10 text-center">
+                                <span class="px-5 py-2 ${meta.score > 7 ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'} rounded-full font-bold text-sm border uppercase">${meta.score}/10</span>
+                            </td>
+                            <td class="py-10 text-right ${statusClass} font-bold flex items-center justify-end gap-3 text-lg">
+                                <i data-lucide="shield-check" size="24"></i> VAULT SEALED
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+                lucide.createIcons();
+            } catch (err) { }
+        }
+
+        async function handleQuery() {
+            const input = document.getElementById('chat-input');
+            const window = document.getElementById('chat-window');
+            if (!input.value) return;
+            const userText = input.value;
+            input.value = "";
+            window.innerHTML += `<div class="chat-msg flex justify-end gap-6"><div class="bg-emerald-500 p-8 rounded-[40px] rounded-tr-none text-black font-bold text-lg max-w-[80%] shadow-xl">${userText}</div></div>`;
+            window.scrollTop = window.scrollHeight;
+
+            try {
+                const res = await fetch('http://localhost:8000/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: userText }) });
+                const data = await res.json();
+                window.innerHTML += `
+                    <div class="chat-msg flex items-start gap-6">
+                        <div class="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-black font-bold">V</div>
+                        <div class="bg-white/5 p-8 rounded-[40px] rounded-tl-none border border-white/5 max-w-[85%]">
+                            <p class="text-slate-200 text-lg leading-relaxed">${data.answer}</p>
+                            <div class="mt-6 flex gap-4 text-xs text-slate-500 font-bold uppercase tracking-widest">
+                                Sources: ${data.sources.join(', ')} | Status: ${data.findings_alert}
+                            </div>
+                        </div>
+                    </div>`;
+                window.scrollTop = window.scrollHeight;
+            } catch (err) { window.innerHTML += `<p class='text-red-500'>Connection Offline.</p>`; }
+            lucide.createIcons();
+        }
+
+        async function handleExport() {
+            try {
+                const res = await fetch('http://localhost:8000/export-audit', { method: 'POST' });
+                const data = await res.json();
+                alert("Audit Export Successful: " + data.file);
+            } catch (e) { alert("Export Failed."); }
+        }
+
+        // PROFESSIONAL NARRATION SEQUENCE (Timed for Recording)
+        window.onload = () => {
+            setTimeout(() => setCaption("🛡️ Sentinel Shield Armed | Local 24/7 Guard Active"), 1000);
+            setTimeout(() => setCaption("🔌 Turning Off Global Wi-Fi..."), 6000);
+            setTimeout(() => setCaption("🌎 100% Air-Gapped. No Cloud. No Data Leaks."), 10000);
+            setTimeout(() => setCaption("📥 Dropping High-Risk File (SSN/Secrets detected)"), 16000);
+            setTimeout(() => setCaption("⚠️ ALERT: Shield intercepted 3 critical leaks."), 22000); // Simulate seeing the count rise
+            setTimeout(() => { showTab('intel'); setCaption("🔍 Secure Retrieval: Redacted Intelligence Agent"); }, 28000);
+            setTimeout(() => { showTab('compliance'); setCaption("📋 Generating Regulatory Audit Logs"); }, 38000);
+            setTimeout(() => { setCaption("✅ Version 1 Secure Rollout | Provided by VishnuLabs"); }, 48000);
+            setTimeout(() => setCaption(""), 55000);
+        }
+
+        setInterval(syncData, 5000);
+        syncData();
+    </script>
+</body>
+
+</html>

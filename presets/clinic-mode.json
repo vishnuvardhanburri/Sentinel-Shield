@@ -1,0 +1,5 @@
+{
+  "mode": "clinic",
+  "redact_fields": ["ssn", "dob", "patient_id", "medical_record_number", "phi", "claim_number"],
+  "alert_threshold": 3
+}

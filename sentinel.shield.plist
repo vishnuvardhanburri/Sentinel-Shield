@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sentinel.shield</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/vishnuvardhanburri/.gemini/antigravity/scratch/sentinel-vault/start.sh</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/vishnuvardhanburri/.gemini/antigravity/scratch/sentinel-vault</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/vishnuvardhanburri/.gemini/antigravity/scratch/sentinel-vault/logs/launchd_error.log</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/vishnuvardhanburri/.gemini/antigravity/scratch/sentinel-vault/logs/launchd_output.log</string>
+</dict>
+</plist>

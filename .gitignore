@@ -1,0 +1,40 @@
+# --- SENTINEL SHIELD PROTECTION ---
+# NEVER PUSH THESE FILES TO GITHUB
+
+# 1. Private Secrets & Keys
+.env
+.vault_salt
+.vault_license
+*.key
+*.pem
+
+# 2. Sensitive Client Data (The Vault)
+vault_docs/*
+vault_archive/*
+!vault_docs/.gitkeep
+!vault_archive/.gitkeep
+
+# 3. AI Intelligence & State
+chroma_db/
+sentinel_state.json
+
+# 4. Professional Logs
+logs/*
+!logs/.gitkeep
+*.log
+*.old
+
+# 5. Internal Tools (Safety Check)
+generate_license.py
+pack_for_client.sh
+
+# --- SYSTEM & ENVIRONMENT ---
+venv/
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+dist/
+build/
+*.zip
+*.tar.gz

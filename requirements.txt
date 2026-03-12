@@ -1,0 +1,25 @@
+fastapi
+uvicorn
+watchdog
+langchain
+langchain-core
+langchain-ollama
+langchain-chroma
+langchain-unstructured[local-inference]
+langchain-community
+presidio-analyzer
+spacy
+streamlit
+python-multipart
+requests
+pandas
+pypdf
+python-dotenv
+unstructured[pdf]
+pytesseract
+opencv-python
+plyer
+pystray
+Pillow
+cryptography
+pyobjus; sys_platform == 'darwin'
