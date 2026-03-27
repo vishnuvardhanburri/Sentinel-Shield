@@ -2,6 +2,7 @@
 # NEVER PUSH THESE FILES TO GITHUB
 
 # 1. Private Secrets & Keys
+**/.env
 .env
 .vault_salt
 .vault_license
