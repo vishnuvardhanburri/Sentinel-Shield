@@ -831,7 +831,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-sm font-black text-white tracking-tight">SENTINEL <span className="text-emerald-400">SHIELD</span></h1>
-              <p className="text-[10px] text-slate-600">Enterprise v2.0</p>
+              <p className="text-[10px] text-emerald-500/80 font-bold uppercase tracking-widest">BY VISHNULABS</p>
             </div>
           </div>
         </div>
