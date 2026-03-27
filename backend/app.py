@@ -64,9 +64,10 @@ app = FastAPI(
     redoc_url="/api/redoc",
 )
 
+# Explicitly allow Vercel origins to talk to the Cloud Backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=["*"], # In high-security mode, replace with exact Vercel URL
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
