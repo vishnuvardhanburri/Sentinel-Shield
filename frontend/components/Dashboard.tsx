@@ -59,8 +59,8 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, role: string) => vo
         className="relative w-full max-w-md"
       >
         <div className="mb-8 text-center">
-          <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
-            <Lock className="text-emerald-400 w-8 h-8" />
+          <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-[0_0_40px_rgba(16,185,129,0.15)] overflow-hidden">
+            <img src="https://www.vishnulabs.com/vishnulabs-logo-mark.svg" className="w-10 h-10 object-contain" alt="VishnuLabs" />
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight">SENTINEL <span className="text-emerald-400">SHIELD</span></h1>
           <p className="text-emerald-500/80 text-xs uppercase tracking-[0.2em] font-bold mt-2 font-display">BY VISHNULABS</p>
@@ -826,8 +826,8 @@ export default function Dashboard() {
       <nav className="fixed top-0 left-0 w-60 h-full border-r border-white/[0.06] bg-[#050505] flex flex-col z-50">
         <div className="p-5 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-emerald-500/15 border border-emerald-500/25 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.15)]">
-              <Lock className="text-emerald-400 w-5 h-5" />
+            <div className="w-9 h-9 bg-emerald-500/15 border border-emerald-500/25 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.15)] overflow-hidden p-1.5">
+              <img src="https://www.vishnulabs.com/vishnulabs-logo-mark.svg" className="w-full h-full object-contain" alt="V" />
             </div>
             <div>
               <h1 className="text-sm font-black text-white tracking-tight">SENTINEL <span className="text-emerald-400">SHIELD</span></h1>

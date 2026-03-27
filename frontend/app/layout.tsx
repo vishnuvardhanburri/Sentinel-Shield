@@ -13,8 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sentinel Vault Version 1 | Enterprise Security AI",
-  description: "Military-grade autonomous data protection by VishnuLabs",
+  title: "Sentinel Shield | BY VISHNULABS",
+  description: "Enterprise AI Data Governance & PII Redaction — VishnuLabs",
+  icons: {
+    icon: "https://www.vishnulabs.com/vishnulabs-logo-mark.svg",
+  }
 };
 
 export default function RootLayout({
