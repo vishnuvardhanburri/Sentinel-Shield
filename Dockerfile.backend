@@ -27,7 +27,8 @@ RUN pip install --no-cache-dir -r requirements.txt \
 # Copy source
 COPY backend/ ./
 COPY presets/ /app/presets/
-COPY policies/ /app/policies/ 2>/dev/null || true
+# If you have specific policies, they go here. Removing invalid || true syntax.
+RUN mkdir -p /app/policies
 
 # Create runtime dirs
 RUN mkdir -p /app/logs/audit /app/logs/exports /app/logs/dpdp \
