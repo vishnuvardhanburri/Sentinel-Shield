@@ -1,5 +1,5 @@
 gunicorn
-# Sentinel Shield v2 — Full Requirements
+# Sentinel Shield v2 — Cloud-Ready Optimized Requirements
 # Core API
 fastapi
 uvicorn[standard]
@@ -16,21 +16,19 @@ passlib[bcrypt]
 # Database
 sqlalchemy
 alembic
-psycopg2-binary  # PostgreSQL driver
+psycopg2-binary
 redis
 
-# Watchdog (file monitoring)
-watchdog
-
-# LangChain + Vector Store
+# LangChain + Vector Store (Cloud Lean)
 langchain
 langchain-core
 langchain-ollama
 langchain-chroma
-langchain-unstructured[local-inference]
+unstructured-client
+langchain-unstructured
 langchain-community
 
-# PII Scanning
+# PII Scanning (Micro Brain)
 presidio-analyzer
 presidio-anonymizer
 spacy
@@ -39,40 +37,15 @@ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0
 # YAML Policy DSL
 pyyaml
 
-# Document Processing
-unstructured[pdf]
+# Document Processing (Native Python only — for Memory Efficiency)
 pypdf
-pytesseract
-opencv-python
 Pillow
 
 # Security / Crypto
 cryptography
 
-# Desktop (air-gap mode)
-plyer
-pystray
-pyobjus; sys_platform == 'darwin'
-
-# AI Model Adapters (optional — install what you need)
-# openai              # For GPT-4
-# anthropic           # For Claude
-# google-generativeai # For Gemini
-
 # Reporting
-reportlab            # PDF generation
-
-# Testing (dev only)
-pytest
-pytest-cov
-pytest-asyncio
-bandit
-safety
+reportlab
 
 # Observability
 structlog
-
-# Miscellaneous
-pandas
-smtplib; sys_platform == 'never'  # stdlib, keep for documentation
-gunicorn
