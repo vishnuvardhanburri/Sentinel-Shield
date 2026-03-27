@@ -63,6 +63,13 @@ class ModelRouter:
                 except ImportError:
                     logger.warning("Gemini adapter unavailable")
 
+            if os.getenv("OPENROUTER_API_KEY"):
+                try:
+                    from .openrouter_adapter import OpenRouterAdapter
+                    self._adapters["openrouter"] = OpenRouterAdapter()
+                except ImportError:
+                    logger.warning("OpenRouter adapter unavailable")
+
     def route(
         self,
         prompt: str,
