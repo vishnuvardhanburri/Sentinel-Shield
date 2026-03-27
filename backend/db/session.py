@@ -16,10 +16,12 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # DATABASE_URL examples:
 #   PostgreSQL (cloud):  postgresql+psycopg2://user:pass@host:5432/sentinel
 #   SQLite (air-gap):    sqlite:///./sentinel.db   ← default
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '../../sentinel.db'))}"
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    DATABASE_URL = f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '../../sentinel.db'))}"
+elif DATABASE_URL.startswith("postgresql://"):
+    # SQLAlchemy requires postgresql+psycopg2 for the postgres driver
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 # SQLite needs check_same_thread=False for multi-threaded FastAPI
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
@@ -63,9 +65,11 @@ def seed_db():
             )
             db.add(admin_user)
             db.commit()
-            print("🚀 INFO: Default Master Admin seeded successfully.")
+            print("🛡️ SENTINEL DB: Default Master Admin seeded successfully. [READY]")
+        else:
+            print("🛡️ SENTINEL DB: Master Admin already exists. [READY]")
     except Exception as e:
-        print(f"❌ ERROR: Failed to seed database: {e}")
+        print(f"❌ SENTINEL DB ERROR: Seeding failed: {e}")
         db.rollback()
     finally:
         db.close()
