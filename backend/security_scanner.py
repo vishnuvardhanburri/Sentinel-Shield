@@ -3,15 +3,27 @@ import os
 from typing import List, Dict
 try:
     from presidio_analyzer import AnalyzerEngine
+    from presidio_analyzer.nlp_engine import NlpEngineProvider
 except ImportError:
     AnalyzerEngine = None
+    NlpEngineProvider = None
 
 class EnterpriseScanner:
     """Enterprise-grade security scanner for local data leakage detection."""
     
     def __init__(self):
         # NLP Analyzer for PII
-        self.analyzer = AnalyzerEngine() if AnalyzerEngine else None
+        if AnalyzerEngine and NlpEngineProvider:
+            # Force small model for Cloud memory efficiency (512MB limit)
+            configuration = {
+                "nlp_engine_name": "spacy",
+                "models": [{"lang_code": "en", "model_name": "en_core_web_sm"}],
+            }
+            provider = NlpEngineProvider(nlp_configuration=configuration)
+            nlp_engine = provider.create_engine()
+            self.analyzer = AnalyzerEngine(nlp_engine=nlp_engine)
+        else:
+            self.analyzer = None
         
         # High-Value Secrets Patterns
         self.secret_patterns = {
