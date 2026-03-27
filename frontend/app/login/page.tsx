@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -111,6 +112,10 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+
+        <div className="mt-8 text-center text-[#94a3b8] text-sm group">
+          Need Access? <Link href="/register" className="text-[#38bdf8] font-bold hover:underline">Create Pro Account</Link>
+        </div>
 
         <div className="mt-8 text-center text-[#475569] text-xs">
           Air-Gapped Node ID: 299-GLOBAL-SHIELD<br/>

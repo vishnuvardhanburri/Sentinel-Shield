@@ -10,7 +10,9 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import json
 import csv
 import hashlib
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
+from sqlalchemy.orm import Session
 from fastapi import FastAPI, HTTPException, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -41,7 +43,8 @@ from gateway.model_router import model_router
 from license_server import router as license_router
 from integrations.webhook_engine import router as integrations_router
 from shadow_ai.detector import router as shadow_ai_router, shadow_detector
-from db.session import init_db, get_db
+from db.session import init_db, get_db, pwd_context
+from db.models import User
 from reporting.compliance_scorer import ComplianceScorer
 
 # ── Config ───────────────────────────────────────────────────────────────────
@@ -135,9 +138,47 @@ class ChatRequest(BaseModel):
 
 # ── Auth Endpoints ────────────────────────────────────────────────────────────
 @app.post("/auth/login")
-def login(req: LoginRequest):
-    # ... (existing login logic)
-    pass
+def login(req: LoginRequest, db: Session = Depends(get_db)):
+    """Authenticates a user and returns a secure JWT access token."""
+    user = db.query(User).filter(User.email == req.email).first()
+    if not user or not pwd_context.verify(req.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Sentinel Identity Failure: Access Denied")
+    
+    # Update last login
+    user.last_login = datetime.now(timezone.utc)
+    db.commit()
+
+    token = create_access_token(data={"sub": user.email, "role": user.role, "dept": user.department})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "email": user.email,
+            "role": user.role,
+            "name": user.full_name,
+            "dept": user.department
+        }
+    }
+
+@app.post("/auth/register")
+def register(req: LoginRequest, db: Session = Depends(get_db)):
+    """Self-registration for new platform users."""
+    existing = db.query(User).filter(User.email == req.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Identity Conflict: User already exists")
+    
+    new_user = User(
+        id=str(uuid.uuid4()),
+        email=req.email,
+        full_name=req.email.split("@")[0].title(),
+        hashed_password=pwd_context.hash(req.password),
+        role="STAFF", # Default role for self-reg
+        department=req.department or "GENERAL"
+    )
+    db.add(new_user)
+    db.commit()
+
+    return {"status": "SUCCESS", "message": "Pro Account Created: Please proceed to login."}
 
 @app.post("/api/v2/chat")
 def chat(req: ChatRequest, current_user: TokenPayload = Depends(get_current_user)):
