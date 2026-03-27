@@ -178,6 +178,11 @@ def chat(req: ChatRequest, current_user: TokenPayload = Depends(get_current_user
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/health")
+def health():
+    """Instant awake signal for Cloud monitoring."""
+    return {"status": "awake", "engine": "Sentinel Shield v2.0"}
+
 # ── Vault / Status Endpoints ──────────────────────────────────────────────────
 @app.get("/status")
 def get_status(current_user: TokenPayload = Depends(get_current_user)):
