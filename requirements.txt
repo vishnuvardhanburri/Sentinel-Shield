@@ -10,7 +10,6 @@ requests
 
 # Auth
 pyjwt
-bcrypt
 passlib[bcrypt]
 
 # Database

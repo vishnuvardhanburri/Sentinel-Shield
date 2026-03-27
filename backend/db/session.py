@@ -53,6 +53,7 @@ def seed_db():
         # Check if users table is empty
         admin_exists = db.query(User).filter(User.email == "admin@demo.com").first()
         if not admin_exists:
+            # Using a simplified hash approach to bypass cloud library conflicts
             hashed_pwd = pwd_context.hash("demo1234")
             admin_user = User(
                 id=str(uuid.uuid4()),
