@@ -1,3 +1,4 @@
+gunicorn
 # Sentinel Shield v2 — Full Requirements
 # Core API
 fastapi
