@@ -1,0 +1,208 @@
+"""
+Sentinel Shield v2 — Immutable Audit Ledger
+Append-only audit log with SHA-256 hash chaining for tamper detection.
+
+Every event recorded = {timestamp, user, action, data_hash, prompt_hash, policy_triggered, prev_hash, entry_hash}
+The chain is broken if any entry is modified, giving cryptographic proof of integrity.
+"""
+import os
+import json
+import hashlib
+import threading
+from datetime import datetime, timezone
+from typing import Optional, Dict, Any, List
+from .hash_chain import HashChain
+
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+AUDIT_DIR = os.path.join(BASE_DIR, "logs", "audit")
+AUDIT_LEDGER_FILE = os.path.join(AUDIT_DIR, "audit_ledger.jsonl")
+
+_lock = threading.Lock()
+
+
+class AuditLedger:
+    """
+    Append-only audit ledger with SHA-256 hash chaining.
+    Each entry contains: timestamp, actor, action, payload hash, previous entry hash, and self hash.
+    Tamper detection: verify_chain() returns False if any entry has been modified.
+    """
+
+    def __init__(self, ledger_path: str = AUDIT_LEDGER_FILE):
+        self.ledger_path = ledger_path
+        self.chain = HashChain()
+        os.makedirs(os.path.dirname(ledger_path), exist_ok=True)
+
+    def _compute_entry_hash(self, entry: Dict[str, Any]) -> str:
+        """Compute SHA-256 of the entry (excluding the entry_hash field itself)."""
+        payload = {k: v for k, v in entry.items() if k != "entry_hash"}
+        canonical = json.dumps(payload, sort_keys=True, ensure_ascii=True)
+        return hashlib.sha256(canonical.encode()).hexdigest()
+
+    def _get_last_hash(self) -> str:
+        """Read the hash of the last entry in the ledger."""
+        if not os.path.exists(self.ledger_path):
+            return "GENESIS"
+        try:
+            with open(self.ledger_path, "r") as f:
+                lines = f.readlines()
+            if not lines:
+                return "GENESIS"
+            last = json.loads(lines[-1].strip())
+            return last.get("entry_hash", "UNKNOWN")
+        except Exception:
+            return "CORRUPTED"
+
+    def log(
+        self,
+        action: str,
+        user_id: str,
+        user_role: str,
+        department: Optional[str] = None,
+        tenant_id: str = "default",
+        prompt_text: Optional[str] = None,
+        document_name: Optional[str] = None,
+        redactions_applied: Optional[List[str]] = None,
+        policy_triggered: Optional[str] = None,
+        model_queried: Optional[str] = None,
+        risk_score: Optional[float] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """
+        Append an immutable audit entry to the ledger.
+        Returns the entry_hash for reference.
+        """
+        with _lock:
+            prev_hash = self._get_last_hash()
+
+            entry: Dict[str, Any] = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "tenant_id": tenant_id,
+                "user_id": user_id,
+                "user_role": user_role,
+                "department": department or "UNKNOWN",
+                "action": action,
+                "document": document_name,
+                "prompt_hash": hashlib.sha256(prompt_text.encode()).hexdigest() if prompt_text else None,
+                "redactions_applied": redactions_applied or [],
+                "policy_triggered": policy_triggered,
+                "model_queried": model_queried,
+                "risk_score": risk_score,
+                "prev_hash": prev_hash,
+                "metadata": metadata or {},
+            }
+
+            entry["entry_hash"] = self._compute_entry_hash(entry)
+
+            with open(self.ledger_path, "a") as f:
+                f.write(json.dumps(entry) + "\n")
+
+            return entry["entry_hash"]
+
+    def get_entries(
+        self,
+        limit: int = 100,
+        user_id: Optional[str] = None,
+        department: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        action_filter: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Read audit entries with optional filters. Returns newest-first."""
+        if not os.path.exists(self.ledger_path):
+            return []
+        try:
+            with open(self.ledger_path, "r") as f:
+                lines = f.readlines()
+
+            entries = []
+            for line in reversed(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                entry = json.loads(line)
+
+                # Apply filters
+                if user_id and entry.get("user_id") != user_id:
+                    continue
+                if department and entry.get("department") != department:
+                    continue
+                if tenant_id and entry.get("tenant_id") != tenant_id:
+                    continue
+                if action_filter and action_filter.upper() not in entry.get("action", "").upper():
+                    continue
+
+                entries.append(entry)
+                if len(entries) >= limit:
+                    break
+            return entries
+        except Exception:
+            return []
+
+    def verify_chain(self) -> Dict[str, Any]:
+        """
+        Verify the integrity of the entire audit chain.
+        Returns: {valid: bool, total_entries: int, corrupted_at: str | None}
+        """
+        if not os.path.exists(self.ledger_path):
+            return {"valid": True, "total_entries": 0, "corrupted_at": None}
+
+        try:
+            with open(self.ledger_path, "r") as f:
+                lines = f.readlines()
+
+            prev_hash = "GENESIS"
+            for i, line in enumerate(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                entry = json.loads(line)
+
+                # 1. Check prev_hash linkage
+                if entry.get("prev_hash") != prev_hash:
+                    return {
+                        "valid": False,
+                        "total_entries": len(lines),
+                        "corrupted_at": f"Entry {i+1} — prev_hash mismatch (chain broken)"
+                    }
+
+                # 2. Re-compute entry hash and compare
+                stored_hash = entry.get("entry_hash", "")
+                computed_hash = self._compute_entry_hash(entry)
+                if computed_hash != stored_hash:
+                    return {
+                        "valid": False,
+                        "total_entries": len(lines),
+                        "corrupted_at": f"Entry {i+1} @ {entry.get('timestamp')} — content tampered"
+                    }
+
+                prev_hash = stored_hash
+
+            return {"valid": True, "total_entries": len(lines), "corrupted_at": None}
+
+        except Exception as e:
+            return {"valid": False, "total_entries": 0, "corrupted_at": f"Parse error: {e}"}
+
+    def get_summary_stats(self, tenant_id: Optional[str] = None) -> Dict[str, Any]:
+        """Return aggregate stats for the compliance dashboard."""
+        entries = self.get_entries(limit=100000, tenant_id=tenant_id)
+        actions = {}
+        risk_scores = []
+        redaction_totals = 0
+
+        for e in entries:
+            action = e.get("action", "UNKNOWN")
+            actions[action] = actions.get(action, 0) + 1
+            if e.get("risk_score") is not None:
+                risk_scores.append(e["risk_score"])
+            redaction_totals += len(e.get("redactions_applied", []))
+
+        return {
+            "total_events": len(entries),
+            "action_breakdown": actions,
+            "avg_risk_score": round(sum(risk_scores) / len(risk_scores), 2) if risk_scores else 0,
+            "total_redactions": redaction_totals,
+            "high_risk_events": sum(1 for s in risk_scores if s > 7.0),
+        }
+
+
+# Singleton
+audit_ledger = AuditLedger()

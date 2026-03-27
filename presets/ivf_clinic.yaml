@@ -1,0 +1,70 @@
+# Sentinel Shield v2 — IVF Clinic Policy Preset
+# Specialized for fertility clinics. Extra sensitivity around donor anonymity,
+# genetic data, and reproductive health information.
+
+department: IVF_CLINIC
+policy_name: IVF Clinic Policy v2
+
+rules:
+  # ── Donor Anonymity — Critical Block ────────────────────────────────────
+  - name: Donor Identity Block
+    description: Donor anonymity is legally protected. Block all donor identification attempts.
+    keywords:
+      - "donor id"
+      - "donor name"
+      - "egg donor"
+      - "sperm donor"
+      - "genetic parent"
+      - "donor profile"
+    enforcement: block
+    risk_threshold: 6.0
+
+  # ── Genetic & Reproductive Data ──────────────────────────────────────────
+  - name: Genetic Data Redact
+    description: Redact genetic test results and embryo data
+    keywords:
+      - "PGT"
+      - "PGD"
+      - "embryo grade"
+      - "karyotype"
+      - "chromosomal"
+      - "genetic report"
+      - "ivf cycle"
+      - "embryo transfer"
+      - "blastocyst"
+    enforcement: redact
+    risk_threshold: 4.0
+
+  # ── Patient PHI ──────────────────────────────────────────────────────────
+  - name: Patient Identity PHI Block
+    description: Block raw patient identifiers
+    entity_types:
+      - PERSON
+      - "Aadhaar Number"
+      - "Indian Mobile"
+      - "UHID (Hospital ID)"
+    enforcement: block
+    risk_threshold: 7.0
+
+  # ── Consent Documentation ────────────────────────────────────────────────
+  - name: Consent Form Handling
+    description: Warn when consent form content is detected in prompts
+    keywords:
+      - "informed consent"
+      - "patient consent"
+      - "surrogacy agreement"
+    enforcement: warn
+    risk_threshold: 3.0
+
+  # ── Financial Records ────────────────────────────────────────────────────
+  - name: Billing Data Redact
+    description: Redact financial information for IVF billing
+    entity_types:
+      - CREDIT_CARD
+      - "UPI ID"
+    keywords:
+      - "cycle cost"
+      - "ivf price"
+      - "payment plan"
+    enforcement: redact
+    risk_threshold: 5.0

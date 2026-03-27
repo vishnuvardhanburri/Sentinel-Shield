@@ -1,0 +1,85 @@
+# Sentinel Shield v2 — Hospital Policy Preset
+# Applies to: ICU, Emergency, OPD, Radiology, Lab, Pharmacy, Administration
+# Enforcement philosophy: BLOCK clinical data leaving the vault; REDACT before any AI query; WARN on everything else.
+
+department: HOSPITAL
+policy_name: Hospital Enterprise Policy v2
+
+rules:
+  # ── Critical PHI — Always Block ─────────────────────────────────────────
+  - name: PHI Raw Leak Block
+    description: Block any prompt that attempts to pass raw patient identifiers
+    entity_types:
+      - PERSON
+      - US_SSN
+      - MEDICAL_LICENSE
+      - PHONE_NUMBER
+      - "UHID (Hospital ID)"
+      - "Aadhaar Number"
+      - "Ayushman Bharat ID"
+    keywords:
+      - "patient id"
+      - "patient name"
+      - "uhid"
+      - "mrn"
+      - "medical record number"
+    enforcement: block
+    risk_threshold: 7.0
+
+  # ── Clinical Data — Always Redact ───────────────────────────────────────
+  - name: Clinical Diagnosis Redact
+    description: Redact clinical diagnoses, ICD codes, and prescription details
+    keywords:
+      - "diagnosis"
+      - "prescribed"
+      - "ICD-"
+      - "HIV"
+      - "AIDS"
+      - "tuberculosis"
+      - "psychiatric"
+      - "mental health"
+      - "oncology"
+      - "biopsy"
+    enforcement: redact
+    risk_threshold: 4.0
+    allowed_models:
+      - ollama/llama3.1
+      - openai/gpt-4o
+
+  # ── HIPAA/DPDP — Health Records ─────────────────────────────────────────
+  - name: Health Record Classification
+    description: Warn when HIPAA or DPDP health categories detected
+    entity_types:
+      - "Health Data (India-specific)"
+    keywords:
+      - "HIPAA"
+      - "PHI"
+      - "health record"
+      - "medical history"
+    enforcement: warn
+    risk_threshold: 3.0
+
+  # ── Financial / Insurance ────────────────────────────────────────────────
+  - name: Patient Financial Block
+    description: Block prompts containing insurance or billing PII
+    entity_types:
+      - CREDIT_CARD
+      - IBAN_CODE
+      - "Indian Bank Account"
+    keywords:
+      - "insurance id"
+      - "claim number"
+      - "tpa id"
+      - "cashless"
+    enforcement: redact
+    risk_threshold: 5.0
+
+  # ── Shadow AI Governance ─────────────────────────────────────────────────
+  - name: Unapproved Model Block
+    description: Only allow hospital-approved AI models
+    enforcement: block
+    risk_threshold: 0.0
+    allowed_models:
+      - ollama/llama3.1
+      - openai/gpt-4o
+      - anthropic/claude-3-5-sonnet-20241022

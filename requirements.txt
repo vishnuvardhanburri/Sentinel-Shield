@@ -1,25 +1,75 @@
+# Sentinel Shield v2 — Full Requirements
+# Core API
 fastapi
-uvicorn
+uvicorn[standard]
+python-multipart
+pydantic
+python-dotenv
+requests
+
+# Auth
+pyjwt
+bcrypt
+passlib[bcrypt]
+
+# Database
+sqlalchemy
+alembic
+psycopg2-binary  # PostgreSQL driver
+redis
+
+# Watchdog (file monitoring)
 watchdog
+
+# LangChain + Vector Store
 langchain
 langchain-core
 langchain-ollama
 langchain-chroma
 langchain-unstructured[local-inference]
 langchain-community
+
+# PII Scanning
 presidio-analyzer
+presidio-anonymizer
 spacy
-streamlit
-python-multipart
-requests
-pandas
-pypdf
-python-dotenv
+
+# YAML Policy DSL
+pyyaml
+
+# Document Processing
 unstructured[pdf]
+pypdf
 pytesseract
 opencv-python
+Pillow
+
+# Security / Crypto
+cryptography
+
+# Desktop (air-gap mode)
 plyer
 pystray
-Pillow
-cryptography
 pyobjus; sys_platform == 'darwin'
+
+# AI Model Adapters (optional — install what you need)
+# openai              # For GPT-4
+# anthropic           # For Claude
+# google-generativeai # For Gemini
+
+# Reporting
+reportlab            # PDF generation
+
+# Testing (dev only)
+pytest
+pytest-cov
+pytest-asyncio
+bandit
+safety
+
+# Observability
+structlog
+
+# Miscellaneous
+pandas
+smtplib; sys_platform == 'never'  # stdlib, keep for documentation

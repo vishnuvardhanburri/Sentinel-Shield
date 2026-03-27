@@ -1,0 +1,35 @@
+# Sentinel Shield — US Healthcare (HIPAA) Enforcement Preset
+department: US_HEALTHCARE
+version: 2.0.0
+security_level: HIGHEST
+
+rules:
+  - id: HIPAA_PHI_BLOCK
+    name: "PHI Direct Outbound Block"
+    pattern_type: "PHI"
+    action: "BLOCK"
+    description: "Block any HIPAA PHI identifiers (SSN, Med Record Numbers) from leaving the network via AI."
+    risk_level: 10
+    
+  - id: US_SSN_REDACT
+    name: "SSN Masking"
+    pattern_type: "US_SSN"
+    action: "REDACT"
+    description: "Always mask Social Security Numbers."
+    risk_level: 9
+
+  - id: GLOBAL_PASSPORT_WARN
+    name: "Passport Identification Warning"
+    pattern_type: "PASSPORT"
+    action: "WARN"
+    description: "Flag international passport numbers for audit review."
+    risk_level: 7
+
+allow_models:
+  - "ollama/llama3.1:70b"
+  - "azure/gpt-4o"
+  - "aws/claude-3-sonnet"
+
+monitoring:
+  shadow_ai: true
+  export_retention_days: 2555 # 7 years per HIPAA

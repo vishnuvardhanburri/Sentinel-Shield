@@ -1,0 +1,171 @@
+name: Sentinel Shield v2 — CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────
+  # Python Backend Tests
+  # ────────────────────────────────────────────────────────────────────────
+  backend-tests:
+    name: 🐍 Backend Tests + Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio bandit safety pyyaml
+
+      - name: Download spaCy model
+        run: python -m spacy download en_core_web_sm
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ \
+            --cov=backend \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            -v \
+            --tb=short
+        env:
+          DEPLOYMENT_MODE: airgap
+          DATABASE_URL: "sqlite:///./test_sentinel.db"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.xml
+          fail_ci_if_error: false
+
+      - name: Security scan (bandit)
+        run: |
+          bandit -r backend/ \
+            -x backend/tests \
+            --severity-level medium \
+            --confidence-level medium \
+            -f json \
+            -o bandit-report.json || true
+
+      - name: Dependency vulnerability scan (safety)
+        run: |
+          safety check -r requirements.txt --json > safety-report.json || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+          retention-days: 30
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Frontend Build
+  # ────────────────────────────────────────────────────────────────────────
+  frontend-build:
+    name: ⚡ Frontend Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+        working-directory: frontend
+
+      - name: Lint
+        run: npm run lint
+        working-directory: frontend
+        continue-on-error: true  # Non-blocking during initial setup
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Policy YAML Validation
+  # ────────────────────────────────────────────────────────────────────────
+  policy-validation:
+    name: 📋 Policy YAML Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install YAML tools
+        run: pip install pyyaml
+
+      - name: Validate all YAML policies
+        run: |
+          python -c "
+          import yaml, os, sys
+          errors = []
+          for root, _, files in os.walk('presets'):
+              for f in files:
+                  if f.endswith('.yaml'):
+                      path = os.path.join(root, f)
+                      try:
+                          with open(path) as fh:
+                              data = yaml.safe_load(fh)
+                          assert isinstance(data, dict), f'{path}: must be dict'
+                          assert 'rules' in data, f'{path}: missing rules key'
+                          print(f'✅ {path} — {len(data[\"rules\"])} rules')
+                      except Exception as e:
+                          errors.append(f'❌ {path}: {e}')
+          if errors:
+              for e in errors: print(e)
+              sys.exit(1)
+          print(f'All policy YAMLs valid.')
+          "
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Docker Build Validation
+  # ────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: 🐳 Docker Build Validation
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -f Dockerfile.backend -t sentinel-backend:test .
+
+      - name: Build frontend image
+        run: docker build -f Dockerfile.frontend -t sentinel-frontend:test .

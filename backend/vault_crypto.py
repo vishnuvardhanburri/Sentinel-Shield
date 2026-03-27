@@ -1,7 +1,9 @@
 import os
+import json
 import base64
 import uuid
 import hashlib
+from datetime import datetime
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import Fernet
@@ -24,32 +26,59 @@ class VaultCrypto:
         """Returns the raw machine hardware ID (node)."""
         return self.machine_id
 
-    def verify_license(self, license_key: str) -> bool:
+    def verify_license_file(self, sntl_path: str) -> bool:
         """
-        Verifies if the provided license key matches this machine's hardware ID.
-        License Key Format: SHA256(machine_id + "VISHNULABS_INTERNAL_SECRET")
+        Verifies an ECC-signed .sntl license file.
+        Checks: 1. Signature validity, 2. Hardware ID match, 3. Expiry date.
         """
-        if not license_key:
+        if not os.path.exists(sntl_path):
             return False
-        
-        # Salt known only to the builder (VishnuLabs)
-        internal_salt = "VISHNULABS_SENTINEL_SECURE_2026"
-        expected_hash = hashlib.sha256((self.machine_id + internal_salt).encode()).hexdigest().upper()
-        
-        return license_key.strip().upper() == expected_hash
+            
+        try:
+            with open(sntl_path, "r") as f:
+                data = json.load(f)
+            
+            license_info = data.get("license", {})
+            signature_b64 = data.get("signature_b64", "")
+            
+            # 1. Hardware ID Match
+            if str(license_info.get("machine_id")) != self.machine_id:
+                return False
+                
+            # 2. Expiry Check
+            expiry_str = license_info.get("expiry", "2000-01-01")
+            if datetime.strptime(expiry_str, "%Y-%m-%d") < datetime.now():
+                return False
+                
+            # 3. ECC Signature Verification (The Hard Part)
+            from cryptography.hazmat.primitives.asymmetric import ec
+            from cryptography.hazmat.primitives import hashes, serialization
+            
+            # The Public Key (Safe to embed in code)
+            PUBLIC_KEY_PEM = b"""-----BEGIN PUBLIC KEY-----
+MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEvgXj9BxvYTNkFUDs+pOmE8iKxTOzRoGE
+NAUTQeRgCR5uhEXHTBCQPD5A2bMzTsplmOuZ3Wf07fJk5fCwlB0NjQ==
+-----END PUBLIC KEY-----"""
+            
+            public_key = serialization.load_pem_public_key(PUBLIC_KEY_PEM)
+            signature = base64.b64decode(signature_b64)
+            payload = json.dumps(license_info, sort_keys=True).encode()
+            
+            public_key.verify(signature, payload, ec.ECDSA(hashes.SHA256()))
+            return True # Success
+            
+        except Exception:
+            return False
 
     def is_licensed(self) -> bool:
-        """Checks if a valid license is already registered on this system."""
-        if not os.path.exists(self.license_file):
-            return False
-        with open(self.license_file, "r") as f:
-            license_key = f.read().strip()
-        return self.verify_license(license_key)
-
-    def save_license(self, license_key: str):
-        """Saves a verified license key to the persistent store."""
-        with open(self.license_file, "w") as f:
-            f.write(license_key.strip().upper())
+        """Checks for valid .sntl license files in the root directory."""
+        # Check for any .sntl files in project root
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for f in os.listdir(root_dir):
+            if f.endswith(".sntl"):
+                if self.verify_license_file(os.path.join(root_dir, f)):
+                    return True
+        return False
 
     def _derive_hardware_key(self):
         """

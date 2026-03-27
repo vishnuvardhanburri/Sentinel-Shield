@@ -1,0 +1,54 @@
+# Sentinel Shield v2 — Real Estate Policy Preset
+# Protects buyer/seller identity, property valuations, and transaction records.
+
+department: REAL_ESTATE
+policy_name: Real Estate Policy v2
+
+rules:
+  - name: Buyer/Seller Identity Block
+    description: Protect buyer and seller personal identifiers
+    entity_types:
+      - PERSON
+      - "Aadhaar Number"
+      - "PAN Card"
+      - "Indian Mobile"
+    keywords:
+      - "buyer name"
+      - "seller name"
+      - "purchaser"
+      - "vendor"
+    enforcement: block
+    risk_threshold: 6.0
+
+  - name: Property Transaction Redact
+    description: Redact deal values, loan amounts, and property identifiers
+    keywords:
+      - "property id"
+      - "survey number"
+      - "registration number"
+      - "sale deed"
+      - "stamp duty"
+      - "loan amount"
+      - "property valuation"
+      - "sale agreement"
+    enforcement: redact
+    risk_threshold: 4.0
+
+  - name: Financial PII Redact
+    description: Redact bank and payment details
+    entity_types:
+      - CREDIT_CARD
+      - "Indian Bank Account"
+      - IBAN_CODE
+    enforcement: redact
+    risk_threshold: 5.0
+
+  - name: Legal Documents Warn
+    description: Warn on registered sale deed or lease agreement content
+    keywords:
+      - "registered deed"
+      - "lease agreement"
+      - "rental agreement"
+      - "encumbrance certificate"
+    enforcement: warn
+    risk_threshold: 3.0

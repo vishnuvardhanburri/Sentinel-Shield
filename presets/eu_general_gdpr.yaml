@@ -1,0 +1,35 @@
+# Sentinel Shield — EU General (GDPR) Regulation Preset
+department: EU_GENERAL
+version: 2.0.0
+security_level: HIGHEST
+
+rules:
+  - id: EU_GDPR_ENFORCEMENT
+    name: "GDPR Cross-Border Block"
+    pattern_type: "PII"
+    action: "BLOCK"
+    description: "Prevent non-consented PII from leaving the EU jurisdiction."
+    risk_level: 10
+    
+  - id: EU_VAT_REDACT
+    name: "VAT ID Masking"
+    pattern_type: "VAT_ID"
+    action: "REDACT"
+    description: "Always mask EU VAT numbers for corporate data safety."
+    risk_level: 8
+
+  - id: EU_IBAN_BLOCK
+    name: "Bank IBAN Hard-Block"
+    pattern_type: "IBAN"
+    action: "BLOCK"
+    description: "Never allow European IBAN numbers to be processed by cloud-based AI."
+    risk_level: 10
+
+allow_models:
+  - "mistral/mixtral-8x22b"
+  - "ollama/deepseek-v3"
+  - "google/gemini-pro-1.5"
+
+monitoring:
+  shadow_ai: true
+  right_to_forget: true # Enable manual audit deletion flag

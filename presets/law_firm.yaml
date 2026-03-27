@@ -1,0 +1,78 @@
+# Sentinel Shield v2 — Law Firm Policy Preset
+# Legal professional privilege is sacred. Block client names, case numbers,
+# opposing party details, and NDA content from AI queries.
+
+department: LAW_FIRM
+policy_name: Law Firm Policy v2
+
+rules:
+  # ── Attorney-Client Privilege — Block ────────────────────────────────────
+  - name: Client Identity Block
+    description: Client names and matter IDs must never enter an AI model
+    entity_types:
+      - PERSON
+      - PHONE_NUMBER
+      - EMAIL_ADDRESS
+    keywords:
+      - "client name"
+      - "matter number"
+      - "case number"
+      - "file number"
+      - "client id"
+    enforcement: block
+    risk_threshold: 6.0
+
+  # ── Legal Document Classification ────────────────────────────────────────
+  - name: Privileged Document Redact
+    description: Redact privileged legal content from AI context
+    keywords:
+      - "NDA"
+      - "non-disclosure"
+      - "attorney-client"
+      - "confidential communication"
+      - "legal opinion"
+      - "cease and desist"
+      - "settlement agreement"
+      - "litigation strategy"
+      - "without prejudice"
+    enforcement: redact
+    risk_threshold: 4.0
+
+  # ── Opposing Party ───────────────────────────────────────────────────────
+  - name: Opposing Counsel Block
+    description: Block opposing party names and strategy from AI
+    keywords:
+      - "plaintiff"
+      - "defendant"
+      - "opposing counsel"
+      - "adverse party"
+    enforcement: block
+    risk_threshold: 5.0
+
+  # ── Financial / Retainer ─────────────────────────────────────────────────
+  - name: Financial Data Redact
+    description: Redact retainer amounts and billing details
+    entity_types:
+      - CREDIT_CARD
+      - "Indian Bank Account"
+      - "UPI ID"
+    keywords:
+      - "retainer"
+      - "legal fee"
+      - "billing rate"
+    enforcement: redact
+    risk_threshold: 4.0
+
+  # ── Secrets in Documents ─────────────────────────────────────────────────
+  - name: Secrets Block
+    description: Block API keys, passwords embedded in legal documents
+    keywords:
+      - "password"
+      - "api key"
+      - "secret"
+      - "token"
+    entity_types:
+      - "Secret Key"
+      - "AWS Token"
+    enforcement: block
+    risk_threshold: 3.0

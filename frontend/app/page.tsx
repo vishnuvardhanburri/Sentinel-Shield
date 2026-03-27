@@ -1,8 +1,8 @@
 import Dashboard from '../components/Dashboard';
 
 export const metadata = {
-  title: 'Sentinel Vault Version 1 | Enterprise Security AI',
-  description: 'Air-gapped security monitoring and document intelligence.',
+  title: 'Sentinel Shield v2 | Enterprise AI Data Governance',
+  description: 'HIPAA · DPDP 2026 · GDPR compliant AI governance platform with real-time PII redaction, immutable audit ledger, and department-level policy enforcement.',
 };
 
 export default function Home() {

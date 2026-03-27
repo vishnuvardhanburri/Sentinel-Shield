@@ -1,0 +1,56 @@
+# Sentinel Shield v2 — Logistics Policy Preset
+# Protects shipment tracking, customer delivery details, and supply chain data.
+
+department: LOGISTICS
+policy_name: Logistics Policy v2
+
+rules:
+  - name: Recipient PII Block
+    description: Block shipment recipient personal data
+    entity_types:
+      - PERSON
+      - PHONE_NUMBER
+      - LOCATION
+      - "Indian Mobile"
+    keywords:
+      - "recipient name"
+      - "delivery address"
+      - "consignee"
+      - "shipper name"
+    enforcement: block
+    risk_threshold: 6.0
+
+  - name: Shipment Data Redact
+    description: Redact AWB numbers, tracking IDs, and manifest numbers
+    keywords:
+      - "awb"
+      - "tracking number"
+      - "manifest"
+      - "docket number"
+      - "pod number"
+      - "waybill"
+    enforcement: redact
+    risk_threshold: 4.0
+
+  - name: Payment on Delivery Redact
+    description: Redact COD amounts and payment references
+    keywords:
+      - "cod amount"
+      - "payment on delivery"
+      - "upi ref"
+    entity_types:
+      - "UPI ID"
+      - CREDIT_CARD
+    enforcement: redact
+    risk_threshold: 4.0
+
+  - name: Customs and Import Data
+    description: Warn on import/customs documentation
+    keywords:
+      - "bill of lading"
+      - "customs declaration"
+      - "harmonized code"
+      - "igst"
+      - "import permit"
+    enforcement: warn
+    risk_threshold: 2.0

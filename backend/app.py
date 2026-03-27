@@ -1,177 +1,433 @@
+"""
+Sentinel Shield v2 — Upgraded FastAPI Backend
+Wires together: RBAC auth, audit ledger, policy engine, model gateway,
+license server, DPDP compliance, and the original vault/RAG functionality.
+"""
 import os
+import sys
 import json
 import csv
+import hashlib
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from langchain_ollama import OllamaEmbeddings, OllamaLLM
-from langchain_chroma import Chroma
-from security_scanner import EnterpriseScanner
-from vault_crypto import sentinel_crypto
+from typing import Optional
 import platform
 import shutil
 
-# --- CONFIG ---
+# ── Core V1 imports (preserved) ─────────────────────────────────────────────
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Import helpers to resolve internal modules correctly in IDEs
+try:
+    from security_scanner import EnterpriseScanner
+    from vault_crypto import sentinel_crypto
+except ImportError:
+    from .security_scanner import EnterpriseScanner
+    from .vault_crypto import sentinel_crypto
+
+# ── V2 modules ───────────────────────────────────────────────────────────────
+from auth.jwt_handler import get_current_user, create_access_token, TokenPayload
+from auth.rbac_engine import rbac, Permission
+from audit.ledger import audit_ledger
+from audit.export_engine import AuditExporter
+from compliance.dpdp_engine import DPDPEngine
+from compliance.india_patterns import IndiaPIIScanner
+from policy.policy_engine import policy_engine, EnforcementLevel
+from gateway.model_router import model_router
+from license_server import router as license_router
+from integrations.webhook_engine import router as integrations_router
+from shadow_ai.detector import router as shadow_ai_router, shadow_detector
+from db.session import init_db, get_db
+from reporting.compliance_scorer import ComplianceScorer
+
+# ── Config ───────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CHROMA_DIR = os.path.join(BASE_DIR, "chroma_db")
 STATE_FILE = os.path.join(BASE_DIR, "sentinel_state.json")
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
 alert_log = os.path.join(LOGS_DIR, "alerts.log")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
 
-app = FastAPI(title="Sentinel Shield Version 1")
+# ── App ───────────────────────────────────────────────────────────────────────
+app = FastAPI(
+    title="Sentinel Shield v2",
+    description="Enterprise AI Data Governance Platform — VishnuLabs",
+    version="2.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 
-# --- SEARCH ENGINE ---
+# Mount sub-routers
+app.include_router(license_router)
+app.include_router(integrations_router)
+app.include_router(shadow_ai_router)
+
+# ── Shared instances ──────────────────────────────────────────────────────────
 scanner = EnterpriseScanner()
-embeddings = OllamaEmbeddings(model="llama3.1")
-llm = OllamaLLM(model="llama3.1")
+india_scanner = IndiaPIIScanner()
+dpdp_engine = DPDPEngine()
+exporter = AuditExporter()
+
+# Vector store (lazy init, preserved from v1)
 vectorstore = None
 
-class Query(BaseModel):
-    prompt: str
+try:
+    from langchain_ollama import OllamaEmbeddings
+    embeddings = OllamaEmbeddings(model=os.getenv("OLLAMA_MODEL", "llama3.1"))
+except Exception:
+    embeddings = None
 
+
+# ── Startup ───────────────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def startup():
     global vectorstore
-    if os.path.exists(CHROMA_DIR):
-        vectorstore = Chroma(persist_directory=CHROMA_DIR, embedding_function=embeddings)
+    init_db()
+    policy_engine.reload()  # Load all YAML presets
 
+    if embeddings and os.path.exists(CHROMA_DIR):
+        try:
+            from langchain_chroma import Chroma
+            vectorstore = Chroma(persist_directory=CHROMA_DIR, embedding_function=embeddings)
+        except Exception:
+            pass
+
+    audit_ledger.log(
+        action="SYSTEM_STARTUP",
+        user_id="SYSTEM",
+        user_role="SUPER_ADMIN",
+        metadata={"version": "2.0.0"},
+    )
+
+
+# ── Schemas ───────────────────────────────────────────────────────────────────
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+    department: Optional[str] = None
+
+class Query(BaseModel):
+    prompt: str
+    preferred_model: Optional[str] = None
+    department: Optional[str] = None
+
+class PolicyUpdateRequest(BaseModel):
+    department: str
+    yaml_content: str
+
+
+# ── Auth Endpoints ────────────────────────────────────────────────────────────
+@app.post("/auth/login")
+def login(req: LoginRequest):
+    """
+    Demo login endpoint.
+    In production: validate against User table with bcrypt-hashed passwords.
+    Replace this with your SSO integration (Azure AD, Google Workspace).
+    """
+    # TODO: Replace with real DB lookup + bcrypt verify
+    demo_users = {
+        "admin@demo.com":   {"role": "SUPER_ADMIN",     "dept": "ADMIN"},
+        "head@demo.com":    {"role": "DEPARTMENT_HEAD", "dept": req.department or "ICU"},
+        "staff@demo.com":   {"role": "STAFF",           "dept": req.department or "ICU"},
+        "auditor@demo.com": {"role": "AUDITOR",         "dept": None},
+    }
+    user = demo_users.get(req.email)
+    if not user or req.password != "demo1234":
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_access_token({
+        "sub": req.email,
+        "email": req.email,
+        "role": user["role"],
+        "department": user["dept"],
+        "tenant_id": "default",
+    })
+    return {"access_token": token, "token_type": "bearer", "role": user["role"]}
+
+
+# ── Vault / Status Endpoints ──────────────────────────────────────────────────
 @app.get("/status")
-def get_status():
-    """Retrieves autonomous monitoring stats and alerts for law firm/clinic reporting."""
+def get_status(current_user: TokenPayload = Depends(get_current_user)):
+    """System status + infra health. Requires valid JWT."""
+    rbac.enforce(current_user.role, Permission.VIEW_VAULT_STATUS)
+
     data = {"processed_files": {}, "stats": {"leaks_blocked": 0, "hours_saved": 0}, "alerts": []}
-    
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, "rb") as f:
                 encrypted_data = f.read()
             raw_data = sentinel_crypto.decrypt_data(encrypted_data)
             data.update(json.loads(raw_data))
-        except: pass
-    
-    # Read last 10 alerts
-    if os.path.exists(alert_log):
-        try:
-            with open(alert_log, "r") as f:
-                lines = f.readlines()
-                data["alerts"] = [l.strip() for l in lines[-10:] if "CRITICAL" in l]
-        except: pass
-        
-    # Infra Health Check
+        except Exception:
+            pass
+
+    # Audit stats
+    audit_stats = audit_ledger.get_summary_stats()
+    chain = audit_ledger.verify_chain()
+
     try:
-        total, used, free = 0, 0, 0
-        if platform.system() == "Windows":
-            total, used, free = shutil.disk_usage(BASE_DIR)
-        else:
-            st = os.statvfs(BASE_DIR)
-            free = st.f_bavail * st.f_frsize
-            total = st.f_blocks * st.f_frsize
-        
-        data["infra"] = {
-            "disk_used_pct": round(((total - free) / total) * 100, 1) if total > 0 else 0,
-            "disk_free_gb": round(free / (1024**3), 2),
-            "ai_pulse": "HEALTHY" if vectorstore else "INITIALIZING",
-            "hardware_id": sentinel_crypto.get_machine_id()[:8] + "..."
+        st = os.statvfs(BASE_DIR) if platform.system() != "Windows" else None
+        free = float(st.f_bavail * st.f_frsize) if st else 0.0
+        total = float(st.f_blocks * st.f_frsize) if st else 1.0
+        disk_info = {
+            "disk_used_pct": round(float(((total - free) / total) * 100.0), 1),
+            "disk_free_gb": round(float(free / (1024**3)), 2),
         }
-    except:
-        data["infra"] = {"disk_used_pct": "??", "ai_pulse": "OFFLINE"}
+    except Exception:
+        disk_info = {"disk_used_pct": "??", "disk_free_gb": "??"}
 
-    return data
-
-@app.post("/ask")
-def query_vault(req: Query):
-    """Secure RAG Query with redaction verification."""
-    global vectorstore
-    if not vectorstore:
-        # Try once more to initialize if it was missing at startup
-        if os.path.exists(CHROMA_DIR):
-            try:
-                vectorstore = Chroma(persist_directory=CHROMA_DIR, embedding_function=embeddings)
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Index Load Fail: {e}")
-        
-    if not vectorstore:
-        raise HTTPException(status_code=400, detail="Vault empty or index not found.")
-
-    # Retrieval
-    results = vectorstore.similarity_search(req.prompt, k=4)
-    # Context is already redacted in Chroma, but we sanitize the final prompt just in case
-    context = "\n\n".join([doc.page_content for doc in results])
-    
-    # FINAL SAFETY: Scan the context AGAIN before presenting it for query
-    # (Paranoid defense for medical HIPAA/Legal compliance)
-    scan_results = scanner.scan_content(context)
-    safe_context = scanner.redact_content(context, scan_results)
-
-    prompt = f"""You are the 'Sentinel Shield Auditor', a secure internal intelligence system.
-    You are analyzing a 100% air-gapped vault for a professional firm (Law/Medical).
-    The context provided below has ALREADY been surgically redacted for PII and Secrets.
-    
-    Context from vault:
-    {safe_context}
-    
-    Task: Answer the user's question accurately using ONLY the context above. 
-    If you see [REDACTED_...], acknowledge it as blocked sensitive info but continue the analysis.
-    
-    Question: {req.prompt}
-    
-    Helpful Professional Answer:"""
-    
-    response = llm.invoke(prompt)
-    
     return {
-        "answer": response,
-        "sources": list(set([doc.metadata.get("source") for doc in results])),
-        "findings_alert": "SENSITIVE_DATA_REDACTED" if scan_results else "CLEAN"
+        **data,
+        "infra": {
+            **disk_info,
+            "ai_pulse": "HEALTHY" if vectorstore else "INITIALIZING",
+            "hardware_id": sentinel_crypto.get_machine_id()[:8] + "...",
+            "deployment_mode": os.getenv("DEPLOYMENT_MODE", "airgap").upper(),
+        },
+        "audit": {
+            "total_events": audit_stats.get("total_events", 0),
+            "total_redactions": audit_stats.get("total_redactions", 0),
+            "high_risk_blocked": audit_stats.get("high_risk_events", 0),
+            "chain_integrity": chain.get("valid", False),
+        },
+        "policies": policy_engine.list_policies(),
+        "available_models": model_router.list_available(),
     }
 
-@app.post("/export-audit")
-def export_audit():
-    """Generates a detailed CSV audit report for compliance officers."""
-    report_name = f"audit_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    report_path = os.path.join(LOGS_DIR, report_name)
-    
-    data = {"processed_files": {}}
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, "rb") as f:
-                encrypted_data = f.read()
-            raw_data = sentinel_crypto.decrypt_data(encrypted_data)
-            data = json.loads(raw_data)
-        except: pass
 
-    try:
-        with open(report_path, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["Timestamp", "File", "Risk Score", "Words Processed", "Status"])
-            for filename, meta in data.get("processed_files", {}).items():
-                writer.writerow([
-                    meta.get("timestamp"),
-                    filename,
-                    meta.get("score"),
-                    meta.get("words"),
-                    meta.get("status")
-                ])
-        return {"status": "success", "file": report_path}
-    except Exception as e:
-        return {"status": "error", "message": f"Export Failed: {e}"}
+@app.post("/ask")
+def query_vault(req: Query, current_user: TokenPayload = Depends(get_current_user)):
+    """
+    Secure AI Query with:
+     1. RBAC permission check
+     2. India PII + Presidio dual-layer scan + redaction
+     3. Policy engine evaluation (WARN / REDACT / BLOCK)
+     4. Governed model routing (Ollama / GPT-4 / Gemini)
+     5. Immutable audit logging
+    """
+    global vectorstore
+
+    rbac.enforce(current_user.role, Permission.RUN_AI_QUERY)
+
+    # ── Step 1: Dual-Layer Scan ──────────────────────────────────────────────
+    findings_us   = scanner.scan_content(req.prompt)
+    findings_india = india_scanner.scan(req.prompt)
+    all_findings   = findings_us + findings_india
+    risk_score     = scanner.calculate_risk_score(findings_us)
+
+    # ── Step 2: DPDP Classification ─────────────────────────────────────────
+    dpdp_meta = dpdp_engine.classify_text(req.prompt)
+
+    # ── Step 3: Policy Evaluation ────────────────────────────────────────────
+    dept = req.department or current_user.department
+    policy_decision = policy_engine.evaluate(
+        prompt=req.prompt,
+        findings=all_findings,
+        risk_score=risk_score,
+        department=dept,
+        model=req.preferred_model,
+    )
+
+    if policy_decision.action == EnforcementLevel.BLOCK:
+        audit_ledger.log(
+            action="PROMPT_BLOCKED",
+            user_id=current_user.sub,
+            user_role=current_user.role,
+            department=dept,
+            tenant_id=current_user.tenant_id,
+            prompt_text=req.prompt,
+            redactions_applied=[p for p in policy_decision.triggered_rules],
+            policy_triggered=policy_decision.block_reason,
+            model_queried=req.preferred_model,
+            risk_score=risk_score,
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "action": "BLOCKED",
+                "reason": policy_decision.block_reason,
+                "triggered_rules": policy_decision.triggered_rules,
+            }
+        )
+
+    # ── Step 4: Redact ───────────────────────────────────────────────────────
+    safe_prompt = scanner.redact_content(req.prompt, findings_us)
+    safe_prompt = india_scanner.redact(safe_prompt)
+    redaction_tags = list({scanner._build_redaction_token(f) for f in findings_us}
+                          | {f["redaction_tag"] for f in findings_india})
+
+    # ── Step 5: RAG Context ──────────────────────────────────────────────────
+    context = ""
+    if vectorstore:
+        try:
+            results = vectorstore.similarity_search(safe_prompt, k=4)
+            raw_ctx = "\n\n".join([doc.page_content for doc in results])
+            ctx_findings = scanner.scan_content(raw_ctx)
+            context = scanner.redact_content(raw_ctx, ctx_findings)
+            context = india_scanner.redact(context)
+        except Exception:
+            context = ""
+
+    # ── Step 6: Model Gateway ────────────────────────────────────────────────
+    if not policy_decision.model_allowed:
+        raise HTTPException(status_code=403, detail="Model not in policy allowlist for your department")
+
+    result = model_router.route(
+        prompt=safe_prompt,
+        preferred_model=req.preferred_model,
+        department=dept,
+        context=context,
+    )
+    raw_answer = result.get("answer", "")
+
+    # ── Step 7: Outbound DLP Scan (Prevention Layer) ────────────────────────
+    # Scans the AI's response for any hallucinated or leaked PII before sending
+    answer_findings_us = scanner.scan_content(raw_answer)
+    answer_findings_in = india_scanner.scan(raw_answer)
+    
+    safe_answer = scanner.redact_content(raw_answer, answer_findings_us)
+    safe_answer = india_scanner.redact(safe_answer)
+    
+    is_response_redacted = bool(answer_findings_us or answer_findings_in)
+
+    # ── Step 8: Audit ─────────────────────────────────────────────────────────
+    audit_ledger.log(
+        action="AI_QUERY",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        department=dept,
+        tenant_id=current_user.tenant_id,
+        prompt_text=req.prompt,
+        redactions_applied=redaction_tags,
+        policy_triggered=", ".join(policy_decision.triggered_rules) if policy_decision.triggered_rules else None,
+        model_queried=result.get("model_used"),
+        risk_score=risk_score,
+        metadata={
+            "dpdp": dpdp_meta, 
+            "fallback": result.get("fallback_used"),
+            "response_leaks_prevented": is_response_redacted
+        },
+    )
+
+    return {
+        "answer": safe_answer,
+        "model_used": result.get("model_used"),
+        "findings_alert": "SENSITIVE_DATA_REDACTED" if (all_findings or is_response_redacted) else "CLEAN",
+        "redactions_applied": len(redaction_tags) + (1 if is_response_redacted else 0),
+        "policy_warnings": policy_decision.warnings,
+        "risk_score": risk_score,
+        "dpdp_categories": dpdp_meta.get("dpdp_categories", []),
+        "outbound_secure": True,
+    }
+
+
+@app.post("/export-audit")
+def export_audit(
+    format: str = "csv",
+    current_user: TokenPayload = Depends(get_current_user)
+):
+    """Export the audit log as CSV or PDF."""
+    rbac.enforce(current_user.role, Permission.EXPORT_AUDIT_CSV)
+
+    entries = audit_ledger.get_entries(limit=10000, tenant_id=current_user.tenant_id)
+
+    if format.lower() == "pdf":
+        rbac.enforce(current_user.role, Permission.EXPORT_AUDIT_PDF)
+        stats = audit_ledger.get_summary_stats(tenant_id=current_user.tenant_id)
+        chain = audit_ledger.verify_chain()
+        pdf_path = exporter.to_pdf(
+            entries=entries,
+            stats=stats,
+            chain_valid=chain.get("valid", False),
+        )
+        if pdf_path:
+            return {"status": "success", "file": pdf_path, "format": "PDF"}
+        return {"status": "error", "message": "PDF export requires reportlab: pip install reportlab"}
+
+    csv_path = exporter.to_csv(entries=entries)
+    return {"status": "success", "file": csv_path, "format": "CSV"}
+
+
+@app.get("/audit/log")
+def get_audit_log(
+    limit: int = 100,
+    department: Optional[str] = None,
+    current_user: TokenPayload = Depends(get_current_user)
+):
+    """Retrieve audit log entries. Scoped by department for Dept Heads."""
+    rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
+
+    # Scope department access
+    dept_filter = None
+    if current_user.role not in ("SUPER_ADMIN", "AUDITOR"):
+        dept_filter = current_user.department
+
+    entries = audit_ledger.get_entries(
+        limit=limit,
+        department=dept_filter or department,
+        tenant_id=current_user.tenant_id,
+    )
+    chain = audit_ledger.verify_chain()
+    return {"entries": entries, "chain_valid": chain.get("valid"), "total": len(entries)}
+
+
+@app.get("/compliance/score")
+def get_compliance_score(current_user: TokenPayload = Depends(get_current_user)):
+    """Return multi-framework compliance scorecard."""
+    scorer = ComplianceScorer()
+    audit_stats = audit_ledger.get_summary_stats(tenant_id=current_user.tenant_id)
+    chain = audit_ledger.verify_chain()
+    dpdp_score = dpdp_engine.get_compliance_score()
+
+    scores = scorer.score(
+        audit_stats=audit_stats,
+        dpdp_score=dpdp_score,
+        chain_integrity=chain.get("valid", False),
+        active_policies=policy_engine.list_policies().get("total_rules", 0),
+        open_incidents=dpdp_score.get("open_incidents", 0),
+        is_global=True  # Ensure HIPAA/GDPR takes priority for foreign targets
+    )
+    return scores
+
+
+@app.get("/policy/list")
+def list_policies(current_user: TokenPayload = Depends(get_current_user)):
+    """List all loaded policies."""
+    rbac.enforce(current_user.role, Permission.VIEW_POLICY)
+    return policy_engine.list_policies()
+
+
+@app.post("/policy/reload")
+def reload_policies(current_user: TokenPayload = Depends(get_current_user)):
+    """Reload all YAML policies from disk (admin only)."""
+    rbac.enforce(current_user.role, Permission.EDIT_GLOBAL_POLICY)
+    policy_engine.reload()
+    return {"status": "reloaded", "summary": policy_engine.list_policies()}
+
 
 @app.post("/recovery-info")
-def get_recovery_info():
-    """Returns the hardware-locked recovery parameters (Not the key itself)."""
+def get_recovery_info(current_user: TokenPayload = Depends(get_current_user)):
+    """Returns hardware-locked recovery parameters."""
+    rbac.enforce(current_user.role, Permission.VIEW_LICENSE_STATUS)
     return {
         "machine_id": sentinel_crypto.get_machine_id(),
         "encryption_algo": "AES-256-GCM",
-        "instructions": "To move your vault to a new machine, you must provide your original Machine UUID."
+        "deployment_mode": os.getenv("DEPLOYMENT_MODE", "airgap").upper(),
+        "instructions": "To migrate vault to a new machine, provide your original Machine UUID to VishnuLabs support.",
+        "v2_note": "v2 supports cloud + air-gap modes. See LICENSE_SERVER_URL in .env for cloud licensing.",
     }
+
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)

@@ -1,0 +1,42 @@
+# Sentinel Shield v2 — Backend Dockerfile
+FROM python:3.11-slim
+
+LABEL maintainer="VishnuLabs <support@vishnulabs.com>"
+LABEL version="2.0"
+LABEL description="Sentinel Shield v2 — Enterprise AI Data Governance Backend"
+
+# Install system deps for Presidio + unstructured
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    poppler-utils \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    libmagic1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy requirements first for cache efficiency
+COPY requirements.txt ./
+COPY backend/requirements.txt ./backend_requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir -r backend_requirements.txt \
+    && python -m spacy download en_core_web_lg
+
+# Copy source
+COPY backend/ ./
+COPY presets/ /app/presets/
+COPY policies/ /app/policies/ 2>/dev/null || true
+
+# Create runtime dirs
+RUN mkdir -p /app/logs/audit /app/logs/exports /app/logs/dpdp \
+             /app/vault_docs /app/vault_archive /app/chroma_db
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+  CMD curl -f http://localhost:8000/status || exit 1
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

@@ -1,332 +1,904 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    ShieldCheck,
-    ShieldAlert,
-    Upload,
-    Search,
-    Lock,
-    Activity,
-    FileText,
-    AlertTriangle,
-    Send,
-    Loader2,
-    ChevronRight
+  ShieldCheck, ShieldAlert, Upload, Search, Lock, Activity,
+  FileText, AlertTriangle, Send, Loader2, Users, Settings,
+  BarChart3, ClipboardList, BookOpen, LogOut, RefreshCw,
+  CheckCircle2, XCircle, Eye, Download, ChevronRight,
+  Zap, Globe, Server, Database, Key, Bell
 } from 'lucide-react';
 import axios from 'axios';
 import {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis,
+  CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-const riskData = [
-    { name: '09:00', risk: 2.4 },
-    { name: '10:00', risk: 3.1 },
-    { name: '11:00', risk: 1.8 },
-    { name: '12:00', risk: 4.5 },
-    { name: '13:00', risk: 3.2 },
-    { name: '14:00', risk: 5.9 },
-    { name: '15:00', risk: 4.1 },
-];
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const api = axios.create({ baseURL: API_BASE });
+api.interceptors.request.use(cfg => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('sentinel_token') : null;
+  if (token) cfg.headers.Authorization = `Bearer ${token}`;
+  return cfg;
+});
 
-export default function Dashboard() {
-    const [activeTab, setActiveTab] = useState('overview');
-    const [isUploading, setIsUploading] = useState(false);
-    const [query, setQuery] = useState('');
-    const [chatHistory, setChatHistory] = useState<any[]>([]);
-    const [status, setStatus] = useState<any>(null);
-    const [loadingChat, setLoadingChat] = useState(false);
+const grade_color: Record<string, string> = {
+  A: 'text-emerald-400', B: 'text-blue-400', C: 'text-yellow-400',
+  D: 'text-orange-400', F: 'text-rose-400'
+};
 
-    useEffect(() => {
-        fetchStatus();
-    }, []);
+const risk_color = (score: number) =>
+  score >= 7 ? 'text-rose-400' : score >= 4 ? 'text-amber-400' : 'text-emerald-400';
 
-    const fetchStatus = async () => {
-        try {
-            const res = await axios.get(`${API_BASE}/status`);
-            setStatus(res.data);
-        } catch (e) {
-            console.error("Backend not reachable");
-        }
-    };
+// ── Login Screen ─────────────────────────────────────────────────────────────
+function LoginScreen({ onLogin }: { onLogin: (token: string, role: string) => void }) {
+  const [email, setEmail] = useState('admin@demo.com');
+  const [password, setPassword] = useState('demo1234');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-    const handleFileUpload = async (e: any) => {
-        const file = e.target.files[0];
-        if (!file) return;
+  const handleLogin = async () => {
+    setLoading(true); setError('');
+    try {
+      const res = await axios.post(`${API_BASE}/auth/login`, { email, password });
+      localStorage.setItem('sentinel_token', res.data.access_token);
+      onLogin(res.data.access_token, res.data.role);
+    } catch {
+      setError('Invalid credentials. Try admin@demo.com / demo1234');
+    } finally { setLoading(false); }
+  };
 
-        setIsUploading(true);
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-            await axios.post(`${API_BASE}/upload`, formData);
-            fetchStatus();
-        } catch (err) {
-            alert("Upload failed. Make sure backend is running.");
-        } finally {
-            setIsUploading(false);
-        }
-    };
-
-    const handleAsk = async () => {
-        if (!query.trim()) return;
-        setLoadingChat(true);
-        const userMsg = { role: 'user', content: query };
-        setChatHistory([...chatHistory, userMsg]);
-        setQuery('');
-
-        try {
-            const res = await axios.post(`${API_BASE}/ask`, { prompt: query });
-            setChatHistory(prev => [...prev, { role: 'bot', ...res.data }]);
-        } catch (err) {
-            setChatHistory(prev => [...prev, { role: 'bot', answer: "Error: No response from Sentinel. Is the engine running?", risk_level: 'ERROR' }]);
-        } finally {
-            setLoadingChat(false);
-        }
-    };
-
-    return (
-        <div className="min-h-screen bg-black text-slate-200 font-sans selection:bg-emerald-500/30">
-            {/* Sidebar / Nav */}
-            <nav className="fixed top-0 left-0 w-64 h-full border-r border-white/10 bg-[#050505] p-6 z-50">
-                <div className="flex items-center gap-3 mb-10">
-                    <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                        <Lock className="text-white w-6 h-6" />
-                    </div>
-                    <h1 className="text-xl font-bold tracking-tight text-white">SENTINEL<span className="text-emerald-500">VAULT</span> <span className="text-[10px] ml-1 opacity-50">V1</span></h1>
-                </div>
-
-                <div className="space-y-2">
-                    {[
-                        { id: 'overview', icon: Activity, label: 'Security Overview' },
-                        { id: 'chat', icon: Send, label: 'Vault Intelligence' },
-                        { id: 'files', icon: FileText, label: 'Document Audit' },
-                        { id: 'settings', icon: ShieldCheck, label: 'Access Control' },
-                    ].map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() => setActiveTab(item.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeTab === item.id
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
-                                }`}
-                        >
-                            <item.icon size={20} />
-                            <span className="font-medium">{item.label}</span>
-                        </button>
-                    ))}
-                </div>
-
-                <div className="absolute bottom-8 left-6 right-6">
-                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">System Status</span>
-                        </div>
-                        <p className="text-sm text-slate-300">Vault Core: 100% Secure</p>
-                    </div>
-                </div>
-            </nav>
-
-            {/* Main Content */}
-            <main className="pl-64 pt-8 pb-12 transition-all">
-                <div className="max-w-6xl mx-auto px-8">
-                    <header className="flex justify-between items-end mb-12">
-                        <div>
-                            <h2 className="text-3xl font-bold text-white mb-2">Enterprise Intelligence</h2>
-                            <p className="text-slate-500">Air-gapped security monitoring & RAG insights.</p>
-                        </div>
-                        <div className="flex gap-4">
-                            <label className="cursor-pointer bg-white text-black px-6 py-2.5 rounded-full font-bold hover:bg-emerald-400 transition-all flex items-center gap-2 shadow-lg shadow-white/5">
-                                <Upload size={18} />
-                                {isUploading ? 'Analyzing...' : 'Ingest Document'}
-                                <input type="file" className="hidden" onChange={handleFileUpload} />
-                            </label>
-                        </div>
-                    </header>
-
-                    <AnimatePresence mode="wait">
-                        {activeTab === 'overview' && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                className="grid grid-cols-12 gap-6"
-                            >
-                                {/* Stats */}
-                                <div className="col-span-4 p-6 bg-[#0a0a0a] border border-white/10 rounded-3xl relative overflow-hidden group">
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-[60px] group-hover:bg-emerald-500/20 transition-all" />
-                                    <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-4">Total Documents</p>
-                                    <p className="text-5xl font-bold text-white mb-2">{status?.documents_count || 0}</p>
-                                    <div className="flex items-center gap-2 text-emerald-500 text-sm font-medium">
-                                        <ShieldCheck size={16} /> Verified Security
-                                    </div>
-                                </div>
-
-                                <div className="col-span-4 p-6 bg-[#0a0a0a] border border-white/10 rounded-3xl relative overflow-hidden group">
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 blur-[60px]" />
-                                    <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-4">Autonomous Monitor</p>
-                                    <p className="text-5xl font-bold text-rose-500 mb-2">LIVE</p>
-                                    <div className="flex items-center gap-2 text-rose-400 text-sm font-medium">
-                                        <Activity size={16} className="animate-pulse" /> 24/7 Watchdog Active
-                                    </div>
-                                </div>
-
-                                <div className="col-span-4 p-6 bg-[#0a0a0a] border border-white/10 rounded-3xl relative overflow-hidden group">
-                                    <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-[60px]" />
-                                    <p className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-4">Air-Gap Status</p>
-                                    <p className="text-5xl font-bold text-purple-400 mb-2">100%</p>
-                                    <div className="flex items-center gap-2 text-purple-400 text-sm font-medium">
-                                        <Lock size={16} /> Zero Network Leakage
-                                    </div>
-                                </div>
-
-                                {/* Chart */}
-                                <div className="col-span-8 p-8 bg-[#0a0a0a] border border-white/10 rounded-3xl min-h-[400px]">
-                                    <h3 className="text-lg font-bold text-white mb-8">Security Risk Propagation</h3>
-                                    <div className="h-[300px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={riskData}>
-                                                <defs>
-                                                    <linearGradient id="colorRisk" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                                                <XAxis dataKey="name" stroke="#555" fontSize={12} tickLine={false} axisLine={false} />
-                                                <YAxis stroke="#555" fontSize={12} tickLine={false} axisLine={false} />
-                                                <Tooltip
-                                                    contentStyle={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '12px' }}
-                                                    itemStyle={{ color: '#10b981' }}
-                                                />
-                                                <Area type="monotone" dataKey="risk" stroke="#10b981" fillOpacity={1} fill="url(#colorRisk)" strokeWidth={3} />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-
-                                <div className="col-span-4 p-8 bg-[#0a0a0a] border border-white/10 rounded-3xl">
-                                    <h3 className="text-lg font-bold text-white mb-6">Recent Findings</h3>
-                                    <div className="space-y-4">
-                                        {[
-                                            { label: 'AWS Secret Detected', risk: 'HIGH', time: '2m ago' },
-                                            { label: 'Unmasked PII found', risk: 'MED', time: '1h ago' },
-                                            { label: 'SSH Key Exposed', risk: 'CRIT', time: '4h ago' },
-                                        ].map((leak, i) => (
-                                            <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
-                                                <div>
-                                                    <p className="text-sm font-bold text-slate-200">{leak.label}</p>
-                                                    <p className="text-xs text-slate-500">{leak.time}</p>
-                                                </div>
-                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${leak.risk === 'CRIT' ? 'bg-rose-500/20 text-rose-400' : 'bg-orange-500/20 text-orange-400'
-                                                    }`}>
-                                                    {leak.risk}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {activeTab === 'chat' && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.98 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.98 }}
-                                className="flex flex-col h-[75vh] bg-[#0a0a0a] border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
-                            >
-                                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-[#070707]">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
-                                            <ShieldCheck className="text-emerald-500 w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-white">Sentinel AI Intelligence</h3>
-                                            <p className="text-xs text-slate-500">Operational with Llama-3 (Local)</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex-1 overflow-y-auto p-8 space-y-6 scrollbar-hide">
-                                    {chatHistory.length === 0 && (
-                                        <div className="h-full flex flex-col items-center justify-center text-center">
-                                            <div className="w-16 h-16 bg-white/5 rounded-3xl flex items-center justify-center mb-6 border border-white/10">
-                                                <Lock className="text-slate-400" size={32} />
-                                            </div>
-                                            <h4 className="text-xl font-bold text-white mb-2">Secure Query Interface</h4>
-                                            <p className="text-slate-500 max-w-sm">Ask anything about your internal documents. All processing is kept strictly local and air-gapped.</p>
-                                        </div>
-                                    )}
-                                    {chatHistory.map((msg, i) => (
-                                        <motion.div
-                                            initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            key={i}
-                                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                        >
-                                            <div className={`max-w-[80%] p-4 rounded-2xl ${msg.role === 'user'
-                                                ? 'bg-emerald-600 text-white rounded-tr-none shadow-lg shadow-emerald-900/10'
-                                                : 'bg-white/5 border border-white/10 text-slate-200 rounded-tl-none'
-                                                }`}>
-                                                {msg.role === 'bot' && (
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold bg-white/10 ${msg.risk_level === 'HIGH' ? 'bg-rose-500/20 text-rose-400' : 'text-emerald-400'
-                                                            }`}>
-                                                            Risk: {msg.risk_level || 'CLEAN'}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{msg.answer || msg.content}</p>
-                                                {msg.sources && (
-                                                    <div className="mt-3 pt-3 border-t border-white/10 flex gap-2">
-                                                        {msg.sources.map((src: string, j: number) => (
-                                                            <span key={j} className="text-[10px] bg-white/5 px-2 py-1 rounded text-slate-500 italic">
-                                                                {src}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </motion.div>
-                                    ))}
-                                    {loadingChat && (
-                                        <div className="flex justify-start">
-                                            <div className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-3">
-                                                <Loader2 className="animate-spin text-emerald-500" size={18} />
-                                                <span className="text-sm text-slate-400">Sentinel is analyzing vault...</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="p-6 bg-[#070707] border-t border-white/10">
-                                    <div className="relative flex items-center">
-                                        <input
-                                            type="text"
-                                            value={query}
-                                            onChange={(e) => setQuery(e.target.value)}
-                                            onKeyPress={(e) => e.key === 'Enter' && handleAsk()}
-                                            placeholder="Type your security query..."
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-6 pr-16 text-white focus:outline-none focus:border-emerald-500/50 transition-all placeholder:text-slate-600"
-                                        />
-                                        <button
-                                            onClick={handleAsk}
-                                            className="absolute right-3 w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-black hover:bg-emerald-400 transition-all shadow-lg"
-                                        >
-                                            <Send size={18} />
-                                        </button>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-            </main>
+  return (
+    <div className="min-h-screen bg-[#030303] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-emerald-950/40 via-transparent to-transparent" />
+      <motion.div
+        initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }}
+        className="relative w-full max-w-md"
+      >
+        <div className="mb-8 text-center">
+          <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
+            <Lock className="text-emerald-400 w-8 h-8" />
+          </div>
+          <h1 className="text-3xl font-black text-white tracking-tight">SENTINEL <span className="text-emerald-400">SHIELD</span></h1>
+          <p className="text-slate-500 mt-2">Enterprise AI Data Governance · v2.0</p>
         </div>
-    );
+
+        <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+          {error && (
+            <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm flex items-center gap-2">
+              <XCircle size={14} /> {error}
+            </div>
+          )}
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">Email</label>
+              <input id="login-email" value={email} onChange={e => setEmail(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500/50 transition-all"
+                placeholder="you@org.com" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">Password</label>
+              <input id="login-password" type="password" value={password} onChange={e => setPassword(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500/50 transition-all"
+                placeholder="••••••••" />
+            </div>
+            <button id="login-btn" onClick={handleLogin} disabled={loading}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 mt-2 shadow-[0_0_24px_rgba(16,185,129,0.25)]">
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+              {loading ? 'Authenticating…' : 'Secure Login'}
+            </button>
+          </div>
+          <div className="mt-5 pt-5 border-t border-white/5">
+            <p className="text-xs text-slate-600 text-center">Demo accounts: admin · head · staff · auditor @demo.com / demo1234</p>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+function StatCard({ label, value, sub, glow = 'emerald', icon: Icon }:
+  { label: string; value: string | number; sub: string; glow?: string; icon: any }) {
+  const glows: Record<string, string> = {
+    emerald: 'bg-emerald-500/10', rose: 'bg-rose-500/10',
+    purple: 'bg-purple-500/10', blue: 'bg-blue-500/10', amber: 'bg-amber-500/10'
+  };
+  const texts: Record<string, string> = {
+    emerald: 'text-emerald-400', rose: 'text-rose-400',
+    purple: 'text-purple-400', blue: 'text-blue-400', amber: 'text-amber-400'
+  };
+  return (
+    <div className="p-6 bg-[#0a0a0a] border border-white/8 rounded-2xl relative overflow-hidden group hover:border-white/15 transition-all">
+      <div className={`absolute top-0 right-0 w-28 h-28 ${glows[glow]} blur-[60px] group-hover:opacity-150 transition-all`} />
+      <div className={`w-9 h-9 ${glows[glow]} rounded-xl flex items-center justify-center mb-4`}>
+        <Icon size={18} className={texts[glow]} />
+      </div>
+      <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">{label}</p>
+      <p className={`text-4xl font-black mb-1 ${texts[glow]}`}>{value}</p>
+      <p className="text-xs text-slate-600">{sub}</p>
+    </div>
+  );
+}
+
+// ── Overview Tab ──────────────────────────────────────────────────────────────
+function OverviewTab({ status }: { status: any }) {
+  const stats = status?.stats || {};
+  const audit = status?.audit || {};
+  const infra = status?.infra || {};
+  const policies = status?.policies || {};
+  const models = status?.available_models || {};
+
+  const riskHistory = [
+    { t: '06:00', risk: 1.2 }, { t: '08:00', risk: 2.8 }, { t: '10:00', risk: 4.1 },
+    { t: '12:00', risk: 3.3 }, { t: '14:00', risk: 5.9 }, { t: '16:00', risk: 4.2 },
+    { t: '18:00', risk: 2.1 }, { t: '20:00', risk: 1.8 },
+  ];
+
+  const frameworkScores = status?.compliance_score?.framework_scores
+    ? Object.entries(status.compliance_score.framework_scores).map(([k, v]) => ({ name: k.replace('_LITE', ''), val: v as number }))
+    : [{ name: 'HIPAA', val: 95 }, { name: 'DPDP', val: 87 }, { name: 'GDPR', val: 91 }];
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      {/* KPI Row */}
+      <div className="grid grid-cols-4 gap-4">
+        <StatCard icon={ShieldCheck} label="Leaks Blocked" value={stats.leaks_blocked ?? 0} sub="Total interceptions" glow="emerald" />
+        <StatCard icon={FileText} label="Audit Events" value={audit.total_events ?? 0} sub="Immutable log entries" glow="blue" />
+        <StatCard icon={AlertTriangle} label="High-Risk Events" value={audit.high_risk_blocked ?? 0} sub="Risk score > 7.0" glow="rose" />
+        <StatCard icon={Zap} label="Redactions Applied" value={audit.total_redactions ?? 0} sub="PII tokens removed" glow="amber" />
+      </div>
+
+      {/* Charts row */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="col-span-2 p-6 bg-[#0a0a0a] border border-white/8 rounded-2xl">
+          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-5">Risk Score Timeline</h3>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={riskHistory}>
+                <defs>
+                  <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" vertical={false} />
+                <XAxis dataKey="t" stroke="#333" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 10]} stroke="#333" fontSize={11} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ background: '#111', border: '1px solid #222', borderRadius: 12, fontSize: 12 }} itemStyle={{ color: '#10b981' }} />
+                <Area type="monotone" dataKey="risk" stroke="#10b981" fill="url(#rg)" strokeWidth={2} dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="p-6 bg-[#0a0a0a] border border-white/8 rounded-2xl">
+          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-5">Compliance Scores</h3>
+          <div className="space-y-3">
+            {frameworkScores.map(f => (
+              <div key={f.name}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-400">{f.name}</span>
+                  <span className={f.val >= 90 ? 'text-emerald-400' : f.val >= 75 ? 'text-blue-400' : 'text-amber-400'}>{f.val}</span>
+                </div>
+                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full ${f.val >= 90 ? 'bg-emerald-500' : f.val >= 75 ? 'bg-blue-500' : 'bg-amber-500'}`}
+                    style={{ width: `${f.val}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 pt-4 border-t border-white/5">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${audit.chain_integrity ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+              <span className="text-xs text-slate-500">Audit chain {audit.chain_integrity ? 'VERIFIED ✓' : '⚠ BROKEN'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Infra + Policies */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="p-5 bg-[#0a0a0a] border border-white/8 rounded-2xl space-y-3">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">System Health</h3>
+          {[
+            { label: 'Deployment Mode', val: infra.deployment_mode || 'AIRGAP', icon: Server },
+            { label: 'Disk Free', val: `${infra.disk_free_gb ?? '??'} GB`, icon: Database },
+            { label: 'AI Engine', val: infra.ai_pulse || 'UNKNOWN', icon: Zap },
+            { label: 'Hardware ID', val: infra.hardware_id || '…', icon: Key },
+          ].map(row => (
+            <div key={row.label} className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-slate-500">
+                <row.icon size={13} />
+                <span className="text-xs">{row.label}</span>
+              </div>
+              <span className="text-xs font-mono text-slate-300">{row.val}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-5 bg-[#0a0a0a] border border-white/8 rounded-2xl space-y-3">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Policy Engine</h3>
+          <div className="text-3xl font-black text-white">{policies.total_rules ?? 0} <span className="text-sm font-normal text-slate-500">rules loaded</span></div>
+          <div className="space-y-1.5">
+            {Object.entries(policies.department_policies || {}).slice(0, 4).map(([dept, count]) => (
+              <div key={dept} className="flex justify-between text-xs">
+                <span className="text-slate-500">{dept}</span>
+                <span className="text-emerald-400">{count as number} rules</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-5 bg-[#0a0a0a] border border-white/8 rounded-2xl space-y-3">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Model Gateway</h3>
+          {Object.keys(models).length === 0
+            ? <p className="text-xs text-slate-600">No models connected</p>
+            : Object.entries(models).map(([m, ok]) => (
+              <div key={m} className="flex items-center justify-between">
+                <span className="text-xs text-slate-400 font-mono">{m}</span>
+                <div className={`w-2 h-2 rounded-full ${ok ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Vault Intelligence Tab ─────────────────────────────────────────────────────
+function VaultTab({ role }: { role: string }) {
+  const [query, setQuery] = useState('');
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [dept, setDept] = useState('');
+  const [model, setModel] = useState('');
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history]);
+
+  const ask = async () => {
+    if (!query.trim()) return;
+    const q = query; setQuery(''); setLoading(true);
+    setHistory(h => [...h, { role: 'user', content: q }]);
+    try {
+      const res = await api.post('/ask', { prompt: q, department: dept || undefined, preferred_model: model || undefined });
+      setHistory(h => [...h, { role: 'bot', ...res.data }]);
+    } catch (e: any) {
+      const detail = e.response?.data?.detail;
+      const blocked = typeof detail === 'object' && detail?.action === 'BLOCKED';
+      setHistory(h => [...h, {
+        role: 'bot',
+        answer: blocked ? `🚨 BLOCKED by policy: ${detail.reason}` : `Error: ${e.response?.status || 'No response from backend'}`,
+        findings_alert: blocked ? 'BLOCKED' : 'ERROR',
+        risk_score: 10,
+      }]);
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-[76vh] bg-[#080808] border border-white/8 rounded-2xl overflow-hidden">
+      <div className="p-5 border-b border-white/8 flex items-center justify-between bg-[#060606]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-emerald-500/15 rounded-lg flex items-center justify-center">
+            <ShieldCheck className="text-emerald-400" size={16} />
+          </div>
+          <div>
+            <p className="font-bold text-white text-sm">Sentinel Intelligence</p>
+            <p className="text-xs text-slate-600">All prompts scanned · PII redacted · Audit logged</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <select id="dept-select" value={dept} onChange={e => setDept(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-400 focus:outline-none">
+            <option value="">All Departments</option>
+            {['HOSPITAL', 'ICU', 'LEGAL', 'FINANCE', 'HR', 'LAW_FIRM', 'IVF_CLINIC'].map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+          <select id="model-select" value={model} onChange={e => setModel(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-400 focus:outline-none">
+            <option value="">Auto Model</option>
+            <option value="ollama/llama3.1">Ollama (Local)</option>
+            <option value="openai/gpt-4o">GPT-4o</option>
+            <option value="anthropic/claude-3-5-sonnet-20241022">Claude Sonnet</option>
+            <option value="gemini/gemini-1.5-pro">Gemini Pro</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        {history.length === 0 && (
+          <div className="h-full flex flex-col items-center justify-center text-center">
+            <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/8">
+              <Lock className="text-slate-500" size={24} />
+            </div>
+            <p className="font-bold text-white mb-1">Secure Query Interface</p>
+            <p className="text-sm text-slate-600 max-w-xs">Ask anything about your documents. Every prompt is scanned, redacted, and audit-logged before reaching the AI.</p>
+          </div>
+        )}
+        {history.map((msg, i) => (
+          <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[78%] p-4 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
+              ? 'bg-emerald-600/90 text-white'
+              : msg.findings_alert === 'BLOCKED' ? 'bg-rose-950/50 border border-rose-500/20 text-rose-300'
+                : 'bg-white/[0.04] border border-white/8 text-slate-200'}`}>
+              {msg.role === 'bot' && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${msg.findings_alert === 'CLEAN' ? 'bg-emerald-500/15 text-emerald-400'
+                    : msg.findings_alert === 'BLOCKED' ? 'bg-rose-500/20 text-rose-400'
+                      : 'bg-amber-500/15 text-amber-400'}`}>
+                    {msg.findings_alert || 'CLEAN'}
+                  </span>
+                  {msg.risk_score != null && (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold bg-white/5 ${risk_color(msg.risk_score)}`}>
+                      Risk {msg.risk_score?.toFixed(1)}
+                    </span>
+                  )}
+                  {msg.redactions_applied > 0 && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-purple-500/15 text-purple-400">
+                      {msg.redactions_applied} redacted
+                    </span>
+                  )}
+                  {msg.model_used && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-500/10 text-blue-400">
+                      {msg.model_used}
+                    </span>
+                  )}
+                </div>
+              )}
+              <p className="whitespace-pre-wrap">{msg.answer || msg.content}</p>
+            </div>
+          </motion.div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="bg-white/5 border border-white/8 p-4 rounded-2xl flex items-center gap-3">
+              <Loader2 className="animate-spin text-emerald-500" size={16} />
+              <span className="text-sm text-slate-500">Scanning · Redacting · Routing…</span>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      <div className="p-5 border-t border-white/8 bg-[#060606]">
+        <div className="flex gap-3">
+          <input id="vault-query-input" value={query} onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && ask()}
+            placeholder="Ask your secure vault anything…"
+            className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 px-5 text-sm text-white focus:outline-none focus:border-emerald-500/40 transition-all placeholder:text-slate-600" />
+          <button id="vault-send-btn" onClick={ask} disabled={loading || !query.trim()}
+            className="w-11 h-11 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 rounded-xl flex items-center justify-center text-black transition-all shadow-[0_0_16px_rgba(16,185,129,0.2)]">
+            <Send size={16} />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Audit Log Tab ─────────────────────────────────────────────────────────────
+function AuditLogTab() {
+  const [entries, setEntries] = useState<any[]>([]);
+  const [chainValid, setChainValid] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => { loadAudit(); }, []);
+
+  const loadAudit = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/audit/log?limit=100');
+      setEntries(res.data.entries || []);
+      setChainValid(res.data.chain_valid !== false);
+    } catch { } finally { setLoading(false); }
+  };
+
+  const exportAudit = async (fmt: string) => {
+    setExporting(true);
+    try {
+      const res = await api.post(`/export-audit?format=${fmt}`);
+      alert(`✅ Exported: ${res.data.file}`);
+    } catch { alert('Export failed — check backend.'); } finally { setExporting(false); }
+  };
+
+  const actionColor = (a: string) => {
+    if (a?.includes('BLOCK')) return 'bg-rose-500/15 text-rose-400';
+    if (a?.includes('QUERY')) return 'bg-blue-500/15 text-blue-400';
+    if (a?.includes('STARTUP')) return 'bg-slate-500/15 text-slate-400';
+    return 'bg-emerald-500/15 text-emerald-400';
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-bold text-white">Immutable Audit Ledger</h2>
+          <span className={`text-xs px-2 py-1 rounded-full font-bold ${chainValid ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}`}>
+            {chainValid ? '⛓ Chain Verified' : '⚠ Chain Broken'}
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <button id="audit-refresh-btn" onClick={loadAudit} className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all">
+            <RefreshCw size={14} className="text-slate-400" />
+          </button>
+          <button id="audit-export-csv-btn" onClick={() => exportAudit('csv')} disabled={exporting}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-slate-300 hover:bg-white/10 transition-all">
+            <Download size={13} /> CSV
+          </button>
+          <button id="audit-export-pdf-btn" onClick={() => exportAudit('pdf')} disabled={exporting}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all">
+            <FileText size={13} /> PDF Report
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-[#080808] border border-white/8 rounded-2xl overflow-hidden">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-white/8">
+              {['Timestamp', 'User', 'Role', 'Action', 'Dept', 'Risk', 'Redactions', 'Policy'].map(h => (
+                <th key={h} className="text-left px-4 py-3 text-slate-600 font-bold uppercase tracking-widest text-[10px]">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-600">
+                <Loader2 size={18} className="animate-spin mx-auto" />
+              </td></tr>
+            ) : entries.length === 0 ? (
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-600">No audit entries yet. Run a query to generate logs.</td></tr>
+            ) : entries.map((e, i) => (
+              <tr key={i} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-all">
+                <td className="px-4 py-2.5 font-mono text-slate-500">{e.timestamp?.slice(0, 16).replace('T', ' ')}</td>
+                <td className="px-4 py-2.5 text-slate-300 truncate max-w-[120px]">{e.user_id}</td>
+                <td className="px-4 py-2.5 text-slate-500">{e.user_role}</td>
+                <td className="px-4 py-2.5">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${actionColor(e.action)}`}>{e.action}</span>
+                </td>
+                <td className="px-4 py-2.5 text-slate-500">{e.department || '—'}</td>
+                <td className="px-4 py-2.5">
+                  <span className={risk_color(e.risk_score ?? 0)}>{e.risk_score?.toFixed(1) ?? '—'}</span>
+                </td>
+                <td className="px-4 py-2.5 text-slate-500">{e.redactions_applied?.length || 0}</td>
+                <td className="px-4 py-2.5 text-slate-600 truncate max-w-[100px]">{e.policy_triggered || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-slate-700 text-right font-mono">SHA-256 hash chain · every entry cryptographically linked</p>
+    </motion.div>
+  );
+}
+
+// ── Policy Editor Tab ─────────────────────────────────────────────────────────
+function PolicyTab({ role }: { role: string }) {
+  const [summary, setSummary] = useState<any>({});
+  const [yaml, setYaml] = useState(`department: MY_DEPARTMENT
+policy_name: My Custom Policy
+
+rules:
+  - name: Block Patient Names
+    description: Block raw patient identifiers from AI models
+    entity_types:
+      - PERSON
+    keywords:
+      - "patient name"
+      - "uhid"
+    enforcement: block
+    risk_threshold: 6.0
+`);
+  const [validation, setValidation] = useState<any>(null);
+  const [reloading, setReloading] = useState(false);
+  const canEdit = ['SUPER_ADMIN', 'DEPARTMENT_HEAD'].includes(role);
+
+  useEffect(() => {
+    api.get('/policy/list').then(r => setSummary(r.data)).catch(() => { });
+  }, []);
+
+  const validateYaml = async () => {
+    try {
+      const res = await api.post('/policy/validate-yaml', { yaml_content: yaml });
+      setValidation(res.data);
+    } catch {
+      setValidation({ valid: false, errors: ['Backend validation unavailable — check YAML syntax manually.'], rules_parsed: 0 });
+    }
+  };
+
+  const reloadPolicies = async () => {
+    setReloading(true);
+    try {
+      const res = await api.post('/policy/reload');
+      setSummary(res.data.summary);
+      alert('✅ Policies reloaded from disk.');
+    } catch { alert('Reload failed.'); } finally { setReloading(false); }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-white">Policy Engine</h2>
+          <p className="text-xs text-slate-500">{summary.total_rules ?? 0} rules active across {Object.keys(summary.department_policies || {}).length} departments</p>
+        </div>
+        {canEdit && (
+          <button id="policy-reload-btn" onClick={reloadPolicies} disabled={reloading}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all">
+            <RefreshCw size={13} className={reloading ? 'animate-spin' : ''} /> Reload from Disk
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-5 gap-4">
+        {/* Dept list */}
+        <div className="col-span-2 p-5 bg-[#080808] border border-white/8 rounded-2xl space-y-2">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Loaded Policies</h3>
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+            <span className="text-xs text-slate-400">Global Rules</span>
+            <span className="text-xs font-bold text-emerald-400">{summary.global_rules ?? 0}</span>
+          </div>
+          {Object.entries(summary.department_policies || {}).map(([dept, count]) => (
+            <div key={dept} className="flex items-center justify-between p-3 bg-white/5 rounded-xl hover:bg-white/8 transition-all cursor-pointer">
+              <span className="text-xs text-slate-400">{dept}</span>
+              <span className="text-xs font-bold text-blue-400">{count as number} rules</span>
+            </div>
+          ))}
+          <div className="mt-4 pt-4 border-t border-white/5">
+            <p className="text-[10px] text-slate-700">Presets: hospital · ivf_clinic · law_firm · real_estate · logistics</p>
+          </div>
+        </div>
+
+        {/* YAML editor */}
+        <div className="col-span-3 space-y-3">
+          <div className="bg-[#080808] border border-white/8 rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/8 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">YAML Policy Editor</span>
+              {!canEdit && <span className="text-xs text-amber-400 bg-amber-500/10 px-2 py-1 rounded">Read-only</span>}
+            </div>
+            <textarea id="policy-yaml-editor"
+              value={yaml} onChange={e => setYaml(e.target.value)} readOnly={!canEdit}
+              className="w-full h-64 bg-transparent font-mono text-xs text-slate-300 p-4 focus:outline-none resize-none placeholder:text-slate-700"
+              spellCheck={false} />
+          </div>
+
+          {validation && (
+            <div className={`p-3 rounded-xl border text-xs ${validation.valid ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+              {validation.valid
+                ? `✅ Valid — ${validation.rules_parsed} rules parsed for "${validation.department}"`
+                : `❌ Invalid: ${validation.errors?.join(', ')}`}
+            </div>
+          )}
+
+          {canEdit && (
+            <div className="flex gap-2">
+              <button id="policy-validate-btn" onClick={validateYaml}
+                className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-slate-300 hover:bg-white/10 transition-all">
+                Validate YAML
+              </button>
+              <button id="policy-save-btn" onClick={() => alert('Save to presets/ directory and click Reload from Disk.')}
+                className="flex-1 py-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs font-bold text-blue-400 hover:bg-blue-500/20 transition-all">
+                Save Policy
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── User Management Tab ───────────────────────────────────────────────────────
+function UsersTab({ role }: { role: string }) {
+  const demoUsers = [
+    { email: 'admin@demo.com', role: 'SUPER_ADMIN', dept: 'ADMIN', active: true, mfa: true },
+    { email: 'head@demo.com', role: 'DEPARTMENT_HEAD', dept: 'ICU', active: true, mfa: false },
+    { email: 'staff@demo.com', role: 'STAFF', dept: 'ICU', active: true, mfa: false },
+    { email: 'auditor@demo.com', role: 'AUDITOR', dept: null, active: true, mfa: true },
+  ];
+
+  const roleColors: Record<string, string> = {
+    SUPER_ADMIN: 'bg-rose-500/15 text-rose-400',
+    DEPARTMENT_HEAD: 'bg-purple-500/15 text-purple-400',
+    STAFF: 'bg-blue-500/15 text-blue-400',
+    AUDITOR: 'bg-amber-500/15 text-amber-400',
+  };
+  const canManage = role === 'SUPER_ADMIN';
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-white">User Management</h2>
+          <p className="text-xs text-slate-500">RBAC: SUPER_ADMIN · DEPARTMENT_HEAD · STAFF · AUDITOR</p>
+        </div>
+        {canManage && (
+          <button id="add-user-btn" onClick={() => alert('User creation form — connect to /auth/register POST endpoint.')}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all">
+            <Users size={13} /> Add User
+          </button>
+        )}
+      </div>
+
+      <div className="bg-[#080808] border border-white/8 rounded-2xl overflow-hidden">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-white/8">
+              {['User', 'Role', 'Department', 'MFA', 'Status', canManage ? 'Actions' : ''].map(h => h && (
+                <th key={h} className="text-left px-5 py-3 text-slate-600 font-bold uppercase tracking-widest text-[10px]">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {demoUsers.map((u, i) => (
+              <tr key={i} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-all">
+                <td className="px-5 py-3.5 text-slate-200">{u.email}</td>
+                <td className="px-5 py-3.5">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${roleColors[u.role]}`}>{u.role}</span>
+                </td>
+                <td className="px-5 py-3.5 text-slate-500">{u.dept || 'Cross-dept'}</td>
+                <td className="px-5 py-3.5">
+                  {u.mfa
+                    ? <CheckCircle2 size={14} className="text-emerald-400" />
+                    : <XCircle size={14} className="text-slate-700" />}
+                </td>
+                <td className="px-5 py-3.5">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold">ACTIVE</span>
+                </td>
+                {canManage && (
+                  <td className="px-5 py-3.5">
+                    <button className="text-slate-600 hover:text-slate-400 transition-all"><Eye size={13} /></button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { role: 'SUPER_ADMIN', perms: 'Full access · license management · all departments' },
+          { role: 'DEPARTMENT_HEAD', perms: 'Own dept policies · audit export · user view' },
+          { role: 'STAFF', perms: 'AI queries · document ingestion · own session view' },
+        ].map(r => (
+          <div key={r.role} className="p-4 bg-[#080808] border border-white/8 rounded-xl">
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${roleColors[r.role]}`}>{r.role}</span>
+            <p className="text-xs text-slate-600 mt-2">{r.perms}</p>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Compliance Tab ─────────────────────────────────────────────────────────────
+function ComplianceTab() {
+  const [score, setScore] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/compliance/score').then(r => setScore(r.data)).catch(() => { }).finally(() => setLoading(false));
+  }, []);
+
+  const frameworks = score?.framework_scores
+    ? Object.entries(score.framework_scores).map(([k, v]) => ({ name: k, val: v as number, grade: score.framework_grades?.[k] }))
+    : [];
+
+  const pieData = frameworks.length > 0
+    ? frameworks.map(f => ({ name: f.name.replace('_LITE', ''), value: f.val }))
+    : [{ name: 'Loading', value: 100 }];
+
+  const PIE_COLORS = ['#10b981', '#3b82f6', '#a855f7', '#f59e0b'];
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <h2 className="text-lg font-bold text-white">Compliance Scorecard</h2>
+
+      {loading ? (
+        <div className="flex items-center justify-center h-40"><Loader2 className="animate-spin text-emerald-500" /></div>
+      ) : (
+        <>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="col-span-1 p-6 bg-[#080808] border border-white/8 rounded-2xl flex flex-col items-center justify-center">
+              <p className={`text-7xl font-black ${grade_color[score?.grade] || 'text-slate-400'}`}>{score?.grade || '—'}</p>
+              <p className="text-xs text-slate-500 mt-2">Composite Grade</p>
+              <p className="text-2xl font-bold text-white mt-1">{score?.composite_score ?? 0}</p>
+              {score?.zero_incident_badge && (
+                <span className="mt-3 text-[10px] px-2 py-1 bg-emerald-500/15 text-emerald-400 rounded-full font-bold">🏅 Zero Incidents</span>
+              )}
+            </div>
+
+            <div className="col-span-2 p-6 bg-[#080808] border border-white/8 rounded-2xl">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Framework Breakdown</h3>
+              <div className="space-y-3">
+                {frameworks.map(f => (
+                  <div key={f.name}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-slate-400">{f.name.replace('_LITE', '')}</span>
+                      <span className={grade_color[f.grade] || 'text-slate-400'}>{f.val} · {f.grade}</span>
+                    </div>
+                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${f.val >= 90 ? 'bg-emerald-500' : f.val >= 75 ? 'bg-blue-500' : 'bg-amber-500'}`}
+                        style={{ width: `${f.val}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-6 bg-[#080808] border border-white/8 rounded-2xl flex flex-col items-center justify-center">
+              <div className="h-32 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value" strokeWidth={0}>
+                      {pieData.map((_, idx) => <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="text-xs text-slate-600 text-center">Multi-framework distribution</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: 'Total Redactions', val: score?.total_redactions ?? 0, color: 'text-purple-400' },
+              { label: 'High-Risk Blocked', val: score?.high_risk_blocked ?? 0, color: 'text-rose-400' },
+              { label: 'Open Incidents', val: score?.open_incidents ?? 0, color: score?.open_incidents > 0 ? 'text-rose-400' : 'text-emerald-400' },
+            ].map(s => (
+              <div key={s.label} className="p-5 bg-[#080808] border border-white/8 rounded-2xl">
+                <p className="text-xs text-slate-500 uppercase tracking-widest">{s.label}</p>
+                <p className={`text-4xl font-black mt-2 ${s.color}`}>{s.val}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </motion.div>
+  );
+}
+
+// ── Main Dashboard ─────────────────────────────────────────────────────────────
+export default function Dashboard() {
+  const [token, setToken] = useState<string | null>(null);
+  const [role, setRole] = useState('STAFF');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [status, setStatus] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    const t = localStorage.getItem('sentinel_token');
+    if (t) { setToken(t); fetchStatus(t); }
+  }, []);
+
+  const fetchStatus = async (t?: string) => {
+    try {
+      const cfg = t ? { headers: { Authorization: `Bearer ${t}` } } : {};
+      const res = await axios.get(`${API_BASE}/status`, cfg);
+      setStatus(res.data);
+    } catch { }
+  };
+
+  const handleLogin = (t: string, r: string) => {
+    setToken(t); setRole(r); fetchStatus(t);
+  };
+
+  const logout = () => {
+    localStorage.removeItem('sentinel_token');
+    setToken(null); setRole('STAFF'); setStatus(null);
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploading(true);
+    const fd = new FormData(); fd.append('file', file);
+    try {
+      await api.post('/upload', fd);
+      fetchStatus();
+    } catch { alert('Upload failed — check backend.'); }
+    finally { setUploading(false); }
+  };
+
+  if (!token) return <LoginScreen onLogin={handleLogin} />;
+
+  const NAV = [
+    { id: 'overview',    icon: Activity,     label: 'Overview' },
+    { id: 'vault',       icon: ShieldCheck,  label: 'Vault AI' },
+    { id: 'audit',       icon: ClipboardList,label: 'Audit Log' },
+    { id: 'policy',      icon: BookOpen,     label: 'Policies' },
+    { id: 'users',       icon: Users,        label: 'Users', roles: ['SUPER_ADMIN', 'DEPARTMENT_HEAD'] },
+    { id: 'compliance',  icon: BarChart3,    label: 'Compliance' },
+  ].filter(n => !n.roles || n.roles.includes(role));
+
+  return (
+    <div className="min-h-screen bg-[#030303] text-slate-200 font-sans selection:bg-emerald-500/20 flex">
+      {/* Sidebar */}
+      <nav className="fixed top-0 left-0 w-60 h-full border-r border-white/[0.06] bg-[#050505] flex flex-col z-50">
+        <div className="p-5 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-emerald-500/15 border border-emerald-500/25 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+              <Lock className="text-emerald-400 w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-sm font-black text-white tracking-tight">SENTINEL <span className="text-emerald-400">SHIELD</span></h1>
+              <p className="text-[10px] text-slate-600">Enterprise v2.0</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+          {NAV.map(item => (
+            <button key={item.id} id={`nav-${item.id}`} onClick={() => setActiveTab(item.id)}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm ${
+                activeTab === item.id
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15'
+                  : 'text-slate-600 hover:text-slate-400 hover:bg-white/[0.03]'}`}>
+              <item.icon size={16} />
+              <span className="font-medium">{item.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="p-3 border-t border-white/[0.06] space-y-2">
+          <div className="px-3 py-2 bg-white/[0.03] rounded-xl">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Live</span>
+            </div>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+              { SUPER_ADMIN: 'text-rose-400', DEPARTMENT_HEAD: 'text-purple-400', STAFF: 'text-blue-400', AUDITOR: 'text-amber-400' }[role] || 'text-slate-400'
+            }`}>{role}</span>
+          </div>
+          <button id="logout-btn" onClick={logout}
+            className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 hover:text-rose-400 hover:bg-rose-500/5 rounded-xl transition-all text-xs">
+            <LogOut size={13} /> Sign Out
+          </button>
+        </div>
+      </nav>
+
+      {/* Main */}
+      <main className="ml-60 flex-1 p-8 overflow-hidden">
+        <header className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="text-2xl font-black text-white">
+              {NAV.find(n => n.id === activeTab)?.label || 'Dashboard'}
+            </h2>
+            <p className="text-xs text-slate-600 mt-0.5">Sentinel Shield Enterprise · VishnuLabs</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button id="refresh-status-btn" onClick={() => fetchStatus()}
+              className="p-2.5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/8 transition-all">
+              <RefreshCw size={14} className="text-slate-400" />
+            </button>
+            <label id="upload-doc-btn" className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 rounded-xl text-xs font-bold text-black cursor-pointer transition-all shadow-[0_0_16px_rgba(16,185,129,0.2)]">
+              <Upload size={14} />
+              {uploading ? 'Ingesting…' : 'Ingest Doc'}
+              <input type="file" className="hidden" onChange={handleUpload} />
+            </label>
+          </div>
+        </header>
+
+        <AnimatePresence mode="wait">
+          <div key={activeTab}>
+            {activeTab === 'overview'   && <OverviewTab status={status} />}
+            {activeTab === 'vault'      && <VaultTab role={role} />}
+            {activeTab === 'audit'      && <AuditLogTab />}
+            {activeTab === 'policy'     && <PolicyTab role={role} />}
+            {activeTab === 'users'      && <UsersTab role={role} />}
+            {activeTab === 'compliance' && <ComplianceTab />}
+          </div>
+        </AnimatePresence>
+      </main>
+    </div>
+  );
 }

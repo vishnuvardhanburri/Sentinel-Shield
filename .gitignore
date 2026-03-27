@@ -38,3 +38,7 @@ dist/
 build/
 *.zip
 *.tar.gz
+
+# Sentinel Shield — Private Enterprise Keys
+master_private.pem
+*.sntl
