@@ -43,7 +43,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, role: string) => vo
   const handleLogin = async () => {
     setLoading(true); setError('');
     try {
-      const res = await axios.post(`${API_BASE}/auth/login`, { email, password });
+      const res = await axios.post(`${API_BASE}/api/v2/auth/login`, { email, password });
       localStorage.setItem('sentinel_token', res.data.access_token);
       onLogin(res.data.access_token, res.data.role);
     } catch {
@@ -63,7 +63,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, role: string) => vo
             <Lock className="text-emerald-400 w-8 h-8" />
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight">SENTINEL <span className="text-emerald-400">SHIELD</span></h1>
-          <p className="text-slate-500 mt-2">Enterprise AI Data Governance · v2.0</p>
+          <p className="text-emerald-500/80 text-xs uppercase tracking-[0.2em] font-bold mt-2 font-display">BY VISHNULABS</p>
         </div>
 
         <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 backdrop-blur-sm">

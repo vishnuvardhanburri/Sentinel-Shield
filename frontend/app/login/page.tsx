@@ -60,7 +60,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-3xl font-extrabold text-[#f8fafc] tracking-tight">Sentinel Shield</h1>
-          <p className="text-[#94a3b8] mt-2 text-sm uppercase tracking-widest font-semibold">Enterprise Mission Control</p>
+          <p className="text-[#38bdf8] mt-2 text-xs uppercase tracking-widest font-bold opacity-80">BY VISHNULABS</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
