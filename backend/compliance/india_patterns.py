@@ -10,7 +10,7 @@ from typing import List, Dict, Any
 
 INDIA_PATTERNS: Dict[str, str] = {
     # ── Identity Documents ─────────────────────────────────────────────────
-    "Aadhaar Number":         r"\b[2-9]\d{3}\s?\d{4}\s?\d{4}\b",
+    "Aadhaar Number":         r"(?<!\+)\b[2-9]\d{3}(\s\d{4}\s\d{4}|\d{8})\b",
     "PAN Card":               r"\b[A-Z]{5}[0-9]{4}[A-Z]\b",
     "Voter ID":               r"\b[A-Z]{3}[0-9]{7}\b",
     "Passport (India)":       r"\b[A-PR-WY][1-9]\d\s?\d{4}[1-9]\b",
@@ -20,7 +20,7 @@ INDIA_PATTERNS: Dict[str, str] = {
     "GST Number":             r"\b\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b",
     "UPI ID":                 r"\b[a-zA-Z0-9.\-_]{2,49}@[a-zA-Z]{2,}\b",
     "IFSC Code":              r"\b[A-Z]{4}0[A-Z0-9]{6}\b",
-    "Indian Bank Account":    r"\b[0-9]{9,18}\b",  # Generic; refine per bank
+    "Indian Bank Account":    r"(?<!\+)(?<!\d)\b[0-9]{9,16}\b",  # Avoid + and excessive length
     "MICR Code":              r"\b[0-9]{9}\b",
 
     # ── Healthcare ─────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ INDIA_PATTERNS: Dict[str, str] = {
     "Ayushman Bharat ID":     r"\b\d{2}-\d{4}-\d{4}-\d{4}\b",
 
     # ── Contact ────────────────────────────────────────────────────────────
-    "Indian Mobile":          r"\b(?:\+91|0)?[6-9]\d{9}\b",
+    "Indian Mobile":          r"(?:(?<=\s)|(?<=^))(?:\+91|0)?[6-9]\d{9}\b",
     "Indian Landline":        r"\b0\d{2,4}[-\s]?\d{6,8}\b",
     "Indian Pincode":         r"\b[1-9][0-9]{5}\b",
 
