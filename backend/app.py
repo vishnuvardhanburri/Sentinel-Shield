@@ -136,8 +136,8 @@ class ChatRequest(BaseModel):
     preferred_model: Optional[str] = "openrouter/google/gemini-2.0-flash-lite-preview-02-05:free"
 
 
-# ── Auth Endpoints ────────────────────────────────────────────────────────────
-@app.post("/auth/login")
+# ── Auth Endpoints (V2 Professional) ──────────────────────────────────────────
+@app.post("/api/v2/auth/login")
 def login(req: LoginRequest, db: Session = Depends(get_db)):
     """Authenticates a user and returns a secure JWT access token."""
     user = db.query(User).filter(User.email == req.email).first()
@@ -160,7 +160,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         }
     }
 
-@app.post("/auth/register")
+@app.post("/api/v2/auth/register")
 def register(req: LoginRequest, db: Session = Depends(get_db)):
     """Self-registration for new platform users."""
     existing = db.query(User).filter(User.email == req.email).first()
