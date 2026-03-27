@@ -5,6 +5,8 @@ license server, DPDP compliance, and the original vault/RAG functionality.
 """
 import os
 import sys
+# Ensure the current directory is in the path for cloud imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import json
 import csv
 import hashlib
