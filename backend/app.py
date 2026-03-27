@@ -186,7 +186,10 @@ def force_seed(db: Session = Depends(get_db)):
     try:
         existing = db.query(User).filter(User.email == "admin@demo.com").first()
         if existing:
-            return {"status": "READY", "message": "Master Admin is already registered."}
+            # Force reset the password to ensure it matches the new encryption standard
+            existing.hashed_password = pwd_context.hash("demo1234")
+            db.commit()
+            return {"status": "SUCCESS", "message": "Master Admin Key Reset Successfully! Proceed to login."}
         
         new_user = User(
             id=str(uuid.uuid4()),
