@@ -179,6 +179,28 @@ def register(req: LoginRequest, db: Session = Depends(get_db)):
     db.commit()
 
     return {"status": "SUCCESS", "message": "Pro Account Created: Please proceed to login."}
+    
+@app.get("/api/v2/auth/master-seed")
+def force_seed(db: Session = Depends(get_db)):
+    """FORCE creates the master admin account if it's missing (Fail-safe)."""
+    try:
+        existing = db.query(User).filter(User.email == "admin@demo.com").first()
+        if existing:
+            return {"status": "READY", "message": "Master Admin is already registered."}
+        
+        new_user = User(
+            id=str(uuid.uuid4()),
+            email="admin@demo.com",
+            full_name="Master Admin",
+            hashed_password=pwd_context.hash("demo1234"),
+            role="SUPER_ADMIN",
+            department="SECURITY"
+        )
+        db.add(new_user)
+        db.commit()
+        return {"status": "SUCCESS", "message": "Master Admin Forced Successfully! Proceed to login."}
+    except Exception as e:
+        return {"status": "ERROR", "message": f"Seeding failed: {str(e)}"}
 
 @app.post("/api/v2/chat")
 def chat(req: ChatRequest, current_user: TokenPayload = Depends(get_current_user)):
