@@ -10,8 +10,8 @@ import uuid
 from passlib.context import CryptContext
 from .models import Base, User
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing context (Using PBKDF2-SHA256 for cloud-native stability)
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # DATABASE_URL examples:
 #   PostgreSQL (cloud):  postgresql+psycopg2://user:pass@host:5432/sentinel
