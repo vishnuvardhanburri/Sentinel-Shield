@@ -305,9 +305,9 @@ function VaultTab({ role }: { role: string }) {
             className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-400 focus:outline-none">
             <option value="">Auto Model</option>
             <option value="ollama/llama3.1">Ollama (Local)</option>
-            <option value="openai/gpt-4o">GPT-4o</option>
-            <option value="anthropic/claude-3-5-sonnet-20241022">Claude Sonnet</option>
-            <option value="gemini/gemini-1.5-pro">Gemini Pro</option>
+            <option value="openrouter/google/gemini-2.0-flash-001">Gemini Pro (Cloud)</option>
+            <option value="openrouter/anthropic/claude-3.5-sonnet">Claude Sonnet (Cloud)</option>
+            <option value="openrouter/openai/gpt-4o">GPT-4o (Cloud)</option>
           </select>
         </div>
       </div>

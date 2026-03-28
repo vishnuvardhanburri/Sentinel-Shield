@@ -4,7 +4,7 @@
   <img src="docs/media/dashboard_v1.png" alt="Sentinel Shield Dashboard" width="800" />
 
   <h3>🛡️ <strong>SENTINEL SHIELD v2.0</strong></h3>
-  <p><em>HIPAA · DPDP 2026 · GDPR-Ready AI Governance — from ₹25L/year</em></p>
+  <p><em>HIPAA · DPDP 2026 · GDPR-Ready AI Governance — from $100k/year</em></p>
 
   ![Python](https://img.shields.io/badge/Python-3.11-blue?style=flat-square)
   ![FastAPI](https://img.shields.io/badge/FastAPI-0.110-green?style=flat-square)
@@ -169,9 +169,9 @@ Drop into `presets/` and reload:
 
 | Plan | Price | Seats | Mode |
 |------|-------|-------|------|
-| Starter | ₹5L/year | 5 | Air-gap |
-| Professional | ₹15L/year | 25 | Air-gap + Cloud |
-| Enterprise | ₹25L–50L/year | Unlimited | Multi-tenant Cloud |
+| Starter | $20k/year | 5 | Air-gap |
+| Professional | $50k/year | 25 | Air-gap + Cloud |
+| Enterprise | $100k+/year | Unlimited | Multi-tenant Cloud |
 
 ---
 
