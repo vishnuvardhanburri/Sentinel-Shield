@@ -253,6 +253,16 @@ def health():
     return {"status": "awake", "engine": "Sentinel Shield v2.0"}
 
 # ── Vault / Status Endpoints ──────────────────────────────────────────────────
+@app.get("/")
+async def root():
+    return {
+        "status": "online",
+        "platform": "SENTINEL SHIELD",
+        "version": "1.0.0",
+        "signature": "BY VISHNULABS",
+        "message": "Vault Gateway is Secure. Welcome Commander."
+    }
+
 @app.get("/status")
 def get_status(current_user: TokenPayload = Depends(get_current_user)):
     """System status + infra health. Requires valid JWT."""
