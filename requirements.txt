@@ -10,7 +10,7 @@ requests
 
 # Auth
 pyjwt
-passlib[bcrypt]
+passlib
 
 # Database
 sqlalchemy

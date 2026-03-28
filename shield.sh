@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-API_URL="http://localhost:8000"
+API_URL="https://sentinel-shield-ww9d.onrender.com"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOGS_DIR="$BASE_DIR/logs"
 PID_DIR="$LOGS_DIR/pids"
