@@ -3,6 +3,7 @@ gunicorn
 # Core API
 fastapi
 uvicorn[standard]
+google-generativeai
 python-multipart
 pydantic
 python-dotenv

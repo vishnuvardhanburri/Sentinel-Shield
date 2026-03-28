@@ -83,7 +83,14 @@ class ModelRouter:
         Returns: {answer, model_used, tokens_used, fallback_used}
         """
         target = preferred_model or self.DEFAULT_MODEL_MAP.get(self.mode, "ollama/llama3.1")
-        provider, _ = self._parse_model(target)
+        provider, model_name = self._parse_model(target)
+
+        # DYNAMIC FALLBACK: If Native Gemini is default but KEY is missing, pivot to OpenRouter
+        if provider == "gemini" and "gemini" not in self._adapters:
+            if "openrouter" in self._adapters:
+                logger.warning("Native Gemini key missing, falling back to OpenRouter...")
+                provider = "openrouter"
+                target = "openrouter/google/gemini-2.0-flash-001" # Using high-stability verified ID
 
         # Attempt primary
         adapter = self._adapters.get(provider)
