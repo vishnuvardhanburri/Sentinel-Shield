@@ -10,13 +10,18 @@ class OpenRouterAdapter:
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         self.api_url = "https://openrouter.ai/api/v1/chat/completions"
 
-    def complete(self, prompt, context="", system_prompt="", model="google/gemini-2.0-flash-lite-preview-02-05:free") -> dict:
+    def complete(self, prompt, context="", system_prompt="", model="google/gemini-2.0-flash-001") -> dict:
         if not self.api_key:
             return {"answer": "⚠️ OpenRouter API Key missing. Please set OPENROUTER_API_KEY in .env", "tokens_used": 0}
 
+        # Stability: Ensure we don't send the 'openrouter/' prefix if it accidentally doubled up
+        model_id = model.split("/")[-1] if "/" in model and not model.startswith("google/") and not model.startswith("anthropic/") and not model.startswith("openai/") else model
+        if model.startswith("openrouter/"):
+             model_id = model.replace("openrouter/", "")
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer": "https://sentinel-shield-beta.vercel.app/", # Production Vercel URL
+            "HTTP-Referer": "https://sentinel-shield-beta.vercel.app", # Clean Referer
             "X-Title": "Sentinel Shield VishnuLabs",
             "Content-Type": "application/json"
         }
@@ -25,7 +30,7 @@ class OpenRouterAdapter:
         full_prompt = f"Context: {context}\n\nUser Question: {prompt}" if context else prompt
 
         data = {
-            "model": model, 
+            "model": model_id, 
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": full_prompt}
@@ -33,7 +38,13 @@ class OpenRouterAdapter:
         }
 
         try:
-            resp = requests.post(self.api_url, headers=headers, data=json.dumps(data), timeout=30)
+            resp = requests.post(self.api_url, headers=headers, json=data, timeout=30)
+            
+            # FAIL-SAFE: If specifically 400/404, try a guaranteed free model
+            if resp.status_code in (400, 404):
+                data["model"] = "google/gemini-2.0-flash-001"
+                resp = requests.post(self.api_url, headers=headers, json=data, timeout=30)
+
             resp.raise_for_status()
             res_json = resp.json()
             
