@@ -16,8 +16,8 @@ class OpenRouterAdapter:
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer": "https://sentinel-shield.enterprise", # Required for OpenRouter
-            "X-Title": "Sentinel Shield Enterprise",
+            "HTTP-Referer": "https://sentinel-shield-beta.vercel.app/", # Production Vercel URL
+            "X-Title": "Sentinel Shield VishnuLabs",
             "Content-Type": "application/json"
         }
 
