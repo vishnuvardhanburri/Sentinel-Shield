@@ -253,6 +253,10 @@ def health():
     return {"status": "awake", "engine": "Sentinel Shield v2.0"}
 
 # ── Vault / Status Endpoints ──────────────────────────────────────────────────
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "service": "sentinel-shield"}
+
 @app.get("/")
 async def root():
     return {
