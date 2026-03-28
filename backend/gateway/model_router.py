@@ -23,8 +23,8 @@ class ModelRouter:
 
     DEFAULT_MODEL_MAP = {
         "airgap": "ollama/llama3.1",
-        "cloud":  "openrouter/google/gemini-2.0-flash-001", # High-stability Free Model
-        "hybrid": "openrouter/google/gemini-2.0-flash-001",
+        "cloud":  "gemini/gemini-2.0-flash-exp", # Default to Native Google Gemini
+        "hybrid": "gemini/gemini-2.0-flash-exp",
     }
 
     def __init__(self):
