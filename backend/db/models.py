@@ -40,6 +40,24 @@ class User(Base):
         return f"<User {self.email} [{self.role}]>"
 
 
+class APIKey(Base):
+    __tablename__ = "api_keys"
+
+    id              = Column(String(36), primary_key=True)
+    tenant_id       = Column(String(100), default="default", nullable=False, index=True)
+    name            = Column(String(255), nullable=False)
+    key_prefix      = Column(String(24), nullable=False, index=True)
+    key_hash        = Column(String(64), unique=True, nullable=False, index=True)
+    scopes          = Column(JSON, default=list)
+    department      = Column(String(100), nullable=True)
+    created_by      = Column(String(255), nullable=False)
+    created_at      = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at      = Column(DateTime, nullable=True)
+    last_used_at    = Column(DateTime, nullable=True)
+    is_active       = Column(Boolean, default=True)
+    metadata_       = Column("metadata", JSON, default=dict)
+
+
 class UserSession(Base):
     __tablename__ = "user_sessions"
 

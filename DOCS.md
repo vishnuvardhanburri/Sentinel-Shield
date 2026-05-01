@@ -300,9 +300,19 @@ The first wave of enterprise upgrades is now implemented:
 
 Recommended second wave:
 
-1. **Streaming Vault AI responses**: add server-sent events or WebSocket streaming so local AI feels fast and premium.
-2. **Redis-backed risk engine**: move file-backed Oracle state to Redis for multi-node production.
-3. **Off-box automatic ledger anchoring**: push daily roots to S3 Object Lock, Git, or a private timestamping service.
+1. **Streaming Vault AI responses**: `/api/v2/chat/stream` now exposes server-sent events for token-style local AI output.
+2. **Admin MFA**: `/api/v2/auth/mfa/setup`, `/enable`, and `/verify` provide standards-based TOTP without cloud dependencies.
+3. **Enterprise API keys**: `/api/v2/admin/api-keys` supports scoped app keys for CRM, Slack, Teams, and custom proxy clients.
+4. **Policy simulator**: `/api/v2/policy/simulate` dry-runs redaction, semantic DLP, injection detection, and routing decisions.
+5. **CISO incident timeline**: `/api/v2/enterprise/incidents/{actor_hash}` returns actor-specific evidence with a certificate.
+6. **Evidence scheduler**: `/api/v2/enterprise/evidence-schedule` stores weekly/monthly report schedules for air-gapped cron runners.
+7. **Scheduled report runner**: `python scripts/generate_scheduled_evidence.py` generates configured compliance PDFs.
+
+Remaining future-proof upgrades:
+
+1. **Redis-backed risk engine**: move file-backed Oracle state to Redis for multi-node production.
+2. **Off-box automatic ledger anchoring**: push daily roots to S3 Object Lock, Git, or a private timestamping service.
+3. **Native dashboard controls**: expose the new MFA, API key, simulator, and schedule endpoints in the Enterprise tab.
 
 ## Final Handoff Position
 

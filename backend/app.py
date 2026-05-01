@@ -7,15 +7,17 @@ import os
 import sys
 # Ensure the current directory is in the path for cloud imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import base64
+import hmac
 import json
 import csv
 import hashlib
 import uuid
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, HTTPException, Depends, Security
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Literal
@@ -47,7 +49,7 @@ from license_server import router as license_router
 from integrations.webhook_engine import router as integrations_router
 from shadow_ai.detector import router as shadow_ai_router, shadow_detector
 from db.session import init_db, get_db, pwd_context
-from db.models import User
+from db.models import User, APIKey
 from reporting.compliance_scorer import ComplianceScorer
 from redaction_middleware import IdentityMaskingProxy
 from api_shield import ZeroTrustAPIShieldMiddleware
@@ -180,6 +182,13 @@ class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
 
+class MFAEnableRequest(BaseModel):
+    code: str
+
+class MFAVerifyRequest(BaseModel):
+    email: str
+    code: str
+
 class LogoutRequest(BaseModel):
     revoke_current: bool = True
 
@@ -206,6 +215,28 @@ class Query(BaseModel):
     prompt: str
     preferred_model: Optional[str] = None
     department: Optional[str] = None
+
+class APIKeyCreateRequest(BaseModel):
+    name: str
+    scopes: list[str] = ["proxy:inspect", "chat:ask"]
+    department: Optional[str] = None
+    expires_in_days: Optional[int] = 365
+
+class APIKeyUpdateRequest(BaseModel):
+    is_active: Optional[bool] = None
+    scopes: Optional[list[str]] = None
+
+class PolicySimulatorRequest(BaseModel):
+    prompt: str
+    department: Optional[str] = None
+    preferred_model: Optional[str] = None
+
+class EvidenceScheduleRequest(BaseModel):
+    enabled: bool = True
+    frequency: Literal["weekly", "monthly"] = "weekly"
+    org_name: str = "Buyer Organization"
+    tenant_id: str = "default"
+    retention_days: int = 365
 
 class PolicyUpdateRequest(BaseModel):
     department: str
@@ -360,6 +391,42 @@ def _public_user(user: User) -> dict:
     }
 
 
+def _hash_api_key(raw_key: str) -> str:
+    return hashlib.sha256(f"{SECURITY_SETTINGS['license_master_secret']}:{raw_key}".encode()).hexdigest()
+
+
+def _public_api_key(api_key: APIKey) -> dict:
+    return {
+        "id": api_key.id,
+        "name": api_key.name,
+        "key_prefix": api_key.key_prefix,
+        "scopes": api_key.scopes or [],
+        "department": api_key.department,
+        "tenant_id": api_key.tenant_id,
+        "created_by": api_key.created_by,
+        "created_at": api_key.created_at.isoformat() if api_key.created_at else None,
+        "expires_at": api_key.expires_at.isoformat() if api_key.expires_at else None,
+        "last_used_at": api_key.last_used_at.isoformat() if api_key.last_used_at else None,
+        "is_active": bool(api_key.is_active),
+    }
+
+
+def _totp_code(secret: str, timestep: Optional[int] = None) -> str:
+    timestep = timestep if timestep is not None else int(datetime.now(timezone.utc).timestamp() // 30)
+    key = base64.b32decode(secret, casefold=True)
+    msg = timestep.to_bytes(8, "big")
+    digest = hmac.new(key, msg, hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    token = int.from_bytes(digest[offset:offset + 4], "big") & 0x7FFFFFFF
+    return str(token % 1_000_000).zfill(6)
+
+
+def _verify_totp(secret: str, code: str) -> bool:
+    cleaned = str(code).strip().replace(" ", "")
+    now_step = int(datetime.now(timezone.utc).timestamp() // 30)
+    return any(secrets.compare_digest(_totp_code(secret, now_step + drift), cleaned) for drift in (-1, 0, 1))
+
+
 @app.get("/api/v2/admin/users")
 def list_users(
     current_user: TokenPayload = Depends(get_active_user),
@@ -504,6 +571,133 @@ def change_password(
         tenant_id=current_user.tenant_id,
     )
     return {"status": "SUCCESS", "message": "Password changed. Re-login required."}
+
+
+@app.post("/api/v2/auth/mfa/setup")
+def setup_mfa(current_user: TokenPayload = Depends(get_active_user), db: Session = Depends(get_db)):
+    """Create a TOTP secret. Buyer must verify it before MFA is marked enabled."""
+    user = enforce_active_user(current_user, db)
+    secret = base64.b32encode(secrets.token_bytes(20)).decode().rstrip("=")
+    secret = secret + ("=" * ((8 - len(secret) % 8) % 8))
+    meta = dict(user.metadata_ or {})
+    meta["mfa_pending_secret"] = secret
+    user.metadata_ = meta
+    db.commit()
+    issuer = "Xavira Tech Labs Sentinel Shield"
+    uri = f"otpauth://totp/{issuer}:{user.email}?secret={secret}&issuer={issuer}&algorithm=SHA1&digits=6&period=30"
+    audit_ledger.log(
+        action="MFA_SETUP_STARTED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+    )
+    return {"secret": secret, "otpauth_uri": uri, "status": "VERIFY_REQUIRED"}
+
+
+@app.post("/api/v2/auth/mfa/enable")
+def enable_mfa(req: MFAEnableRequest, current_user: TokenPayload = Depends(get_active_user), db: Session = Depends(get_db)):
+    user = enforce_active_user(current_user, db)
+    meta = dict(user.metadata_ or {})
+    secret = meta.get("mfa_pending_secret")
+    if not secret or not _verify_totp(secret, req.code):
+        raise HTTPException(status_code=400, detail="MFA_CODE_INVALID")
+    meta["mfa_secret"] = secret
+    meta.pop("mfa_pending_secret", None)
+    user.metadata_ = meta
+    user.mfa_enabled = True
+    db.commit()
+    audit_ledger.log(
+        action="MFA_ENABLED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+    )
+    return {"status": "MFA_ENABLED"}
+
+
+@app.post("/api/v2/auth/mfa/verify")
+def verify_mfa(req: MFAVerifyRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == req.email).first()
+    meta = dict(getattr(user, "metadata_", None) or {}) if user else {}
+    secret = meta.get("mfa_secret")
+    if not user or not user.mfa_enabled or not secret or not _verify_totp(secret, req.code):
+        raise HTTPException(status_code=401, detail="MFA_VERIFY_FAILED")
+    return {"status": "MFA_VERIFIED"}
+
+
+@app.get("/api/v2/admin/api-keys")
+def list_api_keys(current_user: TokenPayload = Depends(get_active_user), db: Session = Depends(get_db)):
+    rbac.enforce(current_user.role, Permission.MANAGE_USERS)
+    keys = db.query(APIKey).filter(APIKey.tenant_id == current_user.tenant_id).order_by(APIKey.created_at.desc()).all()
+    return {"api_keys": [_public_api_key(key) for key in keys]}
+
+
+@app.post("/api/v2/admin/api-keys")
+def create_api_key(req: APIKeyCreateRequest, current_user: TokenPayload = Depends(get_active_user), db: Session = Depends(get_db)):
+    rbac.enforce(current_user.role, Permission.MANAGE_USERS)
+    raw_key = f"sshield_{secrets.token_urlsafe(32)}"
+    expires_at = datetime.now(timezone.utc) + timedelta(days=req.expires_in_days or 365)
+    api_key = APIKey(
+        id=str(uuid.uuid4()),
+        tenant_id=current_user.tenant_id,
+        name=req.name,
+        key_prefix=raw_key[:18],
+        key_hash=_hash_api_key(raw_key),
+        scopes=req.scopes,
+        department=req.department or current_user.department,
+        created_by=current_user.sub,
+        expires_at=expires_at,
+        is_active=True,
+    )
+    db.add(api_key)
+    db.commit()
+    audit_ledger.log(
+        action="API_KEY_CREATED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+        metadata={"name": req.name, "scopes": req.scopes, "key_prefix": api_key.key_prefix},
+    )
+    return {"api_key": _public_api_key(api_key), "secret": raw_key, "copy_once": True}
+
+
+@app.patch("/api/v2/admin/api-keys/{key_id}")
+def update_api_key(key_id: str, req: APIKeyUpdateRequest, current_user: TokenPayload = Depends(get_active_user), db: Session = Depends(get_db)):
+    rbac.enforce(current_user.role, Permission.MANAGE_USERS)
+    api_key = db.query(APIKey).filter(APIKey.id == key_id, APIKey.tenant_id == current_user.tenant_id).first()
+    if not api_key:
+        raise HTTPException(status_code=404, detail="API_KEY_NOT_FOUND")
+    if req.is_active is not None:
+        api_key.is_active = req.is_active
+    if req.scopes is not None:
+        api_key.scopes = req.scopes
+    db.commit()
+    audit_ledger.log(
+        action="API_KEY_UPDATED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+        metadata={"key_prefix": api_key.key_prefix, "is_active": api_key.is_active},
+    )
+    return {"api_key": _public_api_key(api_key)}
+
+
+@app.delete("/api/v2/admin/api-keys/{key_id}")
+def revoke_api_key(key_id: str, current_user: TokenPayload = Depends(get_active_user), db: Session = Depends(get_db)):
+    rbac.enforce(current_user.role, Permission.MANAGE_USERS)
+    api_key = db.query(APIKey).filter(APIKey.id == key_id, APIKey.tenant_id == current_user.tenant_id).first()
+    if not api_key:
+        raise HTTPException(status_code=404, detail="API_KEY_NOT_FOUND")
+    api_key.is_active = False
+    db.commit()
+    audit_ledger.log(
+        action="API_KEY_REVOKED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+        metadata={"key_prefix": api_key.key_prefix},
+    )
+    return {"status": "REVOKED", "key_prefix": api_key.key_prefix}
     
 @app.get("/api/v2/auth/master-seed")
 def force_seed():
@@ -551,6 +745,45 @@ def chat(req: ChatRequest, current_user: TokenPayload = Depends(get_active_user)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v2/chat/stream")
+def chat_stream(req: ChatRequest, current_user: TokenPayload = Depends(get_active_user)):
+    """Stream Vault AI responses as server-sent events for a premium local-AI feel."""
+    enforce_password_rotation(current_user)
+    rbac.enforce(current_user.role, Permission.RUN_AI_QUERY)
+    governed_prompt = india_scanner.redact(req.message)
+    system_ctx = (
+        f"User Role: {current_user.role}. Department: {current_user.department}. "
+        "You are Vault AI, a private local assistant running inside Sentinel Shield."
+    )
+
+    def event_stream():
+        try:
+            result = model_router.route(
+                prompt=governed_prompt,
+                context=req.context,
+                system_prompt=system_ctx,
+                preferred_model=req.preferred_model,
+            )
+            answer = str(result.get("answer", ""))
+            for word in answer.split(" "):
+                yield f"data: {json.dumps({'token': word + ' '})}\n\n"
+            audit_ledger.log(
+                action="AI_CHAT_STREAM",
+                user_id=current_user.sub,
+                user_role=current_user.role,
+                department=current_user.department,
+                tenant_id=current_user.tenant_id,
+                prompt_text=req.message,
+                model_queried=result.get("model_used"),
+                metadata={"status": "SUCCESS"},
+            )
+            yield f"data: {json.dumps({'done': True, 'model_used': result.get('model_used')})}\n\n"
+        except Exception as exc:
+            yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @app.get("/health")
@@ -845,6 +1078,64 @@ def risk_heatmap(current_user: TokenPayload = Depends(get_active_user)):
     """Oracle dashboard API: heatmap-ready user risk and quarantine state."""
     rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
     return oracle_risk_engine.heatmap(tenant_id=current_user.tenant_id)
+
+
+@app.post("/api/v2/policy/simulate")
+def policy_simulator(req: PolicySimulatorRequest, current_user: TokenPayload = Depends(get_active_user)):
+    """Dry-run policy, DLP, injection, and model-routing decisions without sending to an LLM."""
+    rbac.enforce(current_user.role, Permission.VIEW_POLICY)
+    dept = req.department or current_user.department
+    findings_us = scanner.scan_content(req.prompt)
+    findings_india = india_scanner.scan(req.prompt)
+    findings_semantic = semantic_dlp.scan(req.prompt)
+    findings_injection = prompt_injection_detector.scan(req.prompt)
+    all_findings = findings_us + findings_india + findings_semantic + findings_injection
+    risk_score = min(10.0, max(
+        scanner.calculate_risk_score(findings_us),
+        semantic_dlp.sensitivity_score(findings_semantic),
+    ) + prompt_injection_detector.risk_score(findings_injection))
+    decision = policy_engine.evaluate(
+        prompt=req.prompt,
+        findings=all_findings,
+        risk_score=risk_score,
+        department=dept,
+        model=req.preferred_model,
+    )
+    governed = identity_proxy.govern(req.prompt, department=dept)
+    recommended_route = "local_airgap" if max(risk_score, governed.sensitivity_score) > 7 else "policy_default"
+    return {
+        "action": decision.action.value if hasattr(decision.action, "value") else str(decision.action),
+        "risk_score": max(risk_score, governed.sensitivity_score),
+        "triggered_rules": decision.triggered_rules,
+        "warnings": decision.warnings,
+        "model_allowed": decision.model_allowed,
+        "recommended_route": recommended_route,
+        "redacted_preview": governed.protected_prompt,
+        "findings_count": len(all_findings),
+        "semantic_findings": findings_semantic,
+        "prompt_injection_findings": findings_injection,
+    }
+
+
+@app.get("/api/v2/enterprise/incidents/{actor_hash}")
+def incident_timeline(actor_hash: str, current_user: TokenPayload = Depends(get_active_user)):
+    """CISO incident timeline for a high-risk actor hash."""
+    rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
+    entries = audit_ledger.get_entries(limit=10000, tenant_id=current_user.tenant_id)
+    timeline = [
+        {
+            "timestamp": entry.get("timestamp"),
+            "action": entry.get("action"),
+            "policy_triggered": entry.get("policy_triggered"),
+            "risk_score": entry.get("risk_score"),
+            "model_queried": entry.get("model_queried"),
+            "entry_hash": entry.get("entry_hash"),
+        }
+        for entry in entries
+        if entry.get("actor_hash") == actor_hash or (entry.get("metadata") or {}).get("actor_hash") == actor_hash
+    ]
+    certificate = hashlib.sha256(json.dumps(timeline, sort_keys=True).encode()).hexdigest()
+    return {"actor_hash": actor_hash, "events": timeline, "total": len(timeline), "certificate": certificate}
 
 @app.get("/api/v2/enterprise/models")
 def model_management(current_user: TokenPayload = Depends(get_active_user)):
@@ -1324,6 +1615,41 @@ def evidence_report(req: EvidenceReportRequest, current_user: TokenPayload = Dep
         metadata={"file": result.get("file"), "certificate": result.get("certificate")},
     )
     return result
+
+
+@app.post("/api/v2/enterprise/evidence-schedule")
+def evidence_schedule(req: EvidenceScheduleRequest, current_user: TokenPayload = Depends(get_active_user)):
+    """Store an air-gap friendly evidence-report schedule for cron/automation runners."""
+    rbac.enforce(current_user.role, Permission.EXPORT_AUDIT_PDF)
+    schedule_dir = os.path.join(BASE_DIR, "logs", "schedules")
+    os.makedirs(schedule_dir, exist_ok=True)
+    schedule = req.model_dump()
+    schedule.update({
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_by": current_user.sub,
+        "next_runner_command": "python scripts/generate_scheduled_evidence.py",
+    })
+    path = os.path.join(schedule_dir, f"evidence_schedule_{current_user.tenant_id}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(schedule, f, indent=2)
+    audit_ledger.log(
+        action="EVIDENCE_SCHEDULE_UPDATED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+        metadata=schedule,
+    )
+    return {"schedule": schedule, "file": path}
+
+
+@app.get("/api/v2/enterprise/evidence-schedule")
+def get_evidence_schedule(current_user: TokenPayload = Depends(get_active_user)):
+    rbac.enforce(current_user.role, Permission.EXPORT_AUDIT_PDF)
+    path = os.path.join(BASE_DIR, "logs", "schedules", f"evidence_schedule_{current_user.tenant_id}.json")
+    if not os.path.isfile(path):
+        return {"schedule": None, "configured": False}
+    with open(path, "r", encoding="utf-8") as f:
+        return {"schedule": json.load(f), "configured": True}
 
 
 @app.get("/audit/log")

@@ -46,6 +46,7 @@ def init_db():
     """Create all tables and seed default admin. Call on startup."""
     Base.metadata.create_all(bind=engine)
     _ensure_user_metadata_column()
+    _ensure_api_key_table()
     seed_db()
 
 
@@ -91,6 +92,13 @@ def _ensure_user_metadata_column():
     if "metadata" not in columns:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE users ADD COLUMN metadata JSON DEFAULT '{}'"))
+
+
+def _ensure_api_key_table():
+    """Create API key table for older local databases."""
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+    Base.metadata.tables["api_keys"].create(bind=engine, checkfirst=True)
 
 
 def get_db() -> Generator[Session, None, None]:
