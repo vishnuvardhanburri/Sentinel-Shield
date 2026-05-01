@@ -161,6 +161,7 @@ pnpm security:due-diligence  # Generate SBOM and dependency scan artifacts
 pnpm release:certificate     # Generate signed readiness certificate JSON
 pnpm handoff:pdf             # Generate architecture handoff PDF
 pnpm handoff:zip             # Package docs, certificates, PDF, and deployment pack
+pnpm screenshots:capture     # Capture dashboard screenshots when Playwright is installed
 ```
 
 ## Key API Endpoints
@@ -241,3 +242,6 @@ Proprietary — Xavira Tech Labs © 2026. All rights reserved.
 - `SUBMISSION_CHECKLIST.md` — demo/submission gate
 - `RELEASE_NOTES_v2.1.md` — enterprise lockdown release notes
 - `docs/API_INTEGRATION_EXAMPLES.md` — Python, Node, Slack/Teams integration examples
+- `docs/RED_TEAM_TEST_PACK.md` — adversarial prompts and expected outcomes
+- `docs/buyer_pitch_deck.html` — browser-ready buyer pitch deck
+- `BUYER_FAQ.md`, `PRIVACY.md`, `DATA_PROCESSING.md`, `THREAT_MODEL.md` — procurement pack

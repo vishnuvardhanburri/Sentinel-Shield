@@ -1245,6 +1245,39 @@ def release_version(current_user: TokenPayload = Depends(get_active_user)):
     })
     return data
 
+
+@app.get("/api/v2/enterprise/badge")
+def enterprise_health_badge():
+    """Compact unauthenticated health badge for monitors and buyer status pages."""
+    chain = audit_ledger.verify_chain()
+    try:
+        risk = oracle_risk_engine.heatmap(limit=25)
+        quarantined = risk.get("quarantined_users", 0)
+        actors = len(risk.get("actors", []))
+    except Exception:
+        quarantined = 0
+        actors = 0
+    release_path = os.path.join(BASE_DIR, "release.json")
+    version = "2.1.0"
+    if os.path.exists(release_path):
+        try:
+            version = json.load(open(release_path, encoding="utf-8")).get("version", version)
+        except Exception:
+            pass
+    ready = bool(chain.get("valid"))
+    return {
+        "schemaVersion": 1,
+        "label": "Sentinel Shield",
+        "message": "ready" if ready else "ledger-fault",
+        "color": "brightgreen" if ready else "red",
+        "ready": ready,
+        "ledger_valid": bool(chain.get("valid")),
+        "risk_actors": actors,
+        "quarantined": quarantined,
+        "version": version,
+        "company": "Xavira Tech Labs",
+    }
+
 @app.get("/api/v2/enterprise/reports")
 def evidence_report_history(current_user: TokenPayload = Depends(get_active_user)):
     """Evidence Report History: generated PDF/text evidence artifacts."""

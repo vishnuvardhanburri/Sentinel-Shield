@@ -27,6 +27,10 @@ def client():
 
 def test_deployment_doctor_license_usage_and_model_benchmark(monkeypatch):
     c = client()
+    badge = c.get("/api/v2/enterprise/badge")
+    assert badge.status_code == 200
+    assert badge.json()["company"] == "Xavira Tech Labs"
+
     doctor = c.get("/api/v2/enterprise/deployment-doctor")
     assert doctor.status_code == 200
     assert "checks" in doctor.json()
