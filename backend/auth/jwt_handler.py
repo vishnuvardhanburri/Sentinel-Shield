@@ -3,6 +3,7 @@ Sentinel Shield v2 — JWT Authentication Handler
 Handles JWT token creation, validation, and refresh for enterprise users.
 """
 import os
+import secrets
 import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
@@ -31,6 +32,7 @@ class TokenPayload(BaseModel):
     force_password_change: bool = False
     exp: Optional[int] = None
     iat: Optional[int] = None
+    jti: Optional[str] = None
 
 
 class JWTHandler:
@@ -43,6 +45,7 @@ class JWTHandler:
         to_encode.update({
             "exp": expire,
             "iat": datetime.now(timezone.utc),
+            "jti": secrets.token_urlsafe(24),
             "type": "access"
         })
         return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
@@ -54,6 +57,7 @@ class JWTHandler:
         to_encode.update({
             "exp": expire,
             "iat": datetime.now(timezone.utc),
+            "jti": secrets.token_urlsafe(24),
             "type": "refresh"
         })
         return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
@@ -62,6 +66,11 @@ class JWTHandler:
         """Validates a JWT and returns the decoded payload."""
         try:
             payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            if payload.get("type") != "access":
+                raise HTTPException(status_code=401, detail="Invalid token type")
+            jti = payload.get("jti")
+            if jti and is_token_revoked(jti):
+                raise HTTPException(status_code=401, detail="Token revoked")
             return TokenPayload(
                 sub=payload.get("sub", ""),
                 email=payload.get("email", ""),
@@ -71,6 +80,7 @@ class JWTHandler:
                 force_password_change=bool(payload.get("force_password_change", False)),
                 exp=payload.get("exp"),
                 iat=payload.get("iat"),
+                jti=jti,
             )
         except jwt.ExpiredSignatureError:
             raise HTTPException(status_code=401, detail="Token expired")
@@ -89,6 +99,16 @@ class JWTHandler:
 
 # Module-level singletons and convenience functions
 _handler = JWTHandler()
+_REVOKED_JTIS = set()
+
+
+def revoke_token_id(jti: str):
+    if jti:
+        _REVOKED_JTIS.add(jti)
+
+
+def is_token_revoked(jti: str) -> bool:
+    return jti in _REVOKED_JTIS
 
 
 def create_access_token(data: Dict[str, Any], expires_hours: Optional[int] = None) -> str:

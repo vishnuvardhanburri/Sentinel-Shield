@@ -10,7 +10,9 @@ import time
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
-from fastapi import HTTPException, Request
+from fastapi import Request
+from starlette.datastructures import MutableHeaders
+from starlette.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 
@@ -73,29 +75,73 @@ class ZeroTrustAPIShieldMiddleware(BaseHTTPMiddleware):
         )
         self.protected_prefixes = tuple(
             prefix.strip()
-            for prefix in os.getenv("API_SHIELD_PROTECTED_PREFIXES", "/ask,/api/v2/chat").split(",")
+            for prefix in os.getenv("API_SHIELD_PROTECTED_PREFIXES", "/ask,/api/v2/chat,/api/v2/proxy,/api/v2/audit,/audit,/export-audit").split(",")
             if prefix.strip()
+        )
+        self.max_body_bytes = int(os.getenv("API_SHIELD_MAX_BODY_BYTES", str(512 * 1024)))
+        self.blocked_path_fragments = tuple(
+            fragment.strip().lower()
+            for fragment in os.getenv(
+                "API_SHIELD_BLOCKED_PATH_FRAGMENTS",
+                "../,/.env,/wp-admin,/phpmyadmin,/actuator,/server-status",
+            ).split(",")
+            if fragment.strip()
         )
 
     async def dispatch(self, request: Request, call_next):
+        path = request.url.path.lower()
+        if self._is_suspicious_path(path):
+            return self._deny(404, "NOT_FOUND")
+
+        content_length = request.headers.get("content-length")
+        if content_length:
+            try:
+                if int(content_length) > self.max_body_bytes:
+                    return self._deny(413, "REQUEST_TOO_LARGE")
+            except ValueError:
+                return self._deny(400, "INVALID_CONTENT_LENGTH")
+
         if not request.url.path.startswith(self.protected_prefixes):
-            return await call_next(request)
+            response = await call_next(request)
+            self._apply_security_headers(response.headers)
+            return response
 
         cert_fingerprint = self._require_mtls(request)
+        if cert_fingerprint == "__DENY__":
+            return self._deny(401, "MTLS_CLIENT_CERT_REQUIRED")
         actor_key = cert_fingerprint or request.headers.get("authorization", request.client.host if request.client else "unknown")
         estimated_cost = self._estimate_request_cost(request)
         allowed, reason = self.limiter.check(actor_key=actor_key, estimated_cost_usd=estimated_cost)
         if not allowed:
-            raise HTTPException(status_code=429, detail=reason)
+            return self._deny(429, reason)
 
-        return await call_next(request)
+        response = await call_next(request)
+        self._apply_security_headers(response.headers)
+        return response
 
     def _require_mtls(self, request: Request) -> Optional[str]:
         verified = request.headers.get("x-ssl-client-verify", "")
         fingerprint = request.headers.get("x-ssl-client-fingerprint")
         if self.enforce_mtls and (verified.upper() != "SUCCESS" or not fingerprint):
-            raise HTTPException(status_code=401, detail="MTLS_CLIENT_CERT_REQUIRED")
+            return "__DENY__"
         return fingerprint
+
+    def _is_suspicious_path(self, path: str) -> bool:
+        return any(fragment in path for fragment in self.blocked_path_fragments)
+
+    @staticmethod
+    def _deny(status_code: int, detail: str) -> JSONResponse:
+        response = JSONResponse(status_code=status_code, content={"detail": detail})
+        ZeroTrustAPIShieldMiddleware._apply_security_headers(response.headers)
+        return response
+
+    @staticmethod
+    def _apply_security_headers(headers: MutableHeaders):
+        headers.setdefault("X-Content-Type-Options", "nosniff")
+        headers.setdefault("X-Frame-Options", "DENY")
+        headers.setdefault("Referrer-Policy", "no-referrer")
+        headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        headers.setdefault("Cache-Control", "no-store")
 
     @staticmethod
     def _estimate_request_cost(request: Request) -> float:

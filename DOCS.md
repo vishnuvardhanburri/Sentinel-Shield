@@ -54,7 +54,13 @@ flowchart LR
 | Fail-closed secrets | Active | `backend/config.py` |
 | First-run admin generator | Active | `backend/db/session.py` |
 | Forced password rotation | Active | `/api/v2/auth/change-password` |
+| Closed registration by default | Active | `ENABLE_SELF_REGISTRATION=false` |
+| Disabled-user token rejection | Active | `get_active_user` dependency |
+| JWT revocation hook | Active | `/api/v2/auth/logout` |
 | Dynamic CORS allowlist | Active | `ALLOWED_ORIGINS` |
+| Oversized request blocking | Active | `API_SHIELD_MAX_BODY_BYTES` |
+| Suspicious path blocking | Active | `API_SHIELD_BLOCKED_PATH_FRAGMENTS` |
+| Security response headers | Active | `ZeroTrustAPIShieldMiddleware` |
 | Local-first model routing | Active | `backend/gateway/model_router.py` |
 | India PII patterns | Active | `backend/compliance/india_patterns.py` |
 | Dynamic pseudonymization | Active | `backend/redaction_middleware.py` |
@@ -82,6 +88,15 @@ The final production lockdown healed the five blockers identified during readine
 
 5. **Unsealed actor and ledger salts — HEALED**  
    `ACTOR_HASH_SALT` and `LEDGER_MASTER_SALT` are mandatory and rotated by the production seal.
+
+6. **Open self-registration risk — HEALED**  
+   `/api/v2/auth/register` is closed unless `ENABLE_SELF_REGISTRATION=true`. Optional invite-token gating is available through `REGISTRATION_INVITE_TOKEN`.
+
+7. **Stale token risk after account disablement — HEALED**  
+   Protected routes verify that the token subject still maps to an active user before executing privileged actions.
+
+8. **API abuse and reconnaissance noise — HEALED**  
+   The Zero-Trust API Shield blocks oversized protected requests, suspicious probe paths, repeated protected calls, and applies browser hardening headers.
 
 ## First-Run Admin Flow
 
@@ -128,6 +143,7 @@ Do not submit or demo until every item is green:
 
 ```bash
 python3 -m compileall backend tests
+.runtime_venv/bin/python -m pytest
 cd frontend && pnpm lint
 cd frontend && pnpm build
 curl http://localhost:8000/health
@@ -144,6 +160,8 @@ Expected:
 - Dashboard loads at `http://localhost:3000`
 - No Next/Vercel starter logos are visible
 - Vault AI model dropdown only shows local models
+- Self-registration is disabled unless deliberately enabled
+- Protected API responses include `X-Frame-Options: DENY`
 - `/api/v2/risk/heatmap` responds after login
 - `/api/v2/audit/report` can generate an evidence report
 
@@ -201,6 +219,21 @@ Pull the local model:
 
 ```bash
 ollama pull llama3.1
+```
+
+### Registration blocked
+
+That is the secure default. To temporarily allow controlled onboarding:
+
+```bash
+ENABLE_SELF_REGISTRATION=true
+REGISTRATION_INVITE_TOKEN=<one-time-shared-token>
+```
+
+Pass the invite token before the department value in the registration department field:
+
+```text
+<one-time-shared-token>:SECURITY
 ```
 
 ### Backend refuses to boot

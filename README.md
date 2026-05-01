@@ -115,6 +115,7 @@ Before showing or submitting the product, run:
 
 ```bash
 python3 -m compileall backend tests
+.runtime_venv/bin/python -m pytest
 cd frontend && pnpm lint && pnpm build
 curl http://localhost:8000/health
 ```
@@ -149,6 +150,10 @@ Health: {"status":"awake","engine":"Sentinel Shield v2.0"}
 - Fail-closed secrets
 - No wildcard CORS
 - No hardcoded demo admin password
+- Closed-by-default self-registration
+- Active-user enforcement on protected JWT routes
+- JWT session revocation hook
+- Oversized request, suspicious path, rate, and cost-budget controls
 - Pseudonymization before inference
 - Prompt injection detection before model routing
 - Salted tamper-evident ledger signatures

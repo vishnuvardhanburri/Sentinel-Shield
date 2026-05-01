@@ -33,7 +33,7 @@ except ImportError:
     from .vault_crypto import sentinel_crypto
 
 # ── V2 modules ───────────────────────────────────────────────────────────────
-from auth.jwt_handler import get_current_user, create_access_token, TokenPayload
+from auth.jwt_handler import get_current_user, create_access_token, revoke_token_id, TokenPayload
 from auth.rbac_engine import rbac, Permission
 from audit.ledger import audit_ledger
 from audit.export_engine import AuditExporter
@@ -111,6 +111,21 @@ def enforce_password_rotation(current_user: TokenPayload):
             detail="FIRST_RUN_PASSWORD_CHANGE_REQUIRED",
         )
 
+
+def enforce_active_user(current_user: TokenPayload, db: Session):
+    user = db.query(User).filter(User.email == current_user.sub).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=403, detail="USER_DISABLED_OR_NOT_FOUND")
+    return user
+
+
+def get_active_user(
+    current_user: TokenPayload = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TokenPayload:
+    enforce_active_user(current_user, db)
+    return current_user
+
 # Vector store (lazy init, preserved from v1)
 vectorstore = None
 
@@ -163,6 +178,9 @@ class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
 
+class LogoutRequest(BaseModel):
+    revoke_current: bool = True
+
 class Query(BaseModel):
     prompt: str
     preferred_model: Optional[str] = None
@@ -197,6 +215,8 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == req.email).first()
     if not user or not pwd_context.verify(req.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Sentinel Identity Failure: Access Denied")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Sentinel Identity Disabled")
     
     # Update last login
     user.last_login = datetime.now(timezone.utc)
@@ -226,6 +246,14 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 @app.post("/api/v2/auth/register")
 def register(req: LoginRequest, db: Session = Depends(get_db)):
     """Self-registration for new platform users."""
+    if os.getenv("ENABLE_SELF_REGISTRATION", "false").lower() != "true":
+        raise HTTPException(status_code=403, detail="SELF_REGISTRATION_DISABLED")
+    expected_invite = os.getenv("REGISTRATION_INVITE_TOKEN", "").strip()
+    provided_invite = (req.department or "").split(":", 1)
+    if expected_invite:
+        if len(provided_invite) != 2 or not secrets.compare_digest(provided_invite[0], expected_invite):
+            raise HTTPException(status_code=403, detail="REGISTRATION_INVITE_REQUIRED")
+        req.department = provided_invite[1] or "GENERAL"
     existing = db.query(User).filter(User.email == req.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Identity Conflict: User already exists")
@@ -243,16 +271,23 @@ def register(req: LoginRequest, db: Session = Depends(get_db)):
 
     return {"status": "SUCCESS", "message": "Pro Account Created: Please proceed to login."}
 
+@app.post("/api/v2/auth/logout")
+def logout(current_user: TokenPayload = Depends(get_active_user)):
+    """Revoke the current JWT for this process."""
+    if current_user.jti:
+        revoke_token_id(current_user.jti)
+    return {"status": "SUCCESS", "message": "Session revoked."}
+
 @app.post("/api/v2/auth/change-password")
 def change_password(
     req: ChangePasswordRequest,
-    current_user: TokenPayload = Depends(get_current_user),
+    current_user: TokenPayload = Depends(get_active_user),
     db: Session = Depends(get_db),
 ):
     """Rotate first-run temporary password and clear forced-change state."""
     if len(req.new_password) < 14:
         raise HTTPException(status_code=400, detail="Password must be at least 14 characters.")
-    user = db.query(User).filter(User.email == current_user.sub).first()
+    user = enforce_active_user(current_user, db)
     if not user or not pwd_context.verify(req.current_password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Current password invalid")
     user.hashed_password = pwd_context.hash(req.new_password)
@@ -275,7 +310,7 @@ def force_seed():
     raise HTTPException(status_code=410, detail="Master seed endpoint removed. Use first-run bootstrap credentials from server logs.")
 
 @app.post("/api/v2/chat")
-def chat(req: ChatRequest, current_user: TokenPayload = Depends(get_current_user)):
+def chat(req: ChatRequest, current_user: TokenPayload = Depends(get_active_user)):
     """
     Secure local conversational AI endpoint.
     Governs the prompt (redacts PII) and routes to the selected AI model.
@@ -339,7 +374,7 @@ async def root():
     }
 
 @app.get("/status")
-def get_status(current_user: TokenPayload = Depends(get_current_user)):
+def get_status(current_user: TokenPayload = Depends(get_active_user)):
     """System status + infra health. Requires valid JWT."""
     rbac.enforce(current_user.role, Permission.VIEW_VAULT_STATUS)
 
@@ -388,14 +423,14 @@ def get_status(current_user: TokenPayload = Depends(get_current_user)):
 
 
 @app.get("/api/v2/system/diagnostics")
-def system_diagnostics(current_user: TokenPayload = Depends(get_current_user)):
+def system_diagnostics(current_user: TokenPayload = Depends(get_active_user)):
     """Single localhost proof point for local LLM, ledger, and scanner readiness."""
     rbac.enforce(current_user.role, Permission.VIEW_VAULT_STATUS)
     return sentinel_check.run_all()
 
 
 @app.post("/api/v2/proxy/inspect")
-def proxy_inspect(req: ProxyInspectRequest, current_user: TokenPayload = Depends(get_current_user)):
+def proxy_inspect(req: ProxyInspectRequest, current_user: TokenPayload = Depends(get_active_user)):
     """Universal before/after proxy preview for Slack, Teams, CRM, and custom apps."""
     enforce_password_rotation(current_user)
     rbac.enforce(current_user.role, Permission.RUN_AI_QUERY)
@@ -422,7 +457,7 @@ def proxy_inspect(req: ProxyInspectRequest, current_user: TokenPayload = Depends
 
 
 @app.post("/ask")
-def query_vault(req: Query, current_user: TokenPayload = Depends(get_current_user)):
+def query_vault(req: Query, current_user: TokenPayload = Depends(get_active_user)):
     """
     Secure AI Query with:
      1. RBAC permission check
@@ -606,7 +641,7 @@ def query_vault(req: Query, current_user: TokenPayload = Depends(get_current_use
 
 
 @app.get("/api/v2/risk/heatmap")
-def risk_heatmap(current_user: TokenPayload = Depends(get_current_user)):
+def risk_heatmap(current_user: TokenPayload = Depends(get_active_user)):
     """Oracle dashboard API: heatmap-ready user risk and quarantine state."""
     rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
     return oracle_risk_engine.heatmap(tenant_id=current_user.tenant_id)
@@ -615,7 +650,7 @@ def risk_heatmap(current_user: TokenPayload = Depends(get_current_user)):
 @app.post("/export-audit")
 def export_audit(
     format: str = "csv",
-    current_user: TokenPayload = Depends(get_current_user)
+    current_user: TokenPayload = Depends(get_active_user)
 ):
     """Export the audit log as CSV or PDF."""
     rbac.enforce(current_user.role, Permission.EXPORT_AUDIT_CSV)
@@ -640,7 +675,7 @@ def export_audit(
 
 
 @app.post("/api/v2/audit/report")
-def evidence_report(req: EvidenceReportRequest, current_user: TokenPayload = Depends(get_current_user)):
+def evidence_report(req: EvidenceReportRequest, current_user: TokenPayload = Depends(get_active_user)):
     """Generate one-click CISO evidence PDF with ledger certificate and Oracle risk actors."""
     enforce_password_rotation(current_user)
     rbac.enforce(current_user.role, Permission.EXPORT_AUDIT_PDF)
@@ -666,7 +701,7 @@ def evidence_report(req: EvidenceReportRequest, current_user: TokenPayload = Dep
 def get_audit_log(
     limit: int = 100,
     department: Optional[str] = None,
-    current_user: TokenPayload = Depends(get_current_user)
+    current_user: TokenPayload = Depends(get_active_user)
 ):
     """Retrieve audit log entries. Scoped by department for Dept Heads."""
     rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
@@ -686,7 +721,7 @@ def get_audit_log(
 
 
 @app.get("/compliance/score")
-def get_compliance_score(current_user: TokenPayload = Depends(get_current_user)):
+def get_compliance_score(current_user: TokenPayload = Depends(get_active_user)):
     """Return multi-framework compliance scorecard."""
     scorer = ComplianceScorer()
     audit_stats = audit_ledger.get_summary_stats(tenant_id=current_user.tenant_id)
@@ -705,14 +740,14 @@ def get_compliance_score(current_user: TokenPayload = Depends(get_current_user))
 
 
 @app.get("/policy/list")
-def list_policies(current_user: TokenPayload = Depends(get_current_user)):
+def list_policies(current_user: TokenPayload = Depends(get_active_user)):
     """List all loaded policies."""
     rbac.enforce(current_user.role, Permission.VIEW_POLICY)
     return policy_engine.list_policies()
 
 
 @app.post("/policy/reload")
-def reload_policies(current_user: TokenPayload = Depends(get_current_user)):
+def reload_policies(current_user: TokenPayload = Depends(get_active_user)):
     """Reload all YAML policies from disk (admin only)."""
     rbac.enforce(current_user.role, Permission.EDIT_GLOBAL_POLICY)
     policy_engine.reload()
@@ -720,7 +755,7 @@ def reload_policies(current_user: TokenPayload = Depends(get_current_user)):
 
 
 @app.post("/recovery-info")
-def get_recovery_info(current_user: TokenPayload = Depends(get_current_user)):
+def get_recovery_info(current_user: TokenPayload = Depends(get_active_user)):
     """Returns hardware-locked recovery parameters."""
     rbac.enforce(current_user.role, Permission.VIEW_LICENSE_STATUS)
     return {

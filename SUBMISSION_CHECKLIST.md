@@ -31,6 +31,7 @@ Run:
 
 ```bash
 python3 -m compileall backend tests
+.runtime_venv/bin/python -m pytest
 cd frontend && pnpm lint
 cd frontend && pnpm build
 ```
@@ -67,6 +68,18 @@ ALLOWED_ORIGINS
 ```
 
 Confirm backend fails closed if secrets are missing.
+
+Confirm external onboarding is closed unless intentionally enabled:
+
+```text
+ENABLE_SELF_REGISTRATION=false
+```
+
+Confirm API shield behavior:
+
+- Protected API responses include `X-Frame-Options: DENY`
+- Oversized protected requests return `413 REQUEST_TOO_LARGE`
+- Suspicious probe paths such as `/.env` return `404`
 
 ## 5. Demo Flow
 
