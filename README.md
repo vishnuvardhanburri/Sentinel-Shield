@@ -128,6 +128,8 @@ cd frontend && pnpm lint && pnpm build
 curl http://localhost:8000/health
 pnpm smoke:e2e
 pnpm browser:e2e
+pnpm release:certificate
+pnpm handoff:zip
 ```
 
 Expected:
@@ -146,6 +148,18 @@ Authenticated smoke proof:
 SENTINEL_SMOKE_EMAIL=admin@sentinel.local \
 SENTINEL_SMOKE_PASSWORD='<changed-password>' \
 pnpm smoke:e2e
+```
+
+## Buyer Handoff Commands
+
+```bash
+pnpm demo:buyer              # Seed safe synthetic demo evidence and print local URLs
+pnpm deployment:doctor       # Check ports, env, Ollama, Docker, and deployment artifacts
+pnpm deployment:pack         # Generate Nginx, systemd, firewall, and production checklist
+pnpm security:due-diligence  # Generate SBOM and dependency scan artifacts
+pnpm release:certificate     # Generate signed readiness certificate JSON
+pnpm handoff:pdf             # Generate architecture handoff PDF
+pnpm handoff:zip             # Package docs, certificates, PDF, and deployment pack
 ```
 
 ## Key API Endpoints
@@ -195,6 +209,14 @@ pnpm smoke:e2e
 - Salted tamper-evident ledger signatures
 - Actor risk scoring and quarantine
 - Board-ready PDF evidence generation
+
+## Known Production Assumptions
+
+- Ollama must be installed and the configured local model must be pulled.
+- mTLS requires a trusted Nginx or Envoy layer forwarding verified client-certificate headers.
+- Redis is optional for localhost demos, but recommended for distributed risk/quarantine state.
+- Off-box ledger anchoring should point to buyer-controlled immutable storage such as S3 Object Lock, private Git, or SIEM.
+- Buyer-owned backup encryption requires `BACKUP_ENCRYPTION_PASSPHRASE`.
 
 ## Xavira Tech Labs Branding
 

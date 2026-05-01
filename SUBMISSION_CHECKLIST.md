@@ -35,6 +35,8 @@ python3 -m compileall backend tests
 cd frontend && pnpm lint
 cd frontend && pnpm build
 pnpm smoke:e2e
+pnpm release:certificate
+pnpm handoff:zip
 ```
 
 Pass criteria:
@@ -42,6 +44,8 @@ Pass criteria:
 - No backend syntax failures
 - No frontend lint errors
 - Production frontend build succeeds
+- Readiness certificate is generated under `logs/certificates`
+- Buyer handoff ZIP is generated under `logs/handoff`
 
 ## 3. Brand Check
 
@@ -123,4 +127,13 @@ After seal:
 
 ```bash
 git push origin main
+```
+
+## 8. Release Tag
+
+After GitHub Actions is green:
+
+```bash
+git tag v2.1-enterprise-lockdown
+git push origin v2.1-enterprise-lockdown
 ```

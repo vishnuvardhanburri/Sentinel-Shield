@@ -14,6 +14,10 @@
     "security:due-diligence": "bash scripts/security_due_diligence.sh",
     "deployment:pack": "python3 scripts/generate_deployment_pack.py",
     "deployment:doctor": "python3 scripts/deployment_doctor.py",
+    "demo:buyer": "python3 scripts/buyer_demo.py",
+    "release:certificate": "python3 scripts/production_readiness_certificate.py",
+    "handoff:pdf": "python3 scripts/generate_handoff_pdf.py",
+    "handoff:zip": "python3 scripts/buyer_handoff_zip.py",
     "production:seal": "bash scripts/production_seal.sh"
   }
 }
