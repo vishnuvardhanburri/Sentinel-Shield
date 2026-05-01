@@ -1,9 +1,14 @@
+import os
+import sys
+
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
-from backend.api_shield import InMemoryRateCostLimiter, ZeroTrustAPIShieldMiddleware
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../backend"))
+
+from api_shield import InMemoryRateCostLimiter, ZeroTrustAPIShieldMiddleware
 
 
 async def ok_endpoint(request):

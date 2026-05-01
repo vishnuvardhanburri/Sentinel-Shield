@@ -1,8 +1,13 @@
+import os
+import sys
+
 import jwt
 import pytest
 from fastapi import HTTPException
 
-from backend.auth.jwt_handler import JWT_ALGORITHM, JWT_SECRET, JWTHandler, revoke_token_id
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../backend"))
+
+from auth.jwt_handler import JWT_ALGORITHM, JWT_SECRET, JWTHandler, revoke_token_id
 
 
 def test_access_tokens_include_unique_jti():
