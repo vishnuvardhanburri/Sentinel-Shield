@@ -18,6 +18,7 @@ vault_archive/*
 # 3. AI Intelligence & State
 chroma_db/
 sentinel_state.json
+sentinel.db
 
 # 4. Professional Logs
 logs/*
