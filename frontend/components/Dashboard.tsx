@@ -1079,10 +1079,15 @@ function EnterpriseCenterTab() {
       anchor: ['/api/v2/enterprise/ledger/anchor', {}],
       backup: ['/api/v2/enterprise/backup', {}],
       threat: ['/api/v2/enterprise/threat-model', { deployment_name: 'Buyer Production', internet_exposed: false, cloud_llm_enabled: false, mTLS_enforced: true }],
+      doctor: ['/api/v2/enterprise/deployment-doctor', null],
+      bench: ['/api/v2/enterprise/model-benchmark', {}],
+      usage: ['/api/v2/enterprise/license-usage', null],
+      tenant: ['/api/v2/enterprise/tenant/export', null],
+      breakglass: ['/api/v2/enterprise/break-glass', { reason: 'Dashboard emergency recovery drill', duration_minutes: 30 }],
     };
     try {
       const [url, body] = payloads[kind];
-      const res = await api.post(url, body);
+      const res = body === null ? await api.get(url) : await api.post(url, body);
       setOutput(JSON.stringify(res.data, null, 2));
       if (kind === 'anchor') load();
     } catch (e: any) {
@@ -1275,7 +1280,7 @@ function EnterpriseCenterTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-6 gap-3">
+      <div className="grid grid-cols-5 gap-3">
         {[
           ['firewall', 'LLM Firewall Rules'],
           ['bundle', 'Policy Sync Signature'],
@@ -1284,6 +1289,11 @@ function EnterpriseCenterTab() {
           ['anchor', 'Ledger Anchor'],
           ['backup', 'Evidence Backup'],
           ['threat', 'Threat Model'],
+          ['doctor', 'Deployment Doctor'],
+          ['bench', 'Model Benchmark'],
+          ['usage', 'Usage Meter'],
+          ['tenant', 'Tenant Export'],
+          ['breakglass', 'Break-Glass'],
         ].map(([id, label]) => (
           <button key={id} onClick={() => action(id)} className="p-4 bg-white/5 border border-white/10 rounded-2xl text-left hover:bg-white/10">
             <p className="text-xs font-bold text-emerald-300">{label}</p>

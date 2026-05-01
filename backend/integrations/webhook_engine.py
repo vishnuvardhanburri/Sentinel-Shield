@@ -63,6 +63,11 @@ class WebhookDispatcher:
         os.makedirs(base, exist_ok=True)
         return os.path.join(base, "webhook_registry.json")
 
+    def _queue_path(self) -> str:
+        base = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../logs"))
+        os.makedirs(base, exist_ok=True)
+        return os.path.join(base, "webhook_delivery_queue.jsonl")
+
     def _load_registry(self):
         path = self._registry_path()
         if os.path.exists(path):
@@ -118,11 +123,54 @@ class WebhookDispatcher:
 
                 resp = requests.post(hook["target_url"], data=body, headers=headers, timeout=8)
                 logger.info(f"Webhook {hook['hook_id']} → {hook['target_url']} [{resp.status_code}]")
+                if not (200 <= resp.status_code < 300):
+                    self._queue_delivery(hook, body, headers, f"HTTP_{resp.status_code}")
             except Exception as e:
                 logger.warning(f"Webhook dispatch failed for {hook.get('hook_id')}: {e}")
+                self._queue_delivery(hook, body, headers, str(e))
 
     def list_hooks(self, tenant_id: str = "default") -> List[Dict[str, Any]]:
         return [h for h in self._registry if h.get("tenant_id") == tenant_id]
+
+    def _queue_delivery(self, hook: Dict[str, Any], body: str, headers: Dict[str, str], reason: str):
+        entry = {
+            "hook_id": hook.get("hook_id"),
+            "target_url": hook.get("target_url"),
+            "body": body,
+            "headers": headers,
+            "reason": reason,
+            "attempts": 0,
+            "queued_at": datetime.now(timezone.utc).isoformat(),
+        }
+        with open(self._queue_path(), "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+
+    def queued_deliveries(self) -> List[Dict[str, Any]]:
+        path = self._queue_path()
+        if not os.path.exists(path):
+            return []
+        with open(path, "r", encoding="utf-8") as f:
+            return [json.loads(line) for line in f if line.strip()]
+
+    def retry_queue(self) -> Dict[str, Any]:
+        queued = self.queued_deliveries()
+        remaining = []
+        delivered = 0
+        for entry in queued:
+            try:
+                resp = requests.post(entry["target_url"], data=entry["body"], headers=entry["headers"], timeout=8)
+                if 200 <= resp.status_code < 300:
+                    delivered += 1
+                    continue
+                entry["reason"] = f"HTTP_{resp.status_code}"
+            except Exception as exc:
+                entry["reason"] = str(exc)
+            entry["attempts"] = int(entry.get("attempts", 0)) + 1
+            remaining.append(entry)
+        with open(self._queue_path(), "w", encoding="utf-8") as f:
+            for entry in remaining:
+                f.write(json.dumps(entry) + "\n")
+        return {"delivered": delivered, "remaining": len(remaining)}
 
 
 dispatcher = WebhookDispatcher()
@@ -171,6 +219,17 @@ def deregister_webhook(hook_id: str) -> Dict[str, Any]:
 def list_webhooks(tenant_id: str = "default") -> List[Dict[str, Any]]:
     """List registered webhooks for a tenant."""
     return dispatcher.list_hooks(tenant_id)
+
+
+@router.get("/webhooks/queue")
+def list_webhook_queue() -> Dict[str, Any]:
+    queued = dispatcher.queued_deliveries()
+    return {"queued": queued, "total": len(queued)}
+
+
+@router.post("/webhooks/queue/retry")
+def retry_webhook_queue() -> Dict[str, Any]:
+    return dispatcher.retry_queue()
 
 
 @router.post("/webhooks/test/{hook_id}")

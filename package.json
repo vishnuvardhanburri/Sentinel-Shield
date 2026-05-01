@@ -13,6 +13,7 @@
     "browser:e2e": ".runtime_venv/bin/python scripts/browser_e2e.py",
     "security:due-diligence": "bash scripts/security_due_diligence.sh",
     "deployment:pack": "python3 scripts/generate_deployment_pack.py",
+    "deployment:doctor": "python3 scripts/deployment_doctor.py",
     "production:seal": "bash scripts/production_seal.sh"
   }
 }

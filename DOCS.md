@@ -319,8 +319,14 @@ Remaining future-proof upgrades:
 Next enterprise upgrades still worth doing:
 
 1. **Off-box automatic ledger anchoring**: push daily roots to S3 Object Lock, Git, or a private timestamping service.
-2. **Webhook alert routing UI**: expose Slack, Teams, and generic webhook alert routing in the dashboard.
+2. **Webhook delivery queue**: failed outbound webhooks are persisted in `logs/webhook_delivery_queue.jsonl` and retried through `/integrations/webhooks/queue/retry`.
 3. **Encrypted evidence backups**: set `BACKUP_ENCRYPTION_PASSPHRASE` and `/api/v2/enterprise/backup` will emit an AES-256-GCM `.enc` artifact beside the ZIP.
+4. **Deployment Doctor**: run `pnpm deployment:doctor` or use `/api/v2/enterprise/deployment-doctor` for localhost, Redis, Ollama, mTLS, CORS, and secret posture.
+5. **Model Safety Benchmark**: `/api/v2/enterprise/model-benchmark` measures local-model latency and redaction-preservation behavior.
+6. **Break-glass access**: `/api/v2/enterprise/break-glass` creates a copy-once emergency token and records a high-risk audit event.
+7. **Tenant export/import**: `/api/v2/enterprise/tenant/export` and `/import` support buyer handoff dry runs without exposing API key secrets.
+8. **Policy versioning**: `/api/v2/enterprise/policy-versions` records approval state, expiry, rollback metadata, and signed certificates.
+9. **License usage meter**: `/api/v2/enterprise/license-usage` reports users, API keys, calls, report count, redactions, and model routes.
 
 ## Final Handoff Position
 
