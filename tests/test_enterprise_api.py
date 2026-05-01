@@ -76,3 +76,55 @@ def test_enterprise_reports_alerts_and_quarantine_lists():
     assert c.get("/api/v2/enterprise/reports").status_code == 200
     assert c.get("/api/v2/enterprise/alerts").status_code == 200
     assert c.get("/api/v2/enterprise/quarantine").status_code == 200
+
+
+def test_enterprise_readiness_backup_restore_and_threat_model():
+    c = client()
+    readiness = c.get("/api/v2/enterprise/readiness")
+    assert readiness.status_code == 200
+    assert "score" in readiness.json()
+    assert any(control["name"] == "ledger_integrity" for control in readiness.json()["controls"])
+
+    backup = c.post("/api/v2/enterprise/backup")
+    assert backup.status_code == 200
+    assert backup.json()["sha256"]
+    assert backup.json()["artifact_count"] >= 1
+
+    restore = c.get("/api/v2/enterprise/restore-drill")
+    assert restore.status_code == 200
+    assert restore.json()["backup_valid"] is True
+
+    threat_model = c.post("/api/v2/enterprise/threat-model", json={
+        "deployment_name": "Buyer Production",
+        "internet_exposed": True,
+        "cloud_llm_enabled": False,
+        "mTLS_enforced": True,
+    })
+    assert threat_model.status_code == 200
+    assert len(threat_model.json()["risk_register"]) >= 5
+    assert threat_model.json()["certificate"]
+
+
+def test_policy_bundle_verify_detects_signature_tamper():
+    c = client()
+    bundle = c.post("/api/v2/enterprise/policy-bundles/sign", json={
+        "bundle_name": "verify-bundle",
+        "yaml_content": "rules: []",
+        "target_scope": "edge",
+    }).json()
+
+    ok = c.post("/api/v2/enterprise/policy-bundles/verify", json={
+        "manifest": bundle["manifest"],
+        "signature": bundle["signature"],
+    })
+    assert ok.status_code == 200
+    assert ok.json()["valid"] is True
+
+    tampered = dict(bundle["manifest"])
+    tampered["target_scope"] = "attacker-edge"
+    bad = c.post("/api/v2/enterprise/policy-bundles/verify", json={
+        "manifest": tampered,
+        "signature": bundle["signature"],
+    })
+    assert bad.status_code == 200
+    assert bad.json()["valid"] is False

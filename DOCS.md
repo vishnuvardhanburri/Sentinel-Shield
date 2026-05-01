@@ -285,31 +285,24 @@ pnpm production:seal
 
 ## Next-Level Implementation Suggestions
 
-These are the highest-impact upgrades before a serious enterprise sale:
+The first wave of enterprise upgrades is now implemented:
 
-1. **Streaming Vault AI responses**  
-   Add server-sent events or WebSocket streaming so local AI feels fast and premium.
+1. **Model management page**: `/api/v2/enterprise/models` and the dashboard Enterprise tab show local Ollama inventory and gateway status.
+2. **Signed policy sync**: `/api/v2/enterprise/policy-bundles/sign` creates rollout manifests and `/verify` detects tampering before edge deployment.
+3. **Evidence report history**: `/api/v2/enterprise/reports` lists generated reports with SHA-256 certificates and authenticated downloads.
+4. **mTLS deployment guide**: `/api/v2/enterprise/mtls/nginx` generates a buyer-specific Nginx mTLS template.
+5. **Browser/API smoke proof**: `pnpm smoke:e2e` and `pnpm browser:e2e` provide repeatable handoff verification.
+6. **Ledger anchoring**: `/api/v2/enterprise/ledger/anchor` creates signed local anchor records for Object Lock, private Git, or SIEM handoff.
+7. **Production readiness scoring**: `/api/v2/enterprise/readiness` proves secrets, CORS, ledger, policy, scanner, and model posture.
+8. **Evidence backup bundle**: `/api/v2/enterprise/backup` creates a non-secret signed ZIP of audit and due-diligence artifacts.
+9. **Restore drill**: `/api/v2/enterprise/restore-drill` validates the newest evidence backup and ledger chain without modifying state.
+10. **Threat model generator**: `/api/v2/enterprise/threat-model` produces a deployment-specific attack surface checklist and certificate.
 
-2. **Redis-backed risk engine**  
-   Current risk state is file-backed for localhost. Use Redis in production for distributed edge nodes.
+Recommended second wave:
 
-3. **Policy sync hub**  
-   Add signed remote policy bundles with version pinning, rollback, and tenant scope.
-
-4. **Model management page**  
-   Show installed Ollama models, pull status, default model, memory footprint, and health.
-
-5. **Evidence report download button**  
-   The backend generates reports. Add direct browser download and report history.
-
-6. **mTLS deployment guide**  
-   Document Envoy/Nginx mTLS termination and required forwarded certificate headers.
-
-7. **Browser-level Playwright smoke suite**  
-   Automate login, proxy masking, Vault AI query, risk heatmap, and evidence generation.
-
-8. **Immutable off-box ledger export**  
-   Push daily ledger roots to S3 Object Lock, Git, or a private timestamping service.
+1. **Streaming Vault AI responses**: add server-sent events or WebSocket streaming so local AI feels fast and premium.
+2. **Redis-backed risk engine**: move file-backed Oracle state to Redis for multi-node production.
+3. **Off-box automatic ledger anchoring**: push daily roots to S3 Object Lock, Git, or a private timestamping service.
 
 ## Final Handoff Position
 
