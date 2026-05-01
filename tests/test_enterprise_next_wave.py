@@ -53,6 +53,33 @@ def test_api_key_lifecycle():
     assert revoked.json()["status"] == "REVOKED"
 
 
+def test_api_key_can_call_proxy_without_jwt():
+    c = client()
+    created = c.post("/api/v2/admin/api-keys", json={
+        "name": "Proxy Integration",
+        "scopes": ["proxy:inspect"],
+        "department": "API_CLIENT",
+        "expires_in_days": 30,
+    })
+    secret = created.json()["secret"]
+    app.dependency_overrides.clear()
+    try:
+        response = TestClient(app).post(
+            "/api/v2/proxy/inspect",
+            headers={"X-Sentinel-API-Key": secret},
+            json={
+                "text": "Aadhaar 2345 6789 0123 needs review",
+                "source_app": "crm",
+                "actor": "crm-user",
+                "auto_redact": True,
+            },
+        )
+        assert response.status_code == 200
+        assert "2345 6789 0123" not in response.json()["protected_text"]
+    finally:
+        app.dependency_overrides[get_active_user] = super_admin
+
+
 def test_mfa_setup_enable_and_verify():
     c = client()
     db = SessionLocal()

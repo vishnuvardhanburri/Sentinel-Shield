@@ -310,9 +310,17 @@ Recommended second wave:
 
 Remaining future-proof upgrades:
 
-1. **Redis-backed risk engine**: move file-backed Oracle state to Redis for multi-node production.
-2. **Off-box automatic ledger anchoring**: push daily roots to S3 Object Lock, Git, or a private timestamping service.
-3. **Native dashboard controls**: expose the new MFA, API key, simulator, and schedule endpoints in the Enterprise tab.
+1. **API key auth middleware**: `X-Sentinel-API-Key` can now call `/api/v2/proxy/inspect` without a dashboard JWT, using scoped app keys.
+2. **Redis-backed risk engine**: Oracle risk state now uses `REDIS_URL` when configured and falls back to local JSON for air-gapped demos.
+3. **Native dashboard controls**: the Enterprise tab now exposes readiness, API keys, policy simulation, evidence scheduling, backups, and threat models.
+4. **SBOM and dependency scan**: run `pnpm security:due-diligence` to generate buyer review artifacts in `logs/due_diligence`.
+5. **Deployment hardening pack**: run `pnpm deployment:pack` to generate Nginx, systemd, firewall, and production checklist files.
+
+Next enterprise upgrades still worth doing:
+
+1. **Off-box automatic ledger anchoring**: push daily roots to S3 Object Lock, Git, or a private timestamping service.
+2. **Webhook alert routing UI**: expose Slack, Teams, and generic webhook alert routing in the dashboard.
+3. **Encrypted evidence backups**: set `BACKUP_ENCRYPTION_PASSPHRASE` and `/api/v2/enterprise/backup` will emit an AES-256-GCM `.enc` artifact beside the ZIP.
 
 ## Final Handoff Position
 

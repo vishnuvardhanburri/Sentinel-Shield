@@ -1026,23 +1026,34 @@ function EnterpriseCenterTab() {
   const [reports, setReports] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [quarantine, setQuarantine] = useState<any[]>([]);
+  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [readiness, setReadiness] = useState<any>(null);
+  const [schedule, setSchedule] = useState<any>(null);
+  const [simPrompt, setSimPrompt] = useState('Aadhaar 2345 6789 0123 should go to cloud for secret merger analysis.');
+  const [apiKeySecret, setApiKeySecret] = useState('');
   const [output, setOutput] = useState('');
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      const [m, r, a, q] = await Promise.all([
+      const [m, r, a, q, k, ready, sched] = await Promise.all([
         api.get('/api/v2/enterprise/models'),
         api.get('/api/v2/enterprise/reports'),
         api.get('/api/v2/enterprise/alerts'),
         api.get('/api/v2/enterprise/quarantine'),
+        api.get('/api/v2/admin/api-keys').catch(() => ({ data: { api_keys: [] } })),
+        api.get('/api/v2/enterprise/readiness').catch(() => ({ data: null })),
+        api.get('/api/v2/enterprise/evidence-schedule').catch(() => ({ data: null })),
       ]);
       setModels(m.data);
       api.get('/api/v2/enterprise/version').then(v => setVersion(v.data)).catch(() => { });
       setReports(r.data.reports || []);
       setAlerts(a.data.alerts || []);
       setQuarantine(q.data.actors || []);
+      setApiKeys(k.data.api_keys || []);
+      setReadiness(ready.data);
+      setSchedule(sched.data?.schedule || null);
     } catch { }
     finally { setLoading(false); }
   };
@@ -1066,6 +1077,8 @@ function EnterpriseCenterTab() {
       mtls: ['/api/v2/enterprise/mtls/nginx', { server_name: 'sentinel-shield.local', ca_cert_path: '/etc/sentinel/ca.crt', upstream_url: 'http://127.0.0.1:8000' }],
       branding: ['/api/v2/enterprise/branding', { company_name: 'Buyer Organization', product_name: 'Sentinel Shield', primary_color: '#10b981', compliance_frameworks: ['DPDP_2026', 'GDPR', 'FedRAMP'] }],
       anchor: ['/api/v2/enterprise/ledger/anchor', {}],
+      backup: ['/api/v2/enterprise/backup', {}],
+      threat: ['/api/v2/enterprise/threat-model', { deployment_name: 'Buyer Production', internet_exposed: false, cloud_llm_enabled: false, mTLS_enforced: true }],
     };
     try {
       const [url, body] = payloads[kind];
@@ -1074,6 +1087,47 @@ function EnterpriseCenterTab() {
       if (kind === 'anchor') load();
     } catch (e: any) {
       setOutput(JSON.stringify(e.response?.data || { error: 'Action failed' }, null, 2));
+    }
+  };
+
+  const createApiKey = async () => {
+    try {
+      const res = await api.post('/api/v2/admin/api-keys', {
+        name: 'Universal Proxy Client',
+        scopes: ['proxy:inspect'],
+        department: 'API_CLIENT',
+        expires_in_days: 365,
+      });
+      setApiKeySecret(res.data.secret);
+      setOutput(JSON.stringify(res.data, null, 2));
+      load();
+    } catch (e: any) {
+      setOutput(JSON.stringify(e.response?.data || { error: 'API key creation failed' }, null, 2));
+    }
+  };
+
+  const runSimulator = async () => {
+    try {
+      const res = await api.post('/api/v2/policy/simulate', { prompt: simPrompt, department: 'GLOBAL_SECURITY' });
+      setOutput(JSON.stringify(res.data, null, 2));
+    } catch (e: any) {
+      setOutput(JSON.stringify(e.response?.data || { error: 'Simulation failed' }, null, 2));
+    }
+  };
+
+  const configureSchedule = async () => {
+    try {
+      const res = await api.post('/api/v2/enterprise/evidence-schedule', {
+        enabled: true,
+        frequency: 'weekly',
+        org_name: 'Buyer Organization',
+        tenant_id: 'default',
+        retention_days: 365,
+      });
+      setSchedule(res.data.schedule);
+      setOutput(JSON.stringify(res.data, null, 2));
+    } catch (e: any) {
+      setOutput(JSON.stringify(e.response?.data || { error: 'Schedule failed' }, null, 2));
     }
   };
 
@@ -1096,6 +1150,28 @@ function EnterpriseCenterTab() {
         <StatCard icon={Lock} label="Quarantined" value={quarantine.length} sub="Contained actors" glow={quarantine.length ? 'rose' : 'blue'} />
       </div>
 
+      {readiness && (
+        <div className="p-4 bg-[#080808] border border-white/8 rounded-2xl">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Production Readiness</h3>
+              <p className={`text-3xl font-black ${readiness.score >= 85 ? 'text-emerald-400' : 'text-amber-400'}`}>{readiness.score}%</p>
+            </div>
+            <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${readiness.status === 'PRODUCTION_READY' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`}>
+              {readiness.status}
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {(readiness.controls || []).map((control: any) => (
+              <div key={control.name} className="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2">
+                {control.ok ? <CheckCircle2 size={13} className="text-emerald-400" /> : <XCircle size={13} className="text-rose-400" />}
+                <span className="text-[10px] text-slate-400">{control.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {version && (
         <div className="p-4 bg-[#080808] border border-white/8 rounded-2xl grid grid-cols-5 gap-3 text-xs">
           {[
@@ -1114,6 +1190,42 @@ function EnterpriseCenterTab() {
       )}
 
       <div className="grid grid-cols-2 gap-4">
+        <div className="p-5 bg-[#080808] border border-white/8 rounded-2xl">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">API Key Management</h3>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-white">{apiKeys.length} scoped keys</p>
+            <button onClick={createApiKey} className="px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-400 hover:bg-emerald-500/20">Create Proxy Key</button>
+          </div>
+          {apiKeySecret && <div className="mb-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[10px] text-amber-300 font-mono break-all">Copy once: {apiKeySecret}</div>}
+          <div className="space-y-2 max-h-36 overflow-auto">
+            {apiKeys.slice(0, 5).map((k: any) => (
+              <div key={k.id} className="flex justify-between text-xs bg-white/5 rounded-xl p-2">
+                <span className="text-slate-300">{k.name}</span>
+                <span className={k.is_active ? 'text-emerald-400' : 'text-rose-400'}>{k.key_prefix}</span>
+              </div>
+            ))}
+            {apiKeys.length === 0 && <p className="text-xs text-slate-600">No app keys created yet.</p>}
+          </div>
+        </div>
+
+        <div className="p-5 bg-[#080808] border border-white/8 rounded-2xl">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Policy Simulator</h3>
+          <textarea value={simPrompt} onChange={e => setSimPrompt(e.target.value)}
+            className="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-slate-200 focus:outline-none resize-none" />
+          <button onClick={runSimulator} className="mt-3 w-full py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs font-bold text-blue-400 hover:bg-blue-500/20">
+            Simulate Decision
+          </button>
+        </div>
+
+        <div className="p-5 bg-[#080808] border border-white/8 rounded-2xl">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Evidence Scheduler</h3>
+          <p className="text-sm text-white">{schedule?.enabled ? `${schedule.frequency} report enabled` : 'No schedule configured'}</p>
+          <p className="text-xs text-slate-600 mb-3">Runner: python scripts/generate_scheduled_evidence.py</p>
+          <button onClick={configureSchedule} className="w-full py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-400 hover:bg-emerald-500/20">
+            Enable Weekly Evidence
+          </button>
+        </div>
+
         <div className="p-5 bg-[#080808] border border-white/8 rounded-2xl">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Model Management Center</h3>
           <p className="text-sm text-white">Default: {models?.default_model || 'llama3.1'}</p>
@@ -1170,6 +1282,8 @@ function EnterpriseCenterTab() {
           ['mtls', 'mTLS Config'],
           ['branding', 'Tenant Branding'],
           ['anchor', 'Ledger Anchor'],
+          ['backup', 'Evidence Backup'],
+          ['threat', 'Threat Model'],
         ].map(([id, label]) => (
           <button key={id} onClick={() => action(id)} className="p-4 bg-white/5 border border-white/10 rounded-2xl text-left hover:bg-white/10">
             <p className="text-xs font-bold text-emerald-300">{label}</p>

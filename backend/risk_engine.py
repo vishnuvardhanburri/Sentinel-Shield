@@ -54,6 +54,18 @@ class OracleRiskEngine:
         os.makedirs(os.path.dirname(state_path), exist_ok=True)
         self._events: List[RiskEvent] = self._load_events()
 
+    def _redis_client(self):
+        redis_url = os.getenv("REDIS_URL", "").strip()
+        if not redis_url:
+            return None
+        try:
+            import redis
+            client = redis.Redis.from_url(redis_url, decode_responses=True, socket_connect_timeout=1)
+            client.ping()
+            return client
+        except Exception:
+            return None
+
     def record_interception(
         self,
         actor_id: str,
@@ -151,6 +163,14 @@ class OracleRiskEngine:
         return hashlib.sha256(f"{salt}:{tenant_id}:{actor_id or 'UNKNOWN'}".encode()).hexdigest()
 
     def _load_events(self) -> List[RiskEvent]:
+        client = self._redis_client()
+        if client:
+            try:
+                raw = client.get("sentinel:oracle:risk_events")
+                if raw:
+                    return [RiskEvent(**event) for event in json.loads(raw).get("events", [])]
+            except Exception:
+                pass
         if not os.path.exists(self.state_path):
             return []
         try:
@@ -161,8 +181,15 @@ class OracleRiskEngine:
             return []
 
     def _save_events(self):
+        payload = {"events": [asdict(event) for event in self._events]}
+        client = self._redis_client()
+        if client:
+            try:
+                client.set("sentinel:oracle:risk_events", json.dumps(payload))
+            except Exception:
+                pass
         with open(self.state_path, "w", encoding="utf-8") as f:
-            json.dump({"events": [asdict(event) for event in self._events]}, f, indent=2)
+            json.dump(payload, f, indent=2)
 
     def _recent_events(self, days: int) -> List[RiskEvent]:
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)

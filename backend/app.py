@@ -16,7 +16,7 @@ import uuid
 import zipfile
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
-from fastapi import FastAPI, HTTPException, Depends, Security
+from fastapi import FastAPI, HTTPException, Depends, Security, Header
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -37,7 +37,8 @@ except ImportError:
     from .vault_crypto import sentinel_crypto
 
 # ── V2 modules ───────────────────────────────────────────────────────────────
-from auth.jwt_handler import get_current_user, create_access_token, revoke_token_id, TokenPayload
+from auth.jwt_handler import get_current_user, create_access_token, revoke_token_id, TokenPayload, verify_token, security_scheme
+from fastapi.security import HTTPAuthorizationCredentials
 from auth.rbac_engine import rbac, Permission
 from audit.ledger import audit_ledger
 from audit.export_engine import AuditExporter
@@ -129,6 +130,38 @@ def get_active_user(
 ) -> TokenPayload:
     enforce_active_user(current_user, db)
     return current_user
+
+
+def get_jwt_or_api_key_actor(
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(security_scheme),
+    x_sentinel_api_key: Optional[str] = Header(default=None),
+    db: Session = Depends(get_db),
+) -> TokenPayload:
+    """Accept dashboard JWTs or scoped app API keys for enterprise proxy integrations."""
+    if credentials:
+        current_user = verify_token(credentials.credentials)
+        enforce_active_user(current_user, db)
+        return current_user
+    if not x_sentinel_api_key:
+        raise HTTPException(status_code=401, detail="AUTHENTICATION_REQUIRED")
+    key_hash = _hash_api_key(x_sentinel_api_key)
+    api_key = db.query(APIKey).filter(APIKey.key_hash == key_hash, APIKey.is_active == True).first()
+    if not api_key:
+        raise HTTPException(status_code=401, detail="API_KEY_INVALID")
+    if api_key.expires_at and api_key.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="API_KEY_EXPIRED")
+    scopes = api_key.scopes or []
+    if "proxy:inspect" not in scopes and "*" not in scopes:
+        raise HTTPException(status_code=403, detail="API_KEY_SCOPE_DENIED")
+    api_key.last_used_at = datetime.now(timezone.utc)
+    db.commit()
+    return TokenPayload(
+        sub=f"api-key:{api_key.key_prefix}",
+        email=f"{api_key.key_prefix}@api-key.local",
+        role="STAFF",
+        department=api_key.department or "API_CLIENT",
+        tenant_id=api_key.tenant_id,
+    )
 
 # Vector store (lazy init, preserved from v1)
 vectorstore = None
@@ -863,7 +896,7 @@ def system_diagnostics(current_user: TokenPayload = Depends(get_active_user)):
 
 
 @app.post("/api/v2/proxy/inspect")
-def proxy_inspect(req: ProxyInspectRequest, current_user: TokenPayload = Depends(get_active_user)):
+def proxy_inspect(req: ProxyInspectRequest, current_user: TokenPayload = Depends(get_jwt_or_api_key_actor)):
     """Universal before/after proxy preview for Slack, Teams, CRM, and custom apps."""
     enforce_password_rotation(current_user)
     rbac.enforce(current_user.role, Permission.RUN_AI_QUERY)
@@ -1417,6 +1450,26 @@ def _safe_existing_files(paths: list[str]) -> list[str]:
     return [path for path in paths if os.path.isfile(path)]
 
 
+def _encrypt_backup_if_configured(zip_path: str) -> Optional[dict]:
+    passphrase = os.getenv("BACKUP_ENCRYPTION_PASSPHRASE", "").strip()
+    if not passphrase:
+        return None
+    try:
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    except Exception:
+        return {"error": "cryptography AESGCM unavailable"}
+    salt = secrets.token_bytes(16)
+    nonce = secrets.token_bytes(12)
+    key = hashlib.pbkdf2_hmac("sha256", passphrase.encode(), salt, 250_000, dklen=32)
+    aes = AESGCM(key)
+    plaintext = open(zip_path, "rb").read()
+    ciphertext = aes.encrypt(nonce, plaintext, None)
+    enc_path = f"{zip_path}.enc"
+    with open(enc_path, "wb") as f:
+        f.write(b"SENTINELENC1" + salt + nonce + ciphertext)
+    return {"encrypted_file": enc_path, "encrypted_sha256": _sha256_file(enc_path), "algorithm": "AES-256-GCM"}
+
+
 @app.get("/api/v2/enterprise/readiness")
 def enterprise_readiness(current_user: TokenPayload = Depends(get_active_user)):
     """Buyer due-diligence readiness score across secrets, ledger, CORS, policies, and local model posture."""
@@ -1472,6 +1525,9 @@ def create_evidence_backup(current_user: TokenPayload = Depends(get_active_user)
         "created_by": current_user.sub,
         "excludes": [".env", "sentinel.db", "runtime logs containing secrets"],
     }
+    encryption = _encrypt_backup_if_configured(zip_path)
+    if encryption:
+        manifest["encryption"] = encryption
     audit_ledger.log(
         action="EVIDENCE_BACKUP_CREATED",
         user_id=current_user.sub,
