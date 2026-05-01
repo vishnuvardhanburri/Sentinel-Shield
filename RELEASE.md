@@ -58,6 +58,14 @@ Before demo:
 - Login works
 - Temporary password rotation works
 - Admin can create, disable, and reset a user
+- Enterprise Center model inventory loads
+- CISO Alert Center and quarantine widgets load
+- Evidence report history lists generated artifacts
+- mTLS config wizard returns Nginx config
+- LLM firewall builder returns reviewable YAML
+- Policy bundle signer returns a manifest signature
+- Tenant branding pack returns buyer labels
+- Ledger anchor creates a root hash record
 - Proxy masks Aadhaar and PAN
 - Vault AI answers through local Ollama
 - Oracle Risk heatmap loads

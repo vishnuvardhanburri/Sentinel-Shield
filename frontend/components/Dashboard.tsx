@@ -1019,6 +1019,146 @@ function RiskTab() {
   );
 }
 
+// ── Enterprise Center Tab ───────────────────────────────────────────────────
+function EnterpriseCenterTab() {
+  const [models, setModels] = useState<any>(null);
+  const [reports, setReports] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [quarantine, setQuarantine] = useState<any[]>([]);
+  const [output, setOutput] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [m, r, a, q] = await Promise.all([
+        api.get('/api/v2/enterprise/models'),
+        api.get('/api/v2/enterprise/reports'),
+        api.get('/api/v2/enterprise/alerts'),
+        api.get('/api/v2/enterprise/quarantine'),
+      ]);
+      setModels(m.data);
+      setReports(r.data.reports || []);
+      setAlerts(a.data.alerts || []);
+      setQuarantine(q.data.actors || []);
+    } catch { }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const action = async (kind: string) => {
+    const payloads: Record<string, any> = {
+      firewall: ['/api/v2/enterprise/firewall/rules', { name: 'Block Secret Merger', action: 'quarantine', pattern: 'secret merger', department: 'GLOBAL', severity: 9 }],
+      bundle: ['/api/v2/enterprise/policy-bundles/sign', { bundle_name: 'global-sensitive-context-v1', target_scope: 'all-edge-nodes', yaml_content: 'rules: []' }],
+      mtls: ['/api/v2/enterprise/mtls/nginx', { server_name: 'sentinel-shield.local', ca_cert_path: '/etc/sentinel/ca.crt', upstream_url: 'http://127.0.0.1:8000' }],
+      branding: ['/api/v2/enterprise/branding', { company_name: 'Buyer Organization', product_name: 'Sentinel Shield', primary_color: '#10b981', compliance_frameworks: ['DPDP_2026', 'GDPR', 'FedRAMP'] }],
+      anchor: ['/api/v2/enterprise/ledger/anchor', {}],
+    };
+    try {
+      const [url, body] = payloads[kind];
+      const res = await api.post(url, body);
+      setOutput(JSON.stringify(res.data, null, 2));
+      if (kind === 'anchor') load();
+    } catch (e: any) {
+      setOutput(JSON.stringify(e.response?.data || { error: 'Action failed' }, null, 2));
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-white">Enterprise Center</h2>
+          <p className="text-xs text-slate-500">Model ops · alerts · policy sync · mTLS · branding · ledger anchoring</p>
+        </div>
+        <button onClick={load} className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-slate-300 hover:bg-white/10">
+          {loading ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-4 gap-4">
+        <StatCard icon={Server} label="Local Models" value={models?.installed_models?.length ?? 0} sub={models?.default_model || 'Vault default'} glow="blue" />
+        <StatCard icon={FileText} label="Reports" value={reports.length} sub="Evidence history" glow="emerald" />
+        <StatCard icon={Bell} label="CISO Alerts" value={alerts.length} sub="Open alerts" glow={alerts.length ? 'rose' : 'emerald'} />
+        <StatCard icon={Lock} label="Quarantined" value={quarantine.length} sub="Contained actors" glow={quarantine.length ? 'rose' : 'blue'} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="p-5 bg-[#080808] border border-white/8 rounded-2xl">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Model Management Center</h3>
+          <p className="text-sm text-white">Default: {models?.default_model || 'llama3.1'}</p>
+          <p className="text-xs text-slate-600 mb-3">Ollama: {models?.ollama_base_url || 'http://localhost:11434'}</p>
+          <div className="space-y-2 max-h-36 overflow-auto">
+            {(models?.installed_models || []).map((m: any) => (
+              <div key={m.name} className="flex justify-between text-xs bg-white/5 rounded-xl p-2">
+                <span className="text-slate-300">{m.name}</span>
+                <span className="text-slate-600">{m.size ? `${Math.round(m.size / 1024 / 1024 / 1024)} GB` : 'local'}</span>
+              </div>
+            ))}
+            {(!models?.installed_models || models.installed_models.length === 0) && <p className="text-xs text-slate-600">No local model inventory available.</p>}
+          </div>
+        </div>
+
+        <div className="p-5 bg-[#080808] border border-white/8 rounded-2xl">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Evidence Report History</h3>
+          <div className="space-y-2 max-h-44 overflow-auto">
+            {reports.slice(0, 5).map((r: any) => (
+              <a key={r.name} href={`${API_BASE}${r.download_url}`} target="_blank" className="block text-xs bg-white/5 rounded-xl p-2 hover:bg-white/10">
+                <span className="text-slate-300">{r.name}</span>
+                <span className="block text-slate-600 font-mono">{r.certificate?.slice(0, 24)}...</span>
+              </a>
+            ))}
+            {reports.length === 0 && <p className="text-xs text-slate-600">No reports generated yet.</p>}
+          </div>
+        </div>
+
+        <div className="p-5 bg-[#080808] border border-white/8 rounded-2xl">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">CISO Alert Center</h3>
+          {alerts.length === 0 ? <p className="text-xs text-slate-600">No open CISO alerts.</p> : alerts.map((a: any) => (
+            <div key={a.id} className="text-xs bg-rose-500/10 border border-rose-500/20 rounded-xl p-2 mb-2">
+              <p className="text-rose-300 font-bold">{a.severity} · {a.type}</p>
+              <p className="text-slate-500 font-mono">{a.actor_hash?.slice(0, 32)}...</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-5 bg-[#080808] border border-white/8 rounded-2xl">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Quarantine Management</h3>
+          {quarantine.length === 0 ? <p className="text-xs text-slate-600">No actors currently quarantined.</p> : quarantine.map((q: any) => (
+            <div key={q.actor_hash} className="text-xs bg-white/5 rounded-xl p-2 mb-2">
+              <p className="text-slate-300 font-mono">{q.actor_hash?.slice(0, 32)}...</p>
+              <p className="text-rose-400">{q.quarantine_reason}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-6 gap-3">
+        {[
+          ['firewall', 'LLM Firewall Rules'],
+          ['bundle', 'Policy Sync Signature'],
+          ['mtls', 'mTLS Config'],
+          ['branding', 'Tenant Branding'],
+          ['anchor', 'Ledger Anchor'],
+        ].map(([id, label]) => (
+          <button key={id} onClick={() => action(id)} className="p-4 bg-white/5 border border-white/10 rounded-2xl text-left hover:bg-white/10">
+            <p className="text-xs font-bold text-emerald-300">{label}</p>
+          </button>
+        ))}
+        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
+          <p className="text-xs font-bold text-slate-300">Browser E2E Proof</p>
+          <p className="text-[10px] text-slate-500 font-mono">pnpm smoke:e2e</p>
+        </div>
+      </div>
+
+      {output && (
+        <pre className="p-5 bg-[#080808] border border-white/8 rounded-2xl text-xs text-emerald-300 whitespace-pre-wrap overflow-auto max-h-80">{output}</pre>
+      )}
+    </motion.div>
+  );
+}
+
 // ── Universal Proxy Tab ──────────────────────────────────────────────────────
 function ProxyTab() {
   const [text, setText] = useState('Patient Aadhaar 2345 6789 0123 and PAN ABCDE1234F wants the merger document reviewed.');
@@ -1158,6 +1298,7 @@ export default function Dashboard() {
     { id: 'policy',      icon: BookOpen,     label: 'Policies' },
     { id: 'users',       icon: Users,        label: 'Users', roles: ['SUPER_ADMIN', 'DEPARTMENT_HEAD'] },
     { id: 'compliance',  icon: BarChart3,    label: 'Compliance' },
+    { id: 'enterprise',  icon: Settings,     label: 'Enterprise', roles: ['SUPER_ADMIN', 'AUDITOR'] },
   ].filter(n => !n.roles || n.roles.includes(role));
 
   return (
@@ -1238,6 +1379,7 @@ export default function Dashboard() {
             {activeTab === 'policy'     && <PolicyTab role={role} />}
             {activeTab === 'users'      && <UsersTab role={role} />}
             {activeTab === 'compliance' && <ComplianceTab />}
+            {activeTab === 'enterprise' && <EnterpriseCenterTab />}
           </div>
         </AnimatePresence>
       </main>

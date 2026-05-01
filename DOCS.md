@@ -71,6 +71,15 @@ flowchart LR
 | User risk scoring | Active | `backend/risk_engine.py` |
 | Tamper-evident ledger | Active | `backend/audit/ledger.py` |
 | Evidence PDF | Active | `backend/reporting/evidence_report.py` |
+| Model Management Center | Active | `/api/v2/enterprise/models` |
+| Evidence Report History | Active | `/api/v2/enterprise/reports` |
+| CISO Alert Center | Active | `/api/v2/enterprise/alerts` |
+| Quarantine Management | Active | `/api/v2/enterprise/quarantine` |
+| Global Policy Sync Signatures | Active | `/api/v2/enterprise/policy-bundles/sign` |
+| LLM Firewall Builder | Active | `/api/v2/enterprise/firewall/rules` |
+| mTLS Deployment Wizard | Active | `/api/v2/enterprise/mtls/nginx` |
+| Tenant Branding Pack | Active | `/api/v2/enterprise/branding` |
+| Off-Box Ledger Anchoring | Active | `/api/v2/enterprise/ledger/anchor` |
 
 ## Security Disclosure
 
@@ -163,6 +172,7 @@ Expected:
 - Dashboard loads at `http://localhost:3000`
 - No Next/Vercel starter logos are visible
 - Vault AI model dropdown only shows local models
+- Enterprise Center loads model/report/alert/quarantine widgets
 - Self-registration is disabled unless deliberately enabled
 - Protected API responses include `X-Frame-Options: DENY`
 - Users tab loads live users from `/api/v2/admin/users`

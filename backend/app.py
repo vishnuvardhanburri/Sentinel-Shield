@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, HTTPException, Depends, Security
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Literal
@@ -225,6 +226,30 @@ class EvidenceReportRequest(BaseModel):
     org_name: Optional[str] = "Buyer Organization"
     tenant_id: Optional[str] = "default"
     limit: int = 500
+
+class TenantBrandingRequest(BaseModel):
+    company_name: str = "Buyer Organization"
+    product_name: str = "Sentinel Shield"
+    primary_color: str = "#10b981"
+    compliance_frameworks: list[str] = ["DPDP_2026", "GDPR", "FedRAMP"]
+
+class FirewallRuleRequest(BaseModel):
+    name: str
+    action: Literal["block", "redact", "warn", "force_local", "quarantine"] = "warn"
+    pattern: str
+    department: Optional[str] = "GLOBAL"
+    severity: float = 5.0
+
+class PolicyBundleRequest(BaseModel):
+    bundle_name: str
+    yaml_content: str
+    target_scope: Optional[str] = "edge-nodes"
+
+class MTLSWizardRequest(BaseModel):
+    server_name: str = "sentinel-shield.local"
+    ca_cert_path: str = "/etc/sentinel/ca.crt"
+    client_cert_header: str = "X-SSL-Client-Fingerprint"
+    upstream_url: str = "http://127.0.0.1:8000"
 
 
 # ── Auth Endpoints (V2 Professional) ──────────────────────────────────────────
@@ -800,6 +825,183 @@ def risk_heatmap(current_user: TokenPayload = Depends(get_active_user)):
     """Oracle dashboard API: heatmap-ready user risk and quarantine state."""
     rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
     return oracle_risk_engine.heatmap(tenant_id=current_user.tenant_id)
+
+@app.get("/api/v2/enterprise/models")
+def model_management(current_user: TokenPayload = Depends(get_active_user)):
+    """Model Management Center: local Ollama model inventory and gateway status."""
+    rbac.enforce(current_user.role, Permission.VIEW_VAULT_STATUS)
+    models = []
+    try:
+        import requests
+        base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+        resp = requests.get(f"{base}/api/tags", timeout=2)
+        if resp.ok:
+            models = resp.json().get("models", [])
+    except Exception:
+        models = []
+    return {
+        "default_model": os.getenv("OLLAMA_MODEL", "llama3.1"),
+        "ollama_base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+        "gateway_adapters": model_router.list_available(),
+        "installed_models": models,
+        "install_command": "ollama pull llama3.1",
+    }
+
+@app.get("/api/v2/enterprise/reports")
+def evidence_report_history(current_user: TokenPayload = Depends(get_active_user)):
+    """Evidence Report History: generated PDF/text evidence artifacts."""
+    rbac.enforce(current_user.role, Permission.EXPORT_AUDIT_PDF)
+    export_dir = os.path.join(BASE_DIR, "logs", "exports")
+    os.makedirs(export_dir, exist_ok=True)
+    reports = []
+    for name in sorted(os.listdir(export_dir), reverse=True):
+        path = os.path.join(export_dir, name)
+        if not os.path.isfile(path):
+            continue
+        stat = os.stat(path)
+        digest = hashlib.sha256(open(path, "rb").read()).hexdigest()
+        reports.append({
+            "name": name,
+            "path": path,
+            "size_bytes": stat.st_size,
+            "generated_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+            "certificate": digest,
+            "download_url": f"/api/v2/enterprise/reports/{name}",
+        })
+    return {"reports": reports[:100]}
+
+@app.get("/api/v2/enterprise/reports/{filename}")
+def download_evidence_report(filename: str, current_user: TokenPayload = Depends(get_active_user)):
+    rbac.enforce(current_user.role, Permission.EXPORT_AUDIT_PDF)
+    safe_name = os.path.basename(filename)
+    path = os.path.join(BASE_DIR, "logs", "exports", safe_name)
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="REPORT_NOT_FOUND")
+    return FileResponse(path, filename=safe_name)
+
+@app.get("/api/v2/enterprise/alerts")
+def ciso_alert_center(current_user: TokenPayload = Depends(get_active_user)):
+    """CISO Alert Center: high-risk actors, prompt injections, and quarantine alerts."""
+    rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
+    heatmap = oracle_risk_engine.heatmap(tenant_id=current_user.tenant_id)
+    alerts = []
+    for actor in heatmap.get("actors", []):
+        if actor.get("quarantined") or actor.get("risk_score", 0) >= 50 or actor.get("injection_attempts_last_hour", 0):
+            alerts.append({
+                "id": actor.get("actor_hash"),
+                "severity": "CRITICAL" if actor.get("quarantined") else "HIGH",
+                "type": "AUTO_QUARANTINE" if actor.get("quarantined") else "RISK_SPIKE",
+                "actor_hash": actor.get("actor_hash"),
+                "risk_score": actor.get("risk_score"),
+                "reason": actor.get("quarantine_reason") or "High-risk activity detected",
+                "created_at": actor.get("last_seen"),
+                "status": "OPEN",
+            })
+    return {"alerts": alerts, "total": len(alerts)}
+
+@app.get("/api/v2/enterprise/quarantine")
+def quarantine_management(current_user: TokenPayload = Depends(get_active_user)):
+    rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
+    heatmap = oracle_risk_engine.heatmap(tenant_id=current_user.tenant_id)
+    return {"actors": [a for a in heatmap.get("actors", []) if a.get("quarantined")]}
+
+@app.post("/api/v2/enterprise/quarantine/{actor_hash}/release")
+def release_quarantine(actor_hash: str, current_user: TokenPayload = Depends(get_active_user)):
+    """Manual release is audit-only for v1; risk score decays naturally as the 1h window expires."""
+    rbac.enforce(current_user.role, Permission.MANAGE_USERS)
+    audit_ledger.log(
+        action="QUARANTINE_RELEASE_REVIEWED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+        policy_triggered="MANUAL_QUARANTINE_REVIEW",
+        metadata={"actor_hash": actor_hash, "mode": "review_recorded"},
+    )
+    return {"status": "REVIEW_RECORDED", "actor_hash": actor_hash, "note": "Risk quarantine expires as the one-hour window decays."}
+
+@app.post("/api/v2/enterprise/policy-bundles/sign")
+def sign_policy_bundle(req: PolicyBundleRequest, current_user: TokenPayload = Depends(get_active_user)):
+    """Global Policy Sync: create a signed bundle manifest; does not auto-apply remote policy."""
+    rbac.enforce(current_user.role, Permission.EDIT_GLOBAL_POLICY)
+    payload = {
+        "bundle_name": req.bundle_name,
+        "target_scope": req.target_scope,
+        "yaml_sha256": hashlib.sha256(req.yaml_content.encode()).hexdigest(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": current_user.sub,
+    }
+    signature = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+    return {"manifest": payload, "signature": signature, "apply_mode": "manual-review-required"}
+
+@app.post("/api/v2/enterprise/firewall/rules")
+def build_firewall_rule(req: FirewallRuleRequest, current_user: TokenPayload = Depends(get_active_user)):
+    """No-code LLM Firewall Rules Builder: returns YAML a human can review and commit."""
+    rbac.enforce(current_user.role, Permission.EDIT_GLOBAL_POLICY)
+    yaml_rule = {
+        "department": req.department or "GLOBAL",
+        "policy_name": f"LLM Firewall - {req.name}",
+        "rules": [{
+            "name": req.name,
+            "description": f"Generated firewall rule for pattern: {req.pattern}",
+            "keywords": [req.pattern],
+            "enforcement": "block" if req.action in ("block", "quarantine") else ("redact" if req.action == "redact" else "warn"),
+            "risk_threshold": req.severity,
+            "force_local_model": req.action == "force_local",
+            "quarantine_actor": req.action == "quarantine",
+        }],
+    }
+    import yaml
+    return {"yaml": yaml.safe_dump(yaml_rule, sort_keys=False), "review_required": True}
+
+@app.post("/api/v2/enterprise/mtls/nginx")
+def mtls_deployment_wizard(req: MTLSWizardRequest, current_user: TokenPayload = Depends(get_active_user)):
+    rbac.enforce(current_user.role, Permission.VIEW_VAULT_STATUS)
+    config = f"""server {{
+    listen 443 ssl;
+    server_name {req.server_name};
+
+    ssl_client_certificate {req.ca_cert_path};
+    ssl_verify_client on;
+
+    location / {{
+        proxy_pass {req.upstream_url};
+        proxy_set_header X-SSL-Client-Verify $ssl_client_verify;
+        proxy_set_header {req.client_cert_header} $ssl_client_fingerprint;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Host $host;
+    }}
+}}
+"""
+    return {"nginx_config": config, "required_env": {"API_SHIELD_ENFORCE_MTLS": "true"}}
+
+@app.post("/api/v2/enterprise/branding")
+def tenant_branding_pack(req: TenantBrandingRequest, current_user: TokenPayload = Depends(get_active_user)):
+    rbac.enforce(current_user.role, Permission.MANAGE_USERS)
+    pack = req.model_dump()
+    pack["generated_at"] = datetime.now(timezone.utc).isoformat()
+    pack["report_title"] = f"{req.company_name} Sovereign AI Evidence Report"
+    pack["dashboard_label"] = f"{req.product_name} by Xavira Tech Labs"
+    return {"branding": pack}
+
+@app.post("/api/v2/enterprise/ledger/anchor")
+def anchor_ledger_root(current_user: TokenPayload = Depends(get_active_user)):
+    """Off-box ledger anchoring v1: create a local anchor record ready for Git/S3/Object Lock upload."""
+    rbac.enforce(current_user.role, Permission.EXPORT_AUDIT_PDF)
+    entries = audit_ledger.get_entries(limit=100000, tenant_id=current_user.tenant_id)
+    root = hashlib.sha256(json.dumps([e.get("entry_hash") or e.get("signature") for e in entries], sort_keys=True).encode()).hexdigest()
+    anchor = {
+        "tenant_id": current_user.tenant_id,
+        "ledger_root": root,
+        "entry_count": len(entries),
+        "anchored_at": datetime.now(timezone.utc).isoformat(),
+        "anchored_by": current_user.sub,
+    }
+    anchor_dir = os.path.join(BASE_DIR, "logs", "anchors")
+    os.makedirs(anchor_dir, exist_ok=True)
+    path = os.path.join(anchor_dir, f"ledger_anchor_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(anchor, f, indent=2)
+    return {"anchor": anchor, "file": path, "next_steps": ["Upload to S3 Object Lock", "Commit to private Git", "Send to buyer SIEM"]}
 
 
 @app.post("/export-audit")

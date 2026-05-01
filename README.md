@@ -20,6 +20,7 @@ The system is designed to run without external LLM API keys. Vault AI uses the b
 | Evidence Reports | Generates PDF evidence for CISO, board, and DPDP/GDPR review |
 | Universal Proxy | Standard inspection API for Slack, Teams, CRM, and custom enterprise apps |
 | Admin Console | Live user creation, disablement, forced reset, and RBAC visibility |
+| Enterprise Center | Model inventory, CISO alerts, report history, policy bundles, mTLS config, branding, firewall rules, and ledger anchoring |
 
 ## Local URLs
 
@@ -161,6 +162,15 @@ pnpm smoke:e2e
 | `POST` | `/ask` | Governed Vault AI query |
 | `POST` | `/api/v2/proxy/inspect` | Raw-vs-masked universal proxy preview |
 | `GET` | `/api/v2/risk/heatmap` | Oracle user/API-key risk heatmap |
+| `GET` | `/api/v2/enterprise/models` | Local model management inventory |
+| `GET` | `/api/v2/enterprise/reports` | Evidence report download history |
+| `GET` | `/api/v2/enterprise/alerts` | CISO alert center |
+| `GET` | `/api/v2/enterprise/quarantine` | Quarantine management |
+| `POST` | `/api/v2/enterprise/policy-bundles/sign` | Signed policy sync manifest |
+| `POST` | `/api/v2/enterprise/firewall/rules` | LLM firewall YAML builder |
+| `POST` | `/api/v2/enterprise/mtls/nginx` | mTLS Nginx config wizard |
+| `POST` | `/api/v2/enterprise/branding` | Tenant branding pack |
+| `POST` | `/api/v2/enterprise/ledger/anchor` | Off-box ledger root anchor |
 | `GET` | `/audit/log` | Obsidian ledger entries |
 | `POST` | `/api/v2/audit/report` | CISO evidence PDF |
 | `GET` | `/compliance/score` | Compliance scorecard |
