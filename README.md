@@ -1,5 +1,7 @@
 # Sentinel Shield
 
+[![Sentinel Shield v2 — CI Pipeline](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml/badge.svg)](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml)
+
 **Sentinel Shield by Xavira Tech Labs** is a sovereign AI security gateway for enterprises that need private local AI, PII masking, policy enforcement, audit evidence, and compliance reporting from one localhost control plane.
 
 The system is designed to run without external LLM API keys. Vault AI uses the buyer's own local Ollama model by default.
@@ -65,6 +67,8 @@ Generate secure values with:
 ```bash
 pnpm production:seal
 ```
+
+For production deployments, start from `.env.example.production`.
 
 ## Run The Full Stack
 
@@ -191,3 +195,10 @@ No starter framework logos or external model branding are used in the buyer-faci
 ## License
 
 Proprietary — Xavira Tech Labs © 2026. All rights reserved.
+
+## Operational Documents
+
+- `DOCS.md` — technical due diligence and operator guide
+- `SECURITY.md` — security policy and vulnerability reporting
+- `RELEASE.md` — release and buyer handoff checklist
+- `SUBMISSION_CHECKLIST.md` — demo/submission gate
