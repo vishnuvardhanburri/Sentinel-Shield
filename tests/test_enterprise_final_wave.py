@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../backend"))
 
 from app import app, get_active_user  # noqa: E402
 from auth.jwt_handler import TokenPayload  # noqa: E402
+from db.session import init_db  # noqa: E402
 from integrations.webhook_engine import WebhookDispatcher, WebhookPayload, OutboundWebhook  # noqa: E402
 
 
@@ -21,6 +22,7 @@ def super_admin():
 
 
 def client():
+    init_db()
     app.dependency_overrides[get_active_user] = super_admin
     return TestClient(app)
 
