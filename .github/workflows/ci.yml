@@ -9,6 +9,13 @@ on:
 env:
   PYTHON_VERSION: "3.11"
   NODE_VERSION: "20"
+  DEPLOYMENT_MODE: airgap
+  DATABASE_URL: "sqlite:///./test_sentinel.db"
+  JWT_SECRET_KEY: "ci_jwt_secret_64_chars_minimum_for_fail_closed_loader_2026_xavira"
+  LICENSE_MASTER_SECRET: "ci_license_secret_64_chars_minimum_for_fail_closed_loader_2026_xavira"
+  ACTOR_HASH_SALT: "ci_actor_hash_salt_32_chars_minimum_2026"
+  LEDGER_MASTER_SALT: "ci_ledger_hash_salt_32_chars_minimum_2026"
+  ALLOWED_ORIGINS: "http://localhost:3000"
 
 jobs:
   # ────────────────────────────────────────────────────────────────────────
@@ -32,9 +39,6 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov pytest-asyncio bandit safety pyyaml
 
-      - name: Download spaCy model
-        run: python -m spacy download en_core_web_sm
-
       - name: Run tests with coverage
         run: |
           pytest tests/ \
@@ -43,9 +47,6 @@ jobs:
             --cov-report=term-missing \
             -v \
             --tb=short
-        env:
-          DEPLOYMENT_MODE: airgap
-          DATABASE_URL: "sqlite:///./test_sentinel.db"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -86,28 +87,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Set up Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
         working-directory: frontend
 
       - name: TypeScript type check
-        run: npx tsc --noEmit
+        run: pnpm exec tsc --noEmit
         working-directory: frontend
 
       - name: Lint
-        run: npm run lint
+        run: pnpm lint
         working-directory: frontend
-        continue-on-error: true  # Non-blocking during initial setup
 
       - name: Build
-        run: npm run build
+        run: pnpm build
         working-directory: frontend
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000

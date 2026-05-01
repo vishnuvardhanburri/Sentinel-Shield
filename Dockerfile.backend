@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     poppler-utils \
+    curl \
     tesseract-ocr \
     tesseract-ocr-eng \
     libmagic1 \
@@ -21,8 +22,7 @@ WORKDIR /app
 COPY requirements.txt ./
 COPY backend/requirements.txt ./backend_requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir -r backend_requirements.txt \
-    && python -m spacy download en_core_web_lg
+    && pip install --no-cache-dir -r backend_requirements.txt
 
 # Copy source
 COPY backend/ ./
