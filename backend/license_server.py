@@ -12,12 +12,16 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+try:
+    from config import security_settings
+except ImportError:
+    from .config import security_settings
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 LICENSE_DB = os.path.join(BASE_DIR, "logs", "licenses.jsonl")
 LICENSE_DB_DIR = os.path.dirname(LICENSE_DB)
 
-MASTER_SECRET = os.getenv("LICENSE_MASTER_SECRET", "VISHNULABS_SENTINEL_MASTER_2026")
+MASTER_SECRET = security_settings()["license_master_secret"]
 
 router = APIRouter(prefix="/license", tags=["License"])
 

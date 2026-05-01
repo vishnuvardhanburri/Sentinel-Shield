@@ -77,13 +77,21 @@ class ModelRouter:
         department: Optional[str] = None,
         context: Optional[str] = None,
         system_prompt: Optional[str] = None,
+        sensitivity_score: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Route a governed prompt to the best available model.
         Returns: {answer, model_used, tokens_used, fallback_used}
         """
+        force_airgap = sensitivity_score is not None and sensitivity_score > 7.0
         target = preferred_model or self.DEFAULT_MODEL_MAP.get(self.mode, "ollama/llama3.1")
+        if force_airgap:
+            target = "ollama/llama3.1"
         provider, model_name = self._parse_model(target)
+
+        if force_airgap and provider != "ollama":
+            provider = "ollama"
+            target = "ollama/llama3.1"
 
         # DYNAMIC FALLBACK: If Native Gemini is default but KEY is missing, pivot to OpenRouter
         if provider == "gemini" and "gemini" not in self._adapters:
@@ -104,6 +112,7 @@ class ModelRouter:
                 )
                 result["model_used"] = target
                 result["fallback_used"] = False
+                result["airgap_forced"] = force_airgap
                 return result
             except Exception as e:
                 logger.error(f"Primary adapter '{provider}' failed: {e}")
@@ -120,6 +129,7 @@ class ModelRouter:
                 )
                 result["model_used"] = "ollama/llama3.1"
                 result["fallback_used"] = True
+                result["airgap_forced"] = force_airgap
                 return result
             except Exception as e:
                 logger.error(f"Fallback Ollama also failed: {e}")
@@ -128,6 +138,7 @@ class ModelRouter:
             "answer": "⚠️ No AI model available. Check your DEPLOYMENT_MODE and API keys.",
             "model_used": "none",
             "fallback_used": False,
+            "airgap_forced": force_airgap,
             "tokens_used": 0,
         }
 

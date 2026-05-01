@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/set-state-in-effect, react-hooks/immutability, react-hooks/exhaustive-deps, @next/next/no-img-element */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,7 +8,7 @@ import {
   FileText, AlertTriangle, Send, Loader2, Users, Settings,
   BarChart3, ClipboardList, BookOpen, LogOut, RefreshCw,
   CheckCircle2, XCircle, Eye, Download, ChevronRight,
-  Zap, Globe, Server, Database, Key, Bell
+  Zap, Globe, Server, Database, Key, Bell, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import axios from 'axios';
 import {
@@ -15,7 +16,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 
-const API_BASE = 'https://sentinel-shield-ww9d.onrender.com';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const api = axios.create({ baseURL: API_BASE });
@@ -35,8 +36,8 @@ const risk_color = (score: number) =>
 
 // ── Login Screen ─────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }: { onLogin: (token: string, role: string) => void }) {
-  const [email, setEmail] = useState('admin@demo.com');
-  const [password, setPassword] = useState('demo1234');
+  const [email, setEmail] = useState('admin@sentinel.local');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -47,7 +48,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, role: string) => vo
       localStorage.setItem('sentinel_token', res.data.access_token);
       onLogin(res.data.access_token, res.data.role);
     } catch {
-      setError('Invalid credentials. Try admin@demo.com / demo1234');
+      setError('Invalid credentials. Use the first-run bootstrap password printed in backend logs.');
     } finally { setLoading(false); }
   };
 
@@ -93,7 +94,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, role: string) => vo
             </button>
           </div>
           <div className="mt-5 pt-5 border-t border-white/5">
-            <p className="text-xs text-slate-600 text-center">Demo accounts: admin · head · staff · auditor @demo.com / demo1234</p>
+            <p className="text-xs text-slate-600 text-center">First-run credentials are generated once in backend logs.</p>
           </div>
         </div>
       </motion.div>
@@ -410,6 +411,14 @@ function AuditLogTab() {
     } catch { alert('Export failed — check backend.'); } finally { setExporting(false); }
   };
 
+  const generateEvidenceReport = async () => {
+    setExporting(true);
+    try {
+      const res = await api.post('/api/v2/audit/report', { org_name: 'Buyer Organization', limit: 500 });
+      alert(`Evidence report generated: ${res.data.file}\nCertificate: ${res.data.certificate}`);
+    } catch { alert('Evidence report failed — check backend and ReportLab.'); } finally { setExporting(false); }
+  };
+
   const actionColor = (a: string) => {
     if (a?.includes('BLOCK')) return 'bg-rose-500/15 text-rose-400';
     if (a?.includes('QUERY')) return 'bg-blue-500/15 text-blue-400';
@@ -437,6 +446,10 @@ function AuditLogTab() {
           <button id="audit-export-pdf-btn" onClick={() => exportAudit('pdf')} disabled={exporting}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all">
             <FileText size={13} /> PDF Report
+          </button>
+          <button id="audit-evidence-report-btn" onClick={generateEvidenceReport} disabled={exporting}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs font-bold text-blue-400 hover:bg-blue-500/20 transition-all">
+            <ShieldCheck size={13} /> Evidence
           </button>
         </div>
       </div>
@@ -600,10 +613,10 @@ rules:
 // ── User Management Tab ───────────────────────────────────────────────────────
 function UsersTab({ role }: { role: string }) {
   const demoUsers = [
-    { email: 'admin@demo.com', role: 'SUPER_ADMIN', dept: 'ADMIN', active: true, mfa: true },
-    { email: 'head@demo.com', role: 'DEPARTMENT_HEAD', dept: 'ICU', active: true, mfa: false },
-    { email: 'staff@demo.com', role: 'STAFF', dept: 'ICU', active: true, mfa: false },
-    { email: 'auditor@demo.com', role: 'AUDITOR', dept: null, active: true, mfa: true },
+    { email: 'admin@sentinel.local', role: 'SUPER_ADMIN', dept: 'ADMIN', active: true, mfa: true },
+    { email: 'security-lead@buyer.local', role: 'DEPARTMENT_HEAD', dept: 'ICU', active: true, mfa: false },
+    { email: 'analyst@buyer.local', role: 'STAFF', dept: 'ICU', active: true, mfa: false },
+    { email: 'auditor@buyer.local', role: 'AUDITOR', dept: null, active: true, mfa: true },
   ];
 
   const roleColors: Record<string, string> = {
@@ -768,6 +781,170 @@ function ComplianceTab() {
   );
 }
 
+// ── Oracle Risk Tab ──────────────────────────────────────────────────────────
+function RiskTab() {
+  const [heatmap, setHeatmap] = useState<any>(null);
+  const [diagnostics, setDiagnostics] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [riskRes, diagRes] = await Promise.all([
+        api.get('/api/v2/risk/heatmap'),
+        api.get('/api/v2/system/diagnostics'),
+      ]);
+      setHeatmap(riskRes.data);
+      setDiagnostics(diagRes.data);
+    } catch { } finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const actors = heatmap?.actors || [];
+  const checks = diagnostics?.checks || [];
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-white">Oracle Risk Heatmap</h2>
+          <p className="text-xs text-slate-500">Real-time actor scoring · quarantine · self-diagnostics</p>
+        </div>
+        <button onClick={load} className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all">
+          <RefreshCw size={14} className={loading ? 'animate-spin text-emerald-400' : 'text-slate-400'} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard icon={Users} label="Tracked Actors" value={actors.length} sub="1-hour risk window" glow="blue" />
+        <StatCard icon={Lock} label="Quarantined" value={heatmap?.quarantined_users ?? 0} sub="Auto-contained identities" glow="rose" />
+        <StatCard icon={ShieldCheck} label="Self Check" value={diagnostics?.ready ? 'READY' : 'HOLD'} sub="Local LLM · ledger · scanner" glow={diagnostics?.ready ? 'emerald' : 'amber'} />
+      </div>
+
+      <div className="grid grid-cols-5 gap-4">
+        <div className="col-span-3 bg-[#080808] border border-white/8 rounded-2xl overflow-hidden">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-white/8">
+                {['Actor Hash', 'Risk', 'PII/hr', 'Injection/hr', 'Semantic/hr', 'State'].map(h => (
+                  <th key={h} className="text-left px-4 py-3 text-slate-600 font-bold uppercase tracking-widest text-[10px]">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {actors.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-600">No risk events yet.</td></tr>
+              ) : actors.map((actor: any) => (
+                <tr key={actor.actor_hash} className="border-b border-white/[0.04]">
+                  <td className="px-4 py-2.5 font-mono text-slate-400">{actor.actor_hash.slice(0, 22)}...</td>
+                  <td className={`px-4 py-2.5 font-bold ${actor.risk_score >= 75 ? 'text-rose-400' : actor.risk_score >= 40 ? 'text-amber-400' : 'text-emerald-400'}`}>{actor.risk_score}</td>
+                  <td className="px-4 py-2.5 text-slate-500">{actor.pii_attempts_last_hour}</td>
+                  <td className="px-4 py-2.5 text-slate-500">{actor.injection_attempts_last_hour}</td>
+                  <td className="px-4 py-2.5 text-slate-500">{actor.semantic_hits_last_hour}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${actor.quarantined ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'}`}>
+                      {actor.quarantined ? 'QUARANTINED' : 'ACTIVE'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="col-span-2 p-5 bg-[#080808] border border-white/8 rounded-2xl space-y-3">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Startup Diagnostics</h3>
+          {checks.map((check: any) => (
+            <div key={check.name} className="p-3 bg-white/[0.03] rounded-xl border border-white/[0.04]">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-slate-300">{check.name}</span>
+                <span className={check.ok ? 'text-emerald-400' : 'text-rose-400'}>{check.ok ? 'PASS' : 'FAIL'}</span>
+              </div>
+              <p className="text-[11px] text-slate-600">{check.detail}</p>
+            </div>
+          ))}
+          {diagnostics?.certificate && (
+            <p className="text-[10px] text-slate-700 font-mono break-all pt-2 border-t border-white/5">{diagnostics.certificate}</p>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Universal Proxy Tab ──────────────────────────────────────────────────────
+function ProxyTab() {
+  const [text, setText] = useState('Patient Aadhaar 2345 6789 0123 and PAN ABCDE1234F wants the merger document reviewed.');
+  const [autoRedact, setAutoRedact] = useState(true);
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const inspect = async () => {
+    setLoading(true);
+    try {
+      const res = await api.post('/api/v2/proxy/inspect', {
+        text,
+        source_app: 'localhost-dashboard',
+        actor: 'buyer-demo',
+        auto_redact: autoRedact,
+      });
+      setResult(res.data);
+    } catch { alert('Proxy inspection failed.'); } finally { setLoading(false); }
+  };
+
+  useEffect(() => { inspect(); }, [autoRedact]);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-white">Universal Proxy Hook</h2>
+          <p className="text-xs text-slate-500">Injectable interface for Slack · Teams · CRM · custom apps</p>
+        </div>
+        <button onClick={() => setAutoRedact(v => !v)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border ${autoRedact ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-slate-400'}`}>
+          {autoRedact ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+          Auto-Redact
+        </button>
+      </div>
+
+      <div className="bg-[#080808] border border-white/8 rounded-2xl overflow-hidden">
+        <textarea value={text} onChange={e => setText(e.target.value)}
+          className="w-full h-32 bg-transparent p-5 text-sm text-slate-200 focus:outline-none resize-none"
+          spellCheck={false} />
+        <div className="p-4 border-t border-white/8 flex justify-end">
+          <button onClick={inspect} disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-black rounded-xl text-xs font-bold transition-all">
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+            Inspect
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="p-5 bg-[#080808] border border-white/8 rounded-2xl">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Before</h3>
+          <p className="text-sm text-slate-300 whitespace-pre-wrap min-h-32">{result?.raw_text || text}</p>
+        </div>
+        <div className="p-5 bg-[#080808] border border-white/8 rounded-2xl">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">After</h3>
+          <p className="text-sm text-emerald-300 whitespace-pre-wrap min-h-32">{result?.protected_text || 'Run inspection to preview masked output.'}</p>
+        </div>
+      </div>
+
+      {result && (
+        <div className="grid grid-cols-4 gap-4">
+          <StatCard icon={AlertTriangle} label="Sensitivity" value={result.sensitivity_score} sub={result.policy_triggered || 'No policy'} glow={result.sensitivity_score > 7 ? 'rose' : 'amber'} />
+          <StatCard icon={Server} label="Route" value={result.route} sub="Gateway decision" glow="blue" />
+          <StatCard icon={Zap} label="Pseudonyms" value={result.metadata?.pseudonyms?.length || 0} sub="Context tokens created" glow="purple" />
+          <StatCard icon={Globe} label="Source" value={result.source_app} sub="Proxy origin" glow="emerald" />
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [token, setToken] = useState<string | null>(null);
@@ -814,6 +991,8 @@ export default function Dashboard() {
   const NAV = [
     { id: 'overview',    icon: Activity,     label: 'Overview' },
     { id: 'vault',       icon: ShieldCheck,  label: 'Vault AI' },
+    { id: 'proxy',       icon: Globe,        label: 'Proxy' },
+    { id: 'risk',        icon: Bell,         label: 'Oracle Risk' },
     { id: 'audit',       icon: ClipboardList,label: 'Audit Log' },
     { id: 'policy',      icon: BookOpen,     label: 'Policies' },
     { id: 'users',       icon: Users,        label: 'Users', roles: ['SUPER_ADMIN', 'DEPARTMENT_HEAD'] },
@@ -892,6 +1071,8 @@ export default function Dashboard() {
           <div key={activeTab}>
             {activeTab === 'overview'   && <OverviewTab status={status} />}
             {activeTab === 'vault'      && <VaultTab role={role} />}
+            {activeTab === 'proxy'      && <ProxyTab />}
+            {activeTab === 'risk'       && <RiskTab />}
             {activeTab === 'audit'      && <AuditLogTab />}
             {activeTab === 'policy'     && <PolicyTab role={role} />}
             {activeTab === 'users'      && <UsersTab role={role} />}

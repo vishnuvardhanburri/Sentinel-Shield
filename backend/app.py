@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from typing import Optional
 import platform
 import shutil
+import secrets
 
 # ── Core V1 imports (preserved) ─────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -46,6 +47,15 @@ from shadow_ai.detector import router as shadow_ai_router, shadow_detector
 from db.session import init_db, get_db, pwd_context
 from db.models import User
 from reporting.compliance_scorer import ComplianceScorer
+from redaction_middleware import IdentityMaskingProxy
+from api_shield import ZeroTrustAPIShieldMiddleware
+from semantic_dlp import SemanticDLP
+from prompt_injection import PromptInjectionDetector
+from risk_engine import oracle_risk_engine
+from sentinel_check import SentinelCheck
+from universal_proxy import UniversalProxy
+from reporting.evidence_report import EvidencePDFGenerator
+from config import security_settings
 
 # ── Config ───────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -54,6 +64,7 @@ STATE_FILE = os.path.join(BASE_DIR, "sentinel_state.json")
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
 alert_log = os.path.join(LOGS_DIR, "alerts.log")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
+SECURITY_SETTINGS = security_settings()
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
@@ -67,11 +78,13 @@ app = FastAPI(
 # Explicitly allow Vercel origins to talk to the Cloud Backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In high-security mode, replace with exact Vercel URL
+    allow_origins=SECURITY_SETTINGS["allowed_origins"],
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
 )
+
+app.add_middleware(ZeroTrustAPIShieldMiddleware)
 
 # Mount sub-routers
 app.include_router(license_router)
@@ -81,8 +94,22 @@ app.include_router(shadow_ai_router)
 # ── Shared instances ──────────────────────────────────────────────────────────
 scanner = EnterpriseScanner()
 india_scanner = IndiaPIIScanner()
+identity_proxy = IdentityMaskingProxy(scanner, india_scanner)
+semantic_dlp = SemanticDLP()
+prompt_injection_detector = PromptInjectionDetector()
+sentinel_check = SentinelCheck(scanner, india_scanner)
+universal_proxy = UniversalProxy(identity_proxy)
+evidence_reporter = EvidencePDFGenerator()
 dpdp_engine = DPDPEngine()
 exporter = AuditExporter()
+
+
+def enforce_password_rotation(current_user: TokenPayload):
+    if current_user.force_password_change:
+        raise HTTPException(
+            status_code=403,
+            detail="FIRST_RUN_PASSWORD_CHANGE_REQUIRED",
+        )
 
 # Vector store (lazy init, preserved from v1)
 vectorstore = None
@@ -115,12 +142,26 @@ async def startup():
         metadata={"version": "2.0.0"},
     )
 
+    diagnostics = sentinel_check.run_all()
+    audit_ledger.log(
+        action="SELF_DIAGNOSTIC_BOOTSTRAP",
+        user_id="SYSTEM",
+        user_role="SUPER_ADMIN",
+        policy_triggered=None if diagnostics.get("ready") else "BOOTSTRAP_DIAGNOSTIC_FAILURE",
+        risk_score=0.0 if diagnostics.get("ready") else 9.0,
+        metadata=diagnostics,
+    )
+
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 class LoginRequest(BaseModel):
     email: str
     password: str
     department: Optional[str] = None
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 class Query(BaseModel):
     prompt: str
@@ -136,6 +177,18 @@ class ChatRequest(BaseModel):
     context: Optional[str] = None
     preferred_model: Optional[str] = "openrouter/google/gemini-2.0-flash-lite-preview-02-05:free"
 
+class ProxyInspectRequest(BaseModel):
+    text: str
+    source_app: Optional[str] = "localhost"
+    actor: Optional[str] = "dashboard"
+    auto_redact: bool = True
+    metadata: Optional[dict] = None
+
+class EvidenceReportRequest(BaseModel):
+    org_name: Optional[str] = "Buyer Organization"
+    tenant_id: Optional[str] = "default"
+    limit: int = 500
+
 
 # ── Auth Endpoints (V2 Professional) ──────────────────────────────────────────
 @app.post("/api/v2/auth/login")
@@ -149,10 +202,19 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     user.last_login = datetime.now(timezone.utc)
     db.commit()
 
-    token = create_access_token(data={"sub": user.email, "role": user.role, "dept": user.department})
+    force_password_change = bool((getattr(user, "metadata_", None) or {}).get("force_password_change"))
+    token = create_access_token(data={
+        "sub": user.email,
+        "email": user.email,
+        "role": user.role,
+        "department": user.department,
+        "tenant_id": user.tenant_id,
+        "force_password_change": force_password_change,
+    })
     return {
         "access_token": token,
         "token_type": "bearer",
+        "force_password_change": force_password_change,
         "user": {
             "email": user.email,
             "role": user.role,
@@ -180,31 +242,37 @@ def register(req: LoginRequest, db: Session = Depends(get_db)):
     db.commit()
 
     return {"status": "SUCCESS", "message": "Pro Account Created: Please proceed to login."}
+
+@app.post("/api/v2/auth/change-password")
+def change_password(
+    req: ChangePasswordRequest,
+    current_user: TokenPayload = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Rotate first-run temporary password and clear forced-change state."""
+    if len(req.new_password) < 14:
+        raise HTTPException(status_code=400, detail="Password must be at least 14 characters.")
+    user = db.query(User).filter(User.email == current_user.sub).first()
+    if not user or not pwd_context.verify(req.current_password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Current password invalid")
+    user.hashed_password = pwd_context.hash(req.new_password)
+    meta = dict(user.metadata_ or {})
+    meta["force_password_change"] = False
+    meta["password_changed_at"] = datetime.now(timezone.utc).isoformat()
+    user.metadata_ = meta
+    db.commit()
+    audit_ledger.log(
+        action="FIRST_RUN_PASSWORD_CHANGED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        department=current_user.department,
+        tenant_id=current_user.tenant_id,
+    )
+    return {"status": "SUCCESS", "message": "Password changed. Re-login required."}
     
 @app.get("/api/v2/auth/master-seed")
-def force_seed(db: Session = Depends(get_db)):
-    """FORCE creates the master admin account if it's missing (Fail-safe)."""
-    try:
-        existing = db.query(User).filter(User.email == "admin@demo.com").first()
-        if existing:
-            # Force reset the password to ensure it matches the new encryption standard
-            existing.hashed_password = pwd_context.hash("demo1234")
-            db.commit()
-            return {"status": "SUCCESS", "message": "Master Admin Key Reset Successfully! Proceed to login."}
-        
-        new_user = User(
-            id=str(uuid.uuid4()),
-            email="admin@demo.com",
-            full_name="Master Admin",
-            hashed_password=pwd_context.hash("demo1234"),
-            role="SUPER_ADMIN",
-            department="SECURITY"
-        )
-        db.add(new_user)
-        db.commit()
-        return {"status": "SUCCESS", "message": "Master Admin Forced Successfully! Proceed to login."}
-    except Exception as e:
-        return {"status": "ERROR", "message": f"Seeding failed: {str(e)}"}
+def force_seed():
+    raise HTTPException(status_code=410, detail="Master seed endpoint removed. Use first-run bootstrap credentials from server logs.")
 
 @app.post("/api/v2/chat")
 def chat(req: ChatRequest, current_user: TokenPayload = Depends(get_current_user)):
@@ -212,6 +280,7 @@ def chat(req: ChatRequest, current_user: TokenPayload = Depends(get_current_user
     Secure Conversational AI endpoint.
     Governs the prompt (redacts PII) and routes to the selected AI model.
     """
+    enforce_password_rotation(current_user)
     # 1. Govern the prompt
     governed_prompt = india_scanner.redact(req.message)
     
@@ -233,13 +302,15 @@ def chat(req: ChatRequest, current_user: TokenPayload = Depends(get_current_user
         )
         
         # 4. Audit the AI interaction
-        audit_ledger.log_event(
+        audit_ledger.log(
+            action="AI_CHAT_INTERACTION",
             user_id=current_user.sub,
-            event_type="AI_CHAT_INTERACTION",
-            resource="SENTINEL_CHAT",
-            action="QUERY",
-            status="SUCCESS",
-            details=f"Model: {result.get('model_used')}"
+            user_role=current_user.role,
+            department=current_user.department,
+            tenant_id=current_user.tenant_id,
+            prompt_text=req.message,
+            model_queried=result.get("model_used"),
+            metadata={"resource": "SENTINEL_CHAT", "status": "SUCCESS"}
         )
         
         return result
@@ -316,6 +387,40 @@ def get_status(current_user: TokenPayload = Depends(get_current_user)):
     }
 
 
+@app.get("/api/v2/system/diagnostics")
+def system_diagnostics(current_user: TokenPayload = Depends(get_current_user)):
+    """Single localhost proof point for local LLM, ledger, and scanner readiness."""
+    rbac.enforce(current_user.role, Permission.VIEW_VAULT_STATUS)
+    return sentinel_check.run_all()
+
+
+@app.post("/api/v2/proxy/inspect")
+def proxy_inspect(req: ProxyInspectRequest, current_user: TokenPayload = Depends(get_current_user)):
+    """Universal before/after proxy preview for Slack, Teams, CRM, and custom apps."""
+    enforce_password_rotation(current_user)
+    rbac.enforce(current_user.role, Permission.RUN_AI_QUERY)
+    actor = req.actor or current_user.sub
+    result = universal_proxy.inspect(
+        text=req.text,
+        source_app=req.source_app or "localhost",
+        actor=actor,
+        auto_redact=req.auto_redact,
+        metadata=req.metadata or {"department": current_user.department},
+    )
+    audit_ledger.log(
+        action="UNIVERSAL_PROXY_INSPECT",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        department=current_user.department,
+        tenant_id=current_user.tenant_id,
+        prompt_text=req.text,
+        policy_triggered=result.get("policy_triggered"),
+        risk_score=result.get("sensitivity_score"),
+        metadata={"source_app": result.get("source_app"), "auto_redact": result.get("auto_redact")},
+    )
+    return result
+
+
 @app.post("/ask")
 def query_vault(req: Query, current_user: TokenPayload = Depends(get_current_user)):
     """
@@ -328,13 +433,64 @@ def query_vault(req: Query, current_user: TokenPayload = Depends(get_current_use
     """
     global vectorstore
 
+    enforce_password_rotation(current_user)
     rbac.enforce(current_user.role, Permission.RUN_AI_QUERY)
 
     # ── Step 1: Dual-Layer Scan ──────────────────────────────────────────────
     findings_us   = scanner.scan_content(req.prompt)
     findings_india = india_scanner.scan(req.prompt)
-    all_findings   = findings_us + findings_india
-    risk_score     = scanner.calculate_risk_score(findings_us)
+    findings_semantic = semantic_dlp.scan(req.prompt)
+    findings_injection = prompt_injection_detector.scan(req.prompt)
+    all_findings   = findings_us + findings_india + findings_semantic + findings_injection
+    risk_score     = max(
+        scanner.calculate_risk_score(findings_us),
+        semantic_dlp.sensitivity_score(findings_semantic),
+    ) + prompt_injection_detector.risk_score(findings_injection)
+    risk_score = min(10.0, risk_score)
+
+    risk_event = oracle_risk_engine.record_interception(
+        actor_id=current_user.sub,
+        findings=all_findings,
+        sensitivity_score=risk_score,
+        policy_triggered=None,
+        tenant_id=current_user.tenant_id,
+    )
+
+    if risk_event.get("quarantined"):
+        audit_ledger.log(
+            action="USER_AUTO_QUARANTINED",
+            user_id=current_user.sub,
+            user_role=current_user.role,
+            department=req.department or current_user.department,
+            tenant_id=current_user.tenant_id,
+            prompt_text=req.prompt,
+            policy_triggered=risk_event.get("quarantine_reason"),
+            risk_score=risk_score,
+            metadata={"ciso_alert": risk_event.get("ciso_alert")},
+        )
+        raise HTTPException(status_code=423, detail=risk_event)
+
+    if findings_injection:
+        audit_ledger.log(
+            action="PROMPT_INJECTION_BLOCKED",
+            user_id=current_user.sub,
+            user_role=current_user.role,
+            department=req.department or current_user.department,
+            tenant_id=current_user.tenant_id,
+            prompt_text=req.prompt,
+            policy_triggered="LLM_FINGERPRINT_PROMPT_INJECTION",
+            risk_score=risk_score,
+            metadata={"findings": findings_injection, "oracle": risk_event},
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "action": "BLOCKED",
+                "reason": "Prompt injection or jailbreak fingerprint detected",
+                "findings": findings_injection,
+                "risk": risk_event,
+            },
+        )
 
     # ── Step 2: DPDP Classification ─────────────────────────────────────────
     dpdp_meta = dpdp_engine.classify_text(req.prompt)
@@ -371,11 +527,11 @@ def query_vault(req: Query, current_user: TokenPayload = Depends(get_current_use
             }
         )
 
-    # ── Step 4: Redact ───────────────────────────────────────────────────────
-    safe_prompt = scanner.redact_content(req.prompt, findings_us)
-    safe_prompt = india_scanner.redact(safe_prompt)
-    redaction_tags = list({scanner._build_redaction_token(f) for f in findings_us}
-                          | {f["redaction_tag"] for f in findings_india})
+    # ── Step 4: Identity Masking Proxy ───────────────────────────────────────
+    governed = identity_proxy.govern(req.prompt, department=dept)
+    safe_prompt = governed.protected_prompt
+    redaction_tags = governed.pseudonyms
+    risk_score = max(risk_score, governed.sensitivity_score)
 
     # ── Step 5: RAG Context ──────────────────────────────────────────────────
     context = ""
@@ -398,6 +554,7 @@ def query_vault(req: Query, current_user: TokenPayload = Depends(get_current_use
         preferred_model=req.preferred_model,
         department=dept,
         context=context,
+        sensitivity_score=risk_score,
     )
     raw_answer = result.get("answer", "")
 
@@ -426,7 +583,11 @@ def query_vault(req: Query, current_user: TokenPayload = Depends(get_current_use
         metadata={
             "dpdp": dpdp_meta, 
             "fallback": result.get("fallback_used"),
-            "response_leaks_prevented": is_response_redacted
+            "airgap_forced": result.get("airgap_forced"),
+            "pseudonym_vault": governed.pseudonym_vault,
+            "response_leaks_prevented": is_response_redacted,
+            "semantic_dlp": findings_semantic,
+            "oracle_risk": risk_event,
         },
     )
 
@@ -437,9 +598,18 @@ def query_vault(req: Query, current_user: TokenPayload = Depends(get_current_use
         "redactions_applied": len(redaction_tags) + (1 if is_response_redacted else 0),
         "policy_warnings": policy_decision.warnings,
         "risk_score": risk_score,
+        "user_risk_score": risk_event.get("risk_score"),
+        "semantic_dlp_findings": findings_semantic,
         "dpdp_categories": dpdp_meta.get("dpdp_categories", []),
         "outbound_secure": True,
     }
+
+
+@app.get("/api/v2/risk/heatmap")
+def risk_heatmap(current_user: TokenPayload = Depends(get_current_user)):
+    """Oracle dashboard API: heatmap-ready user risk and quarantine state."""
+    rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
+    return oracle_risk_engine.heatmap(tenant_id=current_user.tenant_id)
 
 
 @app.post("/export-audit")
@@ -467,6 +637,29 @@ def export_audit(
 
     csv_path = exporter.to_csv(entries=entries)
     return {"status": "success", "file": csv_path, "format": "CSV"}
+
+
+@app.post("/api/v2/audit/report")
+def evidence_report(req: EvidenceReportRequest, current_user: TokenPayload = Depends(get_current_user)):
+    """Generate one-click CISO evidence PDF with ledger certificate and Oracle risk actors."""
+    enforce_password_rotation(current_user)
+    rbac.enforce(current_user.role, Permission.EXPORT_AUDIT_PDF)
+    tenant_id = req.tenant_id or current_user.tenant_id
+    result = evidence_reporter.generate(
+        org_name=req.org_name or "Buyer Organization",
+        tenant_id=tenant_id,
+        limit=req.limit,
+    )
+    audit_ledger.log(
+        action="EVIDENCE_REPORT_GENERATED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        department=current_user.department,
+        tenant_id=current_user.tenant_id,
+        policy_triggered="DPDP_2026_EVIDENCE_EXPORT",
+        metadata={"file": result.get("file"), "certificate": result.get("certificate")},
+    )
+    return result
 
 
 @app.get("/audit/log")

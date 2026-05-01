@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../backend"))
 import pytest
 from security_scanner import EnterpriseScanner
 from compliance.india_patterns import IndiaPIIScanner
+from redaction_middleware import IdentityMaskingProxy
 
 
 class TestEnterpriseScanner:
@@ -67,6 +68,24 @@ class TestEnterpriseScanner:
         # Should not raise; result should be shorter or equal and contain no raw SSN
         assert "123-45-6789" not in redacted
 
+    def test_pseudonymization_replaces_with_contextual_tokens(self, scanner):
+        text = "Aadhaar 2345 6789 0123 and PAN ABCDE1234F"
+        india = IndiaPIIScanner()
+        findings = india.scan(text)
+        pseudonymized = scanner.pseudonymize_content(text, findings)
+        assert "2345 6789 0123" not in pseudonymized["text"]
+        assert "ABCDE1234F" not in pseudonymized["text"]
+        assert "[Aadhaar_1]" in pseudonymized["text"]
+        assert "[PAN_1]" in pseudonymized["text"]
+
+    def test_identity_proxy_forces_airgap_for_high_sensitivity(self, scanner):
+        proxy = IdentityMaskingProxy(scanner, IndiaPIIScanner())
+        governed = proxy.govern(
+            "Aadhaar 2345 6789 0123 PAN ABCDE1234F bank 123456789012 passport A1234567"
+        )
+        assert governed.sensitivity_score > 7
+        assert governed.route == "airgap"
+
 
 class TestIndiaPIIScanner:
     @pytest.fixture
@@ -119,3 +138,9 @@ class TestIndiaPIIScanner:
         findings = scanner.scan(text)
         categories = [f["dpdp_category"] for f in findings]
         assert "SENSITIVE" in categories
+
+    def test_ifsc_and_tan_detected(self, scanner):
+        text = "Use IFSC HDFC0001234 and TAN ABCD12345E."
+        labels = [f["label"] for f in scanner.scan(text)]
+        assert "IFSC Code" in labels
+        assert "TAN Number" in labels

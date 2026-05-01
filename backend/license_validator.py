@@ -8,10 +8,14 @@ import json
 import hashlib
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
+try:
+    from config import security_settings
+except ImportError:
+    from .config import security_settings
 
 LICENSE_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".vault_license_v2"))
 LICENSE_SERVER_URL = os.getenv("LICENSE_SERVER_URL", "")  # Empty = air-gap offline mode
-MASTER_SECRET = os.getenv("LICENSE_MASTER_SECRET", "VISHNULABS_SENTINEL_MASTER_2026")
+MASTER_SECRET = security_settings()["license_master_secret"]
 
 
 class LicenseValidator:

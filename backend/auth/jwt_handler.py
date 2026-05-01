@@ -4,15 +4,17 @@ Handles JWT token creation, validation, and refresh for enterprise users.
 """
 import os
 import jwt
-import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from fastapi import HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
+try:
+    from config import security_settings
+except ImportError:
+    from ..config import security_settings
 
-# Load secret from env, generate secure default for air-gap installs
-JWT_SECRET = os.getenv("JWT_SECRET_KEY", hashlib.sha256(b"SENTINEL_SHIELD_V2_DEFAULT_AIRGAP").hexdigest())
+JWT_SECRET = security_settings()["jwt_secret"]
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", "8"))
 JWT_REFRESH_DAYS = int(os.getenv("JWT_REFRESH_DAYS", "7"))
@@ -26,6 +28,7 @@ class TokenPayload(BaseModel):
     role: str
     department: Optional[str] = None
     tenant_id: Optional[str] = "default"
+    force_password_change: bool = False
     exp: Optional[int] = None
     iat: Optional[int] = None
 
@@ -65,6 +68,7 @@ class JWTHandler:
                 role=payload.get("role", "STAFF"),
                 department=payload.get("department"),
                 tenant_id=payload.get("tenant_id", "default"),
+                force_password_change=bool(payload.get("force_password_change", False)),
                 exp=payload.get("exp"),
                 iat=payload.get("iat"),
             )

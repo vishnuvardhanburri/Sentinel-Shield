@@ -32,6 +32,7 @@ class User(Base):
     created_at      = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login      = Column(DateTime, nullable=True)
     mfa_enabled     = Column(Boolean, default=False)
+    metadata_       = Column("metadata", JSON, default=dict)
 
     sessions        = relationship("UserSession", back_populates="user", cascade="all, delete")
 

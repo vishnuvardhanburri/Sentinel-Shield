@@ -12,6 +12,10 @@ import threading
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from .hash_chain import HashChain
+try:
+    from config import security_settings
+except ImportError:
+    from ..config import security_settings
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 AUDIT_DIR = os.path.join(BASE_DIR, "logs", "audit")
@@ -33,10 +37,11 @@ class AuditLedger:
         os.makedirs(os.path.dirname(ledger_path), exist_ok=True)
 
     def _compute_entry_hash(self, entry: Dict[str, Any]) -> str:
-        """Compute SHA-256 of the entry (excluding the entry_hash field itself)."""
-        payload = {k: v for k, v in entry.items() if k != "entry_hash"}
+        """Compute SHA-256 of the entry excluding derived signature fields."""
+        payload = {k: v for k, v in entry.items() if k not in {"entry_hash", "signature"}}
         canonical = json.dumps(payload, sort_keys=True, ensure_ascii=True)
-        return hashlib.sha256(canonical.encode()).hexdigest()
+        salt = security_settings()["ledger_master_salt"]
+        return hashlib.sha256(f"{salt}:{canonical}".encode()).hexdigest()
 
     def _get_last_hash(self) -> str:
         """Read the hash of the last entry in the ledger."""
@@ -73,9 +78,11 @@ class AuditLedger:
         """
         with _lock:
             prev_hash = self._get_last_hash()
+            actor_hash = hashlib.sha256(f"{tenant_id}:{user_id}:{user_role}".encode()).hexdigest()
 
             entry: Dict[str, Any] = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
+                "actor_hash": actor_hash,
                 "tenant_id": tenant_id,
                 "user_id": user_id,
                 "user_role": user_role,
@@ -91,7 +98,9 @@ class AuditLedger:
                 "metadata": metadata or {},
             }
 
-            entry["entry_hash"] = self._compute_entry_hash(entry)
+            signature = self._compute_entry_hash(entry)
+            entry["signature"] = signature
+            entry["entry_hash"] = signature
 
             with open(self.ledger_path, "a") as f:
                 f.write(json.dumps(entry) + "\n")
@@ -166,8 +175,9 @@ class AuditLedger:
 
                 # 2. Re-compute entry hash and compare
                 stored_hash = entry.get("entry_hash", "")
+                stored_signature = entry.get("signature", stored_hash)
                 computed_hash = self._compute_entry_hash(entry)
-                if computed_hash != stored_hash:
+                if computed_hash != stored_hash or stored_signature != stored_hash:
                     return {
                         "valid": False,
                         "total_entries": len(lines),
@@ -180,6 +190,32 @@ class AuditLedger:
 
         except Exception as e:
             return {"valid": False, "total_entries": 0, "corrupted_at": f"Parse error: {e}"}
+
+    def log_llm_request(
+        self,
+        actor: str,
+        policy_triggered: Optional[str],
+        prompt_text: str,
+        sensitivity_score: float,
+        model_queried: Optional[str],
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """
+        Minimal Obsidian ledger entry for governed LLM traffic.
+
+        Required audit fields are timestamp, actor_hash, policy_triggered, and
+        signature. Additional fields remain hash chained for investigation.
+        """
+        return self.log(
+            action="LLM_GATEWAY_REQUEST",
+            user_id=actor,
+            user_role="SERVICE_ACTOR",
+            prompt_text=prompt_text,
+            policy_triggered=policy_triggered,
+            model_queried=model_queried,
+            risk_score=sensitivity_score,
+            metadata=metadata or {},
+        )
 
     def get_summary_stats(self, tenant_id: Optional[str] = None) -> Dict[str, Any]:
         """Return aggregate stats for the compliance dashboard."""

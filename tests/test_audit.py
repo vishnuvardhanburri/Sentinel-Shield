@@ -46,12 +46,15 @@ class TestAuditLedger:
         return AuditLedger(ledger_path=ledger_file)
 
     def test_single_entry_chain_valid(self, ledger):
-        ledger.log(
+        entry_hash = ledger.log(
             action="AI_QUERY",
             user_id="user_001",
             user_role="STAFF",
             department="ICU",
         )
+        entry = ledger.get_entries(limit=1)[0]
+        assert entry["signature"] == entry_hash
+        assert len(entry["actor_hash"]) == 64
         result = ledger.verify_chain()
         assert result["valid"] is True
 

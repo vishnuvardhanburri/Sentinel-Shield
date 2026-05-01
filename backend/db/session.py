@@ -3,7 +3,9 @@ Sentinel Shield v2 — Database Session Manager
 Supports PostgreSQL (cloud) and SQLite (air-gap) via DATABASE_URL env var.
 """
 import os
+import secrets
 from sqlalchemy import create_engine
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
 import uuid
@@ -43,37 +45,52 @@ SessionLocal = sessionmaker(
 def init_db():
     """Create all tables and seed default admin. Call on startup."""
     Base.metadata.create_all(bind=engine)
+    _ensure_user_metadata_column()
     seed_db()
 
 
 def seed_db():
-    """Seed the database with a default Super Admin if empty."""
+    """First-run bootstrap: create one Super Admin with a random temporary password."""
     db = SessionLocal()
     try:
-        # Check if users table is empty
-        admin_exists = db.query(User).filter(User.email == "admin@demo.com").first()
+        admin_exists = db.query(User).filter(User.role == "SUPER_ADMIN").first()
         if not admin_exists:
-            # Using a simplified hash approach to bypass cloud library conflicts
-            hashed_pwd = pwd_context.hash("demo1234")
+            admin_email = os.getenv("FIRST_RUN_ADMIN_EMAIL", "admin@sentinel.local")
+            temporary_password = secrets.token_urlsafe(24)
             admin_user = User(
                 id=str(uuid.uuid4()),
-                email="admin@demo.com",
-                full_name="Sentinel Master Admin",
-                hashed_password=hashed_pwd,
+                email=admin_email,
+                full_name="Sentinel First-Run Admin",
+                hashed_password=pwd_context.hash(temporary_password),
                 role="SUPER_ADMIN",
                 department="GLOBAL_SECURITY",
-                is_active=True
+                is_active=True,
+                metadata_={"force_password_change": True, "first_run_bootstrap": True},
             )
             db.add(admin_user)
             db.commit()
-            print("🛡️ SENTINEL DB: Default Master Admin seeded successfully. [READY]")
+            print("CRITICAL FIRST-RUN BOOTSTRAP CREDENTIALS")
+            print(f"Admin email: {admin_email}")
+            print(f"Temporary password: {temporary_password}")
+            print("Change this password immediately after first login. It will not be printed again.")
         else:
-            print("🛡️ SENTINEL DB: Master Admin already exists. [READY]")
+            print("SENTINEL DB: Super Admin exists. [READY]")
     except Exception as e:
         print(f"❌ SENTINEL DB ERROR: Seeding failed: {e}")
         db.rollback()
     finally:
         db.close()
+
+
+def _ensure_user_metadata_column():
+    """Best-effort SQLite migration for older local buyer/demo databases."""
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+    inspector = inspect(engine)
+    columns = {col["name"] for col in inspector.get_columns("users")} if inspector.has_table("users") else set()
+    if "metadata" not in columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN metadata JSON DEFAULT '{}'"))
 
 
 def get_db() -> Generator[Session, None, None]:

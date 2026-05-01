@@ -32,10 +32,13 @@ INDIA_PATTERNS: Dict[str, str] = {
     "Indian Mobile":          r"(?:(?<=\s)|(?<=^))(?:\+91|0)?[6-9]\d{9}\b",
     "Indian Landline":        r"\b0\d{2,4}[-\s]?\d{6,8}\b",
     "Indian Pincode":         r"\b[1-9][0-9]{5}\b",
+    "Email Address (India Context)": r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[A-Za-z]{2,}\b",
 
     # ── Corporate ──────────────────────────────────────────────────────────
     "CIN (Company ID)":       r"\b[LUu]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}\b",
     "LLPIN":                  r"\bAAA[-]?\d{4}\b",
+    "TAN Number":             r"\b[A-Z]{4}\d{5}[A-Z]\b",
+    "FSSAI License":          r"\b[1-2]\d{13}\b",
 
     # ── DPDP 2026 Sensitive Categories ────────────────────────────────────
     "Caste / Tribe Reference":     r"(?i)\b(scheduled caste|sc\b|scheduled tribe|st\b|OBC|backward class)\b",
@@ -59,6 +62,35 @@ INDIA_REDACTION_TAGS: Dict[str, str] = {
     "Religious Identity":     "[REDACTED_SENSITIVE_CATEGORY]",
     "Health Data (India-specific)": "[REDACTED_HEALTH]",
     "Biometric Reference":    "[REDACTED_BIOMETRIC]",
+}
+
+INDIA_PSEUDONYM_LABELS: Dict[str, str] = {
+    "Aadhaar Number": "Aadhaar",
+    "PAN Card": "PAN",
+    "Voter ID": "VoterID",
+    "Passport (India)": "Passport",
+    "Driving License (India)": "DrivingLicense",
+    "GST Number": "GST",
+    "UPI ID": "UPI",
+    "IFSC Code": "IFSC",
+    "Indian Bank Account": "BankAccount",
+    "MICR Code": "MICR",
+    "UHID (Hospital ID)": "UHID",
+    "NPI (Indian Doctor)": "DoctorRegistration",
+    "Ayushman Bharat ID": "ABHA",
+    "Indian Mobile": "Phone",
+    "Indian Landline": "Landline",
+    "Indian Pincode": "Pincode",
+    "Email Address (India Context)": "Email",
+    "CIN (Company ID)": "CIN",
+    "LLPIN": "LLPIN",
+    "TAN Number": "TAN",
+    "FSSAI License": "FSSAI",
+    "Caste / Tribe Reference": "SensitiveCategory",
+    "Religious Identity": "Religion",
+    "Political Opinion": "PoliticalOpinion",
+    "Health Data (India-specific)": "HealthData",
+    "Biometric Reference": "Biometric",
 }
 
 
@@ -98,6 +130,10 @@ class IndiaPIIScanner:
             tag = INDIA_REDACTION_TAGS.get(label, "[REDACTED_INDIA_PII]")
             text = regex.sub(tag, text)
         return text
+
+    def pseudonym_label(self, label: str) -> str:
+        """Return a compact, LLM-friendly pseudonym family for a finding label."""
+        return INDIA_PSEUDONYM_LABELS.get(label, "IndiaPII")
 
 
 def _dpdp_category(label: str) -> str:

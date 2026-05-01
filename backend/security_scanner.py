@@ -1,6 +1,8 @@
 import re
 import os
-from typing import List, Dict
+import hashlib
+from collections import defaultdict
+from typing import List, Dict, Any
 try:
     from presidio_analyzer import AnalyzerEngine
     from presidio_analyzer.nlp_engine import NlpEngineProvider
@@ -14,14 +16,17 @@ class EnterpriseScanner:
     def __init__(self):
         # NLP Analyzer for PII
         if AnalyzerEngine and NlpEngineProvider:
-            # Force small model for Cloud memory efficiency (512MB limit)
-            configuration = {
-                "nlp_engine_name": "spacy",
-                "models": [{"lang_code": "en", "model_name": "en_core_web_sm"}],
-            }
-            provider = NlpEngineProvider(nlp_configuration=configuration)
-            nlp_engine = provider.create_engine()
-            self.analyzer = AnalyzerEngine(nlp_engine=nlp_engine)
+            try:
+                # Force small model for Cloud memory efficiency (512MB limit)
+                configuration = {
+                    "nlp_engine_name": "spacy",
+                    "models": [{"lang_code": "en", "model_name": "en_core_web_sm"}],
+                }
+                provider = NlpEngineProvider(nlp_configuration=configuration)
+                nlp_engine = provider.create_engine()
+                self.analyzer = AnalyzerEngine(nlp_engine=nlp_engine)
+            except Exception:
+                self.analyzer = None
         else:
             self.analyzer = None
         
@@ -109,8 +114,24 @@ class EnterpriseScanner:
         
         return min(10.0, score)
 
+    def _normalize_token_label(self, label: str) -> str:
+        aliases = {
+            "Aadhaar Number": "Aadhaar",
+            "PAN Card": "PAN",
+            "IFSC Code": "IFSC",
+            "Indian Mobile": "Phone",
+            "Indian Bank Account": "BankAccount",
+            "UHID (Hospital ID)": "UHID",
+            "Passport (India)": "Passport",
+            "GST Number": "GST",
+        }
+        if label in aliases:
+            return aliases[label]
+        normalized = re.sub(r"[^A-Za-z0-9]+", "_", label).strip("_") or "Data"
+        return "".join(part[:1].upper() + part[1:] for part in normalized.split("_") if part)
+
     def _build_redaction_token(self, finding: Dict) -> str:
-        """Builds human-readable redaction tags with SSN-preserving last4 format."""
+        """Builds legacy human-readable redaction tags."""
         label = str(finding.get("label", "DATA"))
         entity = str(finding.get("entity", "")).strip()
 
@@ -121,6 +142,14 @@ class EnterpriseScanner:
 
         normalized = re.sub(r"[^A-Z0-9]+", "_", label.upper()).strip("_") or "DATA"
         return f"[REDACTED_{normalized}]"
+
+    def _build_pseudonym_token(self, finding: Dict[str, Any], counters: Dict[str, int]) -> str:
+        """Build contextual fake tokens like [Aadhaar_1] instead of flat redactions."""
+        label = self._normalize_token_label(str(finding.get("label", "Data")))
+        if label.upper().startswith("PII"):
+            label = label[3:] or "PII"
+        counters[label] += 1
+        return f"[{label}_{counters[label]}]"
 
     def redact_content(self, text: str, findings: List[Dict]) -> str:
         """Returns redacted content for UI/Safe viewing."""
@@ -148,6 +177,55 @@ class EnterpriseScanner:
             rightmost_boundary = start
 
         return redacted_text
+
+    def pseudonymize_content(self, text: str, findings: List[Dict]) -> Dict[str, Any]:
+        """
+        Replaces sensitive spans with deterministic-in-request fake tokens.
+
+        Returns both the protected text and a vault map for audit-only recovery.
+        The vault map must never be sent to an LLM provider.
+        """
+        if not findings:
+            return {"text": text, "mapping": {}, "tokens": []}
+
+        protected_text = text
+        counters: Dict[str, int] = defaultdict(int)
+        mapping: Dict[str, Dict[str, str]] = {}
+        tokens: List[str] = []
+        token_by_span: Dict[tuple, str] = {}
+        for finding in sorted(findings, key=lambda x: x.get("start", -1)):
+            start = finding.get("start")
+            end = finding.get("end")
+            if isinstance(start, int) and isinstance(end, int):
+                token_by_span[(start, end, str(finding.get("label", "DATA")))] = self._build_pseudonym_token(finding, counters)
+
+        safe_findings = sorted(findings, key=lambda x: x.get("start", -1), reverse=True)
+        rightmost_boundary = len(text)
+
+        for finding in safe_findings:
+            start = finding.get("start")
+            end = finding.get("end")
+            if not isinstance(start, int) or not isinstance(end, int):
+                continue
+            if start < 0 or end > len(text) or start >= end:
+                continue
+            if end > rightmost_boundary:
+                continue
+
+            token = token_by_span.get((start, end, str(finding.get("label", "DATA"))))
+            if not token:
+                continue
+            raw_value = str(finding.get("entity", text[start:end]))
+            protected_text = protected_text[:start] + token + protected_text[end:]
+            mapping[token] = {
+                "label": str(finding.get("label", "DATA")),
+                "type": str(finding.get("type", "PII")),
+                "sha256": hashlib.sha256(raw_value.encode()).hexdigest(),
+            }
+            tokens.append(token)
+            rightmost_boundary = start
+
+        return {"text": protected_text, "mapping": mapping, "tokens": list(reversed(tokens))}
 
     def audit_system(self) -> List[Dict]:
         """Scans the local host for exposed security risks outside vault."""

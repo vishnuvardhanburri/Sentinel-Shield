@@ -1,5 +1,3 @@
-version: "3.9"
-
 # ════════════════════════════════════════════════════════════════════════════
 #  Sentinel Shield v2 — Docker Compose (Local Dev + Cloud Deploy)
 #  Usage:
@@ -21,8 +19,10 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-sqlite:////app/sentinel.db}
       - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-airgap}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - LICENSE_MASTER_SECRET=${LICENSE_MASTER_SECRET}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required. Run pnpm production:seal}
+      - LICENSE_MASTER_SECRET=${LICENSE_MASTER_SECRET:?LICENSE_MASTER_SECRET is required. Run pnpm production:seal}
+      - ACTOR_HASH_SALT=${ACTOR_HASH_SALT:?ACTOR_HASH_SALT is required. Run pnpm production:seal}
+      - LEDGER_MASTER_SALT=${LEDGER_MASTER_SALT:?LEDGER_MASTER_SALT is required. Run pnpm production:seal}
       - LICENSE_SERVER_URL=${LICENSE_SERVER_URL:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
@@ -34,6 +34,7 @@ services:
       - SMTP_PASS=${SMTP_PASS:-}
       - REPORT_EMAIL_TO=${REPORT_EMAIL_TO:-}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
     volumes:
       - sentinel_data:/app/vault_docs
       - sentinel_archive:/app/vault_archive
@@ -42,10 +43,12 @@ services:
       - sentinel_db:/app/sentinel.db
     depends_on:
       - postgres
+      - redis
+      - ollama
     networks:
       - sentinel_net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -98,8 +101,20 @@ services:
       - ollama_models:/root/.ollama
     networks:
       - sentinel_net
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: sentinel_ollama_pull
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command: "sleep 5 && ollama pull ${OLLAMA_MODEL:-llama3.1}"
+    networks:
+      - sentinel_net
     profiles:
-      - airgap    # Only start in airgap profile: docker compose --profile airgap up
+      - airgap
 
   # ── Redis (Session Cache) ────────────────────────────────────────────────
   redis:
@@ -110,8 +125,6 @@ services:
       - "6379:6379"
     networks:
       - sentinel_net
-    profiles:
-      - cloud     # Only start in cloud profile
 
 # ── Volumes ──────────────────────────────────────────────────────────────────
 volumes:
