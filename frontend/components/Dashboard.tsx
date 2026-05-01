@@ -1084,6 +1084,7 @@ function EnterpriseCenterTab() {
       usage: ['/api/v2/enterprise/license-usage', null],
       tenant: ['/api/v2/enterprise/tenant/export', null],
       breakglass: ['/api/v2/enterprise/break-glass', { reason: 'Dashboard emergency recovery drill', duration_minutes: 30 }],
+      demo: ['/api/v2/enterprise/demo/run', {}],
     };
     try {
       const [url, body] = payloads[kind];
@@ -1294,6 +1295,7 @@ function EnterpriseCenterTab() {
           ['usage', 'Usage Meter'],
           ['tenant', 'Tenant Export'],
           ['breakglass', 'Break-Glass'],
+          ['demo', 'Run Demo'],
         ].map(([id, label]) => (
           <button key={id} onClick={() => action(id)} className="p-4 bg-white/5 border border-white/10 rounded-2xl text-left hover:bg-white/10">
             <p className="text-xs font-bold text-emerald-300">{label}</p>

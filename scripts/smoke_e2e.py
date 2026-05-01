@@ -7,9 +7,10 @@ SENTINEL_SMOKE_EMAIL and SENTINEL_SMOKE_PASSWORD are provided.
 """
 import os
 import sys
+import json
 from typing import Dict
-
-import requests
+from urllib import request as urlrequest
+from urllib.error import HTTPError, URLError
 
 
 API_BASE = os.getenv("SENTINEL_API_BASE", "http://localhost:8000").rstrip("/")
@@ -24,14 +25,33 @@ def ok(message: str):
     print(f"[OK] {message}")
 
 
-def request(method: str, path: str, **kwargs) -> requests.Response:
+class Response:
+    def __init__(self, status_code: int, body: bytes, headers):
+        self.status_code = status_code
+        self.text = body.decode("utf-8", errors="replace")
+        self.headers = {k.lower(): v for k, v in dict(headers).items()}
+
+    def json(self):
+        return json.loads(self.text)
+
+
+def request(method: str, path: str, **kwargs) -> Response:
+    headers = kwargs.get("headers", {})
+    data = None
+    if "json" in kwargs:
+        data = json.dumps(kwargs["json"]).encode("utf-8")
+        headers = {**headers, "Content-Type": "application/json"}
+    req = urlrequest.Request(f"{API_BASE}{path}", data=data, headers=headers, method=method)
     try:
-        return requests.request(method, f"{API_BASE}{path}", timeout=20, **kwargs)
-    except requests.RequestException as exc:
+        with urlrequest.urlopen(req, timeout=20) as resp:
+            return Response(resp.status, resp.read(), resp.headers)
+    except HTTPError as exc:
+        return Response(exc.code, exc.read(), exc.headers)
+    except (URLError, TimeoutError) as exc:
         fail(f"{method} {path} failed: {exc}")
 
 
-def assert_status(resp: requests.Response, expected: int, label: str):
+def assert_status(resp: Response, expected: int, label: str):
     if resp.status_code != expected:
         fail(f"{label}: expected {expected}, got {resp.status_code}: {resp.text[:300]}")
     ok(label)

@@ -1742,6 +1742,56 @@ def break_glass(req: BreakGlassRequest, current_user: TokenPayload = Depends(get
     return {"break_glass_token": token, "expires_at": record["expires_at"], "copy_once": True}
 
 
+@app.post("/api/v2/enterprise/demo/run")
+def guided_buyer_demo(current_user: TokenPayload = Depends(get_active_user)):
+    """Run a safe synthetic buyer demo: masking, risk, evidence, readiness."""
+    rbac.enforce(current_user.role, Permission.EXPORT_AUDIT_PDF)
+    sample = "Synthetic Aadhaar 2345 6789 0123 and PAN ABCDE1234F for buyer demo only."
+    proxy = universal_proxy.inspect(
+        text=sample,
+        source_app="guided-demo",
+        actor="guided-demo-actor",
+        auto_redact=True,
+        metadata={"synthetic_demo": True},
+    )
+    risk = oracle_risk_engine.record_interception(
+        actor_id="guided-demo-actor",
+        findings=[{"type": "PII", "label": "Aadhaar Number"}, {"type": "PII", "label": "PAN Card"}],
+        sensitivity_score=8.2,
+        policy_triggered="GUIDED_DEMO_SYNTHETIC_PII",
+        tenant_id=current_user.tenant_id,
+    )
+    report = evidence_reporter.generate(
+        org_name="Buyer Guided Demo",
+        tenant_id=current_user.tenant_id,
+        limit=250,
+        compliance_frameworks=["DPDP_2026", "GDPR", "FedRAMP"],
+    )
+    readiness = {
+        "ledger": audit_ledger.verify_chain(),
+        "policies": policy_engine.list_policies(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    audit_ledger.log(
+        action="GUIDED_BUYER_DEMO_RUN",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+        prompt_text=sample,
+        redactions_applied=proxy.get("metadata", {}).get("pseudonyms", []),
+        policy_triggered="GUIDED_DEMO",
+        risk_score=8.2,
+        metadata={"report": report, "risk": risk, "synthetic_demo": True},
+    )
+    return {
+        "status": "GUIDED_DEMO_COMPLETE",
+        "proxy": proxy,
+        "risk": risk,
+        "report": report,
+        "readiness": readiness,
+    }
+
+
 @app.get("/api/v2/enterprise/tenant/export")
 def tenant_export(current_user: TokenPayload = Depends(get_active_user)):
     rbac.enforce(current_user.role, Permission.MANAGE_USERS)

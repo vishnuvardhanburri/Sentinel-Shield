@@ -78,6 +78,15 @@ def test_break_glass_tenant_export_import_and_policy_versions():
     assert versions.json()["versions"]
 
 
+def test_guided_buyer_demo_runs_with_synthetic_data():
+    response = client().post("/api/v2/enterprise/demo/run")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "GUIDED_DEMO_COMPLETE"
+    assert "2345 6789 0123" not in body["proxy"]["protected_text"]
+    assert body["report"]["certificate"]
+
+
 def test_webhook_dispatcher_queues_failed_delivery(tmp_path):
     dispatcher = WebhookDispatcher()
     dispatcher._registry = []

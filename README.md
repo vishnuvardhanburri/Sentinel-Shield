@@ -154,6 +154,7 @@ pnpm smoke:e2e
 
 ```bash
 pnpm demo:buyer              # Seed safe synthetic demo evidence and print local URLs
+pnpm verify:buyer            # Run buyer-grade end-to-end verification
 pnpm deployment:doctor       # Check ports, env, Ollama, Docker, and deployment artifacts
 pnpm deployment:pack         # Generate Nginx, systemd, firewall, and production checklist
 pnpm security:due-diligence  # Generate SBOM and dependency scan artifacts
@@ -238,3 +239,5 @@ Proprietary — Xavira Tech Labs © 2026. All rights reserved.
 - `SECURITY.md` — security policy and vulnerability reporting
 - `RELEASE.md` — release and buyer handoff checklist
 - `SUBMISSION_CHECKLIST.md` — demo/submission gate
+- `RELEASE_NOTES_v2.1.md` — enterprise lockdown release notes
+- `docs/API_INTEGRATION_EXAMPLES.md` — Python, Node, Slack/Teams integration examples

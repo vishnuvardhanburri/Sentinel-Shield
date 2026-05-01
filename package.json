@@ -15,6 +15,7 @@
     "deployment:pack": "python3 scripts/generate_deployment_pack.py",
     "deployment:doctor": "python3 scripts/deployment_doctor.py",
     "demo:buyer": "python3 scripts/buyer_demo.py",
+    "verify:buyer": "python3 scripts/verify_buyer.py",
     "release:certificate": "python3 scripts/production_readiness_certificate.py",
     "handoff:pdf": "python3 scripts/generate_handoff_pdf.py",
     "handoff:zip": "python3 scripts/buyer_handoff_zip.py",
