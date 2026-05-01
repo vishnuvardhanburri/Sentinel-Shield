@@ -57,6 +57,8 @@ flowchart LR
 | Closed registration by default | Active | `ENABLE_SELF_REGISTRATION=false` |
 | Disabled-user token rejection | Active | `get_active_user` dependency |
 | JWT revocation hook | Active | `/api/v2/auth/logout` |
+| Redis revocation store | Active | `REDIS_URL`, memory fallback |
+| Admin user management | Active | `/api/v2/admin/users` |
 | Dynamic CORS allowlist | Active | `ALLOWED_ORIGINS` |
 | Oversized request blocking | Active | `API_SHIELD_MAX_BODY_BYTES` |
 | Suspicious path blocking | Active | `API_SHIELD_BLOCKED_PATH_FRAGMENTS` |
@@ -148,6 +150,7 @@ cd frontend && pnpm lint
 cd frontend && pnpm build
 curl http://localhost:8000/health
 curl http://localhost:8000/
+pnpm smoke:e2e
 ```
 
 Expected:
@@ -162,6 +165,8 @@ Expected:
 - Vault AI model dropdown only shows local models
 - Self-registration is disabled unless deliberately enabled
 - Protected API responses include `X-Frame-Options: DENY`
+- Users tab loads live users from `/api/v2/admin/users`
+- Password reset returns a one-time temporary password and forces rotation
 - `/api/v2/risk/heatmap` responds after login
 - `/api/v2/audit/report` can generate an evidence report
 
@@ -236,6 +241,18 @@ Pass the invite token before the department value in the registration department
 <one-time-shared-token>:SECURITY
 ```
 
+### Full authenticated smoke proof
+
+Run after changing the first-run admin password:
+
+```bash
+SENTINEL_SMOKE_EMAIL=admin@sentinel.local \
+SENTINEL_SMOKE_PASSWORD='<changed-password>' \
+pnpm smoke:e2e
+```
+
+This verifies login, diagnostics, proxy masking, risk heatmap, and audit ledger access.
+
 ### Backend refuses to boot
 
 Check `.env` contains strong values for:
@@ -260,31 +277,25 @@ These are the highest-impact upgrades before a serious enterprise sale:
 1. **Streaming Vault AI responses**  
    Add server-sent events or WebSocket streaming so local AI feels fast and premium.
 
-2. **Password-change UI**  
-   The backend supports forced password change. Add a polished frontend screen for it.
-
-3. **Admin user management backed by API**  
-   Replace static user table mock data with real CRUD endpoints and RBAC controls.
-
-4. **Redis-backed risk engine**  
+2. **Redis-backed risk engine**  
    Current risk state is file-backed for localhost. Use Redis in production for distributed edge nodes.
 
-5. **Policy sync hub**  
+3. **Policy sync hub**  
    Add signed remote policy bundles with version pinning, rollback, and tenant scope.
 
-6. **Model management page**  
+4. **Model management page**  
    Show installed Ollama models, pull status, default model, memory footprint, and health.
 
-7. **Evidence report download button**  
+5. **Evidence report download button**  
    The backend generates reports. Add direct browser download and report history.
 
-8. **mTLS deployment guide**  
+6. **mTLS deployment guide**  
    Document Envoy/Nginx mTLS termination and required forwarded certificate headers.
 
-9. **End-to-end Playwright smoke suite**  
+7. **Browser-level Playwright smoke suite**  
    Automate login, proxy masking, Vault AI query, risk heatmap, and evidence generation.
 
-10. **Immutable off-box ledger export**  
+8. **Immutable off-box ledger export**  
    Push daily ledger roots to S3 Object Lock, Git, or a private timestamping service.
 
 ## Final Handoff Position

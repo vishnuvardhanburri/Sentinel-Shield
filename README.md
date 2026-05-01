@@ -17,6 +17,7 @@ The system is designed to run without external LLM API keys. Vault AI uses the b
 | Oracle Risk Engine | Scores actors, tracks repeated PII attempts, and auto-quarantines risky users |
 | Evidence Reports | Generates PDF evidence for CISO, board, and DPDP/GDPR review |
 | Universal Proxy | Standard inspection API for Slack, Teams, CRM, and custom enterprise apps |
+| Admin Console | Live user creation, disablement, forced reset, and RBAC visibility |
 
 ## Local URLs
 
@@ -44,6 +45,8 @@ The account is marked `force_password_change: true`. Protected features stay blo
 ```text
 POST /api/v2/auth/change-password
 ```
+
+The dashboard automatically shows a password-rotation screen when this flag is present.
 
 ## Required Environment
 
@@ -118,6 +121,7 @@ python3 -m compileall backend tests
 .runtime_venv/bin/python -m pytest
 cd frontend && pnpm lint && pnpm build
 curl http://localhost:8000/health
+pnpm smoke:e2e
 ```
 
 Expected:
@@ -127,6 +131,15 @@ Backend compile: pass
 Frontend lint: 0 errors
 Frontend build: pass
 Health: {"status":"awake","engine":"Sentinel Shield v2.0"}
+Smoke: security headers and probe blocking pass
+```
+
+Authenticated smoke proof:
+
+```bash
+SENTINEL_SMOKE_EMAIL=admin@sentinel.local \
+SENTINEL_SMOKE_PASSWORD='<changed-password>' \
+pnpm smoke:e2e
 ```
 
 ## Key API Endpoints
@@ -134,7 +147,12 @@ Health: {"status":"awake","engine":"Sentinel Shield v2.0"}
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `POST` | `/api/v2/auth/login` | Login and receive JWT |
+| `POST` | `/api/v2/auth/logout` | Revoke current JWT session |
 | `POST` | `/api/v2/auth/change-password` | Change first-run temporary password |
+| `GET` | `/api/v2/admin/users` | List users visible to the current role |
+| `POST` | `/api/v2/admin/users` | Create a user with a temporary password |
+| `PATCH` | `/api/v2/admin/users/{id}` | Update role, department, or active state |
+| `POST` | `/api/v2/admin/users/{id}/reset-password` | Force reset and password rotation |
 | `GET` | `/api/v2/system/diagnostics` | Self-diagnostic bootstrap status |
 | `POST` | `/ask` | Governed Vault AI query |
 | `POST` | `/api/v2/proxy/inspect` | Raw-vs-masked universal proxy preview |
@@ -152,7 +170,7 @@ Health: {"status":"awake","engine":"Sentinel Shield v2.0"}
 - No hardcoded demo admin password
 - Closed-by-default self-registration
 - Active-user enforcement on protected JWT routes
-- JWT session revocation hook
+- Redis-backed JWT session revocation with memory fallback
 - Oversized request, suspicious path, rate, and cost-budget controls
 - Pseudonymization before inference
 - Prompt injection detection before model routing

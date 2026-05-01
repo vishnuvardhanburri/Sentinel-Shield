@@ -34,6 +34,7 @@ python3 -m compileall backend tests
 .runtime_venv/bin/python -m pytest
 cd frontend && pnpm lint
 cd frontend && pnpm build
+pnpm smoke:e2e
 ```
 
 Pass criteria:
@@ -92,6 +93,9 @@ http://localhost:3000
 Verify:
 
 - Login works
+- Forced password-change screen appears for first-run/reset users
+- Users tab lists real backend users
+- Admin can create, disable, and reset users
 - Proxy tab masks Aadhaar/PAN
 - Vault AI answers through local model
 - Oracle Risk tab loads

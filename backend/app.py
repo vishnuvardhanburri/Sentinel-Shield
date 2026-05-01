@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from fastapi import FastAPI, HTTPException, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Literal
 import platform
 import shutil
 import secrets
@@ -181,6 +181,25 @@ class ChangePasswordRequest(BaseModel):
 class LogoutRequest(BaseModel):
     revoke_current: bool = True
 
+class UserCreateRequest(BaseModel):
+    email: str
+    full_name: Optional[str] = None
+    role: Literal["SUPER_ADMIN", "DEPARTMENT_HEAD", "STAFF", "AUDITOR"] = "STAFF"
+    department: Optional[str] = "GENERAL"
+    tenant_id: Optional[str] = "default"
+
+class UserUpdateRequest(BaseModel):
+    full_name: Optional[str] = None
+    role: Optional[Literal["SUPER_ADMIN", "DEPARTMENT_HEAD", "STAFF", "AUDITOR"]] = None
+    department: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class PasswordResetResponse(BaseModel):
+    status: str
+    email: str
+    temporary_password: str
+    force_password_change: bool
+
 class Query(BaseModel):
     prompt: str
     preferred_model: Optional[str] = None
@@ -275,8 +294,144 @@ def register(req: LoginRequest, db: Session = Depends(get_db)):
 def logout(current_user: TokenPayload = Depends(get_active_user)):
     """Revoke the current JWT for this process."""
     if current_user.jti:
-        revoke_token_id(current_user.jti)
+        revoke_token_id(current_user.jti, current_user.exp)
     return {"status": "SUCCESS", "message": "Session revoked."}
+
+
+def _public_user(user: User) -> dict:
+    metadata = getattr(user, "metadata_", None) or {}
+    return {
+        "id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "department": user.department,
+        "tenant_id": user.tenant_id,
+        "is_active": bool(user.is_active),
+        "mfa_enabled": bool(user.mfa_enabled),
+        "force_password_change": bool(metadata.get("force_password_change")),
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "last_login": user.last_login.isoformat() if user.last_login else None,
+    }
+
+
+@app.get("/api/v2/admin/users")
+def list_users(
+    current_user: TokenPayload = Depends(get_active_user),
+    db: Session = Depends(get_db),
+):
+    rbac.enforce(current_user.role, Permission.VIEW_ALL_USERS)
+    query = db.query(User)
+    if current_user.role == "DEPARTMENT_HEAD":
+        query = query.filter(User.department == current_user.department)
+    users = query.order_by(User.created_at.desc()).all()
+    return {"users": [_public_user(user) for user in users]}
+
+
+@app.post("/api/v2/admin/users")
+def create_user(
+    req: UserCreateRequest,
+    current_user: TokenPayload = Depends(get_active_user),
+    db: Session = Depends(get_db),
+):
+    rbac.enforce(current_user.role, Permission.MANAGE_USERS)
+    existing = db.query(User).filter(User.email == req.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="USER_ALREADY_EXISTS")
+    temporary_password = secrets.token_urlsafe(24)
+    user = User(
+        id=str(uuid.uuid4()),
+        email=req.email,
+        full_name=req.full_name or req.email.split("@")[0].replace(".", " ").title(),
+        hashed_password=pwd_context.hash(temporary_password),
+        role=req.role,
+        department=req.department or "GENERAL",
+        tenant_id=req.tenant_id or current_user.tenant_id or "default",
+        is_active=True,
+        metadata_={"force_password_change": True, "created_by": current_user.sub},
+    )
+    db.add(user)
+    db.commit()
+    audit_ledger.log(
+        action="ADMIN_USER_CREATED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        department=current_user.department,
+        tenant_id=current_user.tenant_id,
+        metadata={"target_user": req.email, "target_role": req.role},
+    )
+    return {
+        "user": _public_user(user),
+        "temporary_password": temporary_password,
+        "force_password_change": True,
+    }
+
+
+@app.patch("/api/v2/admin/users/{user_id}")
+def update_user(
+    user_id: str,
+    req: UserUpdateRequest,
+    current_user: TokenPayload = Depends(get_active_user),
+    db: Session = Depends(get_db),
+):
+    rbac.enforce(current_user.role, Permission.MANAGE_USERS)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="USER_NOT_FOUND")
+    if user.email == current_user.sub and req.is_active is False:
+        raise HTTPException(status_code=400, detail="CANNOT_DISABLE_SELF")
+    if req.full_name is not None:
+        user.full_name = req.full_name
+    if req.role is not None:
+        user.role = req.role
+    if req.department is not None:
+        user.department = req.department
+    if req.is_active is not None:
+        user.is_active = req.is_active
+    db.commit()
+    audit_ledger.log(
+        action="ADMIN_USER_UPDATED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        department=current_user.department,
+        tenant_id=current_user.tenant_id,
+        metadata={"target_user": user.email, "is_active": user.is_active, "role": user.role},
+    )
+    return {"user": _public_user(user)}
+
+
+@app.post("/api/v2/admin/users/{user_id}/reset-password", response_model=PasswordResetResponse)
+def reset_user_password(
+    user_id: str,
+    current_user: TokenPayload = Depends(get_active_user),
+    db: Session = Depends(get_db),
+):
+    rbac.enforce(current_user.role, Permission.MANAGE_USERS)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="USER_NOT_FOUND")
+    temporary_password = secrets.token_urlsafe(24)
+    user.hashed_password = pwd_context.hash(temporary_password)
+    meta = dict(user.metadata_ or {})
+    meta["force_password_change"] = True
+    meta["password_reset_by"] = current_user.sub
+    meta["password_reset_at"] = datetime.now(timezone.utc).isoformat()
+    user.metadata_ = meta
+    db.commit()
+    audit_ledger.log(
+        action="ADMIN_PASSWORD_RESET",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        department=current_user.department,
+        tenant_id=current_user.tenant_id,
+        metadata={"target_user": user.email},
+    )
+    return PasswordResetResponse(
+        status="SUCCESS",
+        email=user.email,
+        temporary_password=temporary_password,
+        force_password_change=True,
+    )
 
 @app.post("/api/v2/auth/change-password")
 def change_password(

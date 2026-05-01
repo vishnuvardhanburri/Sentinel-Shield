@@ -35,7 +35,7 @@ const risk_color = (score: number) =>
   score >= 7 ? 'text-rose-400' : score >= 4 ? 'text-amber-400' : 'text-emerald-400';
 
 // ── Login Screen ─────────────────────────────────────────────────────────────
-function LoginScreen({ onLogin }: { onLogin: (token: string, role: string) => void }) {
+function LoginScreen({ onLogin }: { onLogin: (token: string, role: string, forcePasswordChange: boolean, user: any) => void }) {
   const [email, setEmail] = useState('admin@sentinel.local');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -46,7 +46,8 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, role: string) => vo
     try {
       const res = await axios.post(`${API_BASE}/api/v2/auth/login`, { email, password });
       localStorage.setItem('sentinel_token', res.data.access_token);
-      onLogin(res.data.access_token, res.data.role);
+      localStorage.setItem('sentinel_user', JSON.stringify(res.data.user || {}));
+      onLogin(res.data.access_token, res.data.user?.role || 'STAFF', !!res.data.force_password_change, res.data.user || {});
     } catch {
       setError('Invalid credentials. Use the first-run bootstrap password printed in backend logs.');
     } finally { setLoading(false); }
@@ -98,6 +99,72 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, role: string) => vo
           </div>
         </div>
       </motion.div>
+    </div>
+  );
+}
+
+function PasswordChangeScreen({ onChanged }: { onChanged: () => void }) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    setError('');
+    if (newPassword.length < 14) {
+      setError('New password must be at least 14 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await api.post('/api/v2/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      localStorage.removeItem('sentinel_token');
+      localStorage.removeItem('sentinel_user');
+      onChanged();
+    } catch (e: any) {
+      setError(e.response?.data?.detail || 'Password change failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#030303] flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white/[0.03] border border-white/10 rounded-3xl p-8">
+        <div className="mb-7 text-center">
+          <div className="w-14 h-14 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Key className="text-amber-400" size={24} />
+          </div>
+          <h1 className="text-2xl font-black text-white">Rotate Temporary Password</h1>
+          <p className="text-xs text-slate-500 mt-2">Required before protected Sentinel Shield features unlock.</p>
+        </div>
+        {error && <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm">{error}</div>}
+        <div className="space-y-4">
+          <input id="current-password" type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
+            placeholder="Temporary password"
+            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500/50" />
+          <input id="new-password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+            placeholder="New password, 14+ characters"
+            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500/50" />
+          <input id="confirm-password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && submit()}
+            placeholder="Confirm new password"
+            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-emerald-500/50" />
+          <button id="change-password-btn" onClick={submit} disabled={loading}
+            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-black font-bold py-3.5 rounded-xl flex items-center justify-center gap-2">
+            {loading ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />}
+            Change Password
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -611,12 +678,11 @@ rules:
 
 // ── User Management Tab ───────────────────────────────────────────────────────
 function UsersTab({ role }: { role: string }) {
-  const demoUsers = [
-    { email: 'admin@sentinel.local', role: 'SUPER_ADMIN', dept: 'ADMIN', active: true, mfa: true },
-    { email: 'security-lead@buyer.local', role: 'DEPARTMENT_HEAD', dept: 'ICU', active: true, mfa: false },
-    { email: 'analyst@buyer.local', role: 'STAFF', dept: 'ICU', active: true, mfa: false },
-    { email: 'auditor@buyer.local', role: 'AUDITOR', dept: null, active: true, mfa: true },
-  ];
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [tempPassword, setTempPassword] = useState('');
+  const [form, setForm] = useState({ email: '', full_name: '', role: 'STAFF', department: 'GENERAL' });
 
   const roleColors: Record<string, string> = {
     SUPER_ADMIN: 'bg-rose-500/15 text-rose-400',
@@ -626,20 +692,92 @@ function UsersTab({ role }: { role: string }) {
   };
   const canManage = role === 'SUPER_ADMIN';
 
+  const loadUsers = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/api/v2/admin/users');
+      setUsers(res.data.users || []);
+    } catch {
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadUsers(); }, []);
+
+  const createUser = async () => {
+    if (!form.email.trim()) return;
+    setCreating(true); setTempPassword('');
+    try {
+      const res = await api.post('/api/v2/admin/users', form);
+      setTempPassword(`${res.data.user.email}: ${res.data.temporary_password}`);
+      setForm({ email: '', full_name: '', role: 'STAFF', department: 'GENERAL' });
+      await loadUsers();
+    } catch (e: any) {
+      alert(e.response?.data?.detail || 'User creation failed.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const toggleActive = async (u: any) => {
+    try {
+      await api.patch(`/api/v2/admin/users/${u.id}`, { is_active: !u.is_active });
+      await loadUsers();
+    } catch (e: any) {
+      alert(e.response?.data?.detail || 'User update failed.');
+    }
+  };
+
+  const resetPassword = async (u: any) => {
+    try {
+      const res = await api.post(`/api/v2/admin/users/${u.id}/reset-password`);
+      setTempPassword(`${res.data.email}: ${res.data.temporary_password}`);
+      await loadUsers();
+    } catch (e: any) {
+      alert(e.response?.data?.detail || 'Password reset failed.');
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-white">User Management</h2>
-          <p className="text-xs text-slate-500">RBAC: SUPER_ADMIN · DEPARTMENT_HEAD · STAFF · AUDITOR</p>
+          <p className="text-xs text-slate-500">Live RBAC controls · create, disable, reset and force rotation</p>
         </div>
-        {canManage && (
-          <button id="add-user-btn" onClick={() => alert('User creation form — connect to /auth/register POST endpoint.')}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all">
-            <Users size={13} /> Add User
-          </button>
-        )}
+        <button id="users-refresh-btn" onClick={loadUsers}
+          className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-slate-300 hover:bg-white/10 transition-all">
+          <RefreshCw size={13} /> Refresh
+        </button>
       </div>
+
+      {canManage && (
+        <div className="p-4 bg-[#080808] border border-white/8 rounded-2xl">
+          <div className="grid grid-cols-5 gap-3">
+            <input id="new-user-email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+              placeholder="email@company.com" className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none" />
+            <input id="new-user-name" value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })}
+              placeholder="Full name" className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none" />
+            <select id="new-user-role" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none">
+              {['STAFF', 'DEPARTMENT_HEAD', 'AUDITOR', 'SUPER_ADMIN'].map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+            <input id="new-user-dept" value={form.department} onChange={e => setForm({ ...form, department: e.target.value })}
+              placeholder="Department" className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none" />
+            <button id="add-user-btn" onClick={createUser} disabled={creating}
+              className="bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-black rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+              {creating ? <Loader2 className="animate-spin" size={13} /> : <Users size={13} />} Add User
+            </button>
+          </div>
+          {tempPassword && (
+            <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300 font-mono">
+              Temporary password: {tempPassword}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="bg-[#080808] border border-white/8 rounded-2xl overflow-hidden">
         <table className="w-full text-xs">
@@ -651,24 +789,33 @@ function UsersTab({ role }: { role: string }) {
             </tr>
           </thead>
           <tbody>
-            {demoUsers.map((u, i) => (
+            {loading ? (
+              <tr><td colSpan={canManage ? 6 : 5} className="px-5 py-8 text-center text-slate-600"><Loader2 className="animate-spin mx-auto" size={18} /></td></tr>
+            ) : users.length === 0 ? (
+              <tr><td colSpan={canManage ? 6 : 5} className="px-5 py-8 text-center text-slate-600">No users visible for this role.</td></tr>
+            ) : users.map((u, i) => (
               <tr key={i} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-all">
                 <td className="px-5 py-3.5 text-slate-200">{u.email}</td>
                 <td className="px-5 py-3.5">
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${roleColors[u.role]}`}>{u.role}</span>
                 </td>
-                <td className="px-5 py-3.5 text-slate-500">{u.dept || 'Cross-dept'}</td>
+                <td className="px-5 py-3.5 text-slate-500">{u.department || 'Cross-dept'}</td>
                 <td className="px-5 py-3.5">
-                  {u.mfa
+                  {u.mfa_enabled
                     ? <CheckCircle2 size={14} className="text-emerald-400" />
                     : <XCircle size={14} className="text-slate-700" />}
                 </td>
                 <td className="px-5 py-3.5">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold">ACTIVE</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${u.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                    {u.is_active ? 'ACTIVE' : 'DISABLED'}
+                  </span>
                 </td>
                 {canManage && (
-                  <td className="px-5 py-3.5">
-                    <button className="text-slate-600 hover:text-slate-400 transition-all"><Eye size={13} /></button>
+                  <td className="px-5 py-3.5 flex gap-2">
+                    <button onClick={() => resetPassword(u)} className="text-amber-400/70 hover:text-amber-300 transition-all text-[10px] font-bold">RESET</button>
+                    <button onClick={() => toggleActive(u)} className="text-slate-500 hover:text-slate-300 transition-all text-[10px] font-bold">
+                      {u.is_active ? 'DISABLE' : 'ENABLE'}
+                    </button>
                   </td>
                 )}
               </tr>
@@ -948,12 +1095,21 @@ function ProxyTab() {
 export default function Dashboard() {
   const [token, setToken] = useState<string | null>(null);
   const [role, setRole] = useState('STAFF');
+  const [forcePasswordChange, setForcePasswordChange] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [status, setStatus] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     const t = localStorage.getItem('sentinel_token');
+    const user = localStorage.getItem('sentinel_user');
+    if (user) {
+      try {
+        const parsed = JSON.parse(user);
+        setRole(parsed.role || 'STAFF');
+        setForcePasswordChange(!!parsed.force_password_change);
+      } catch { }
+    }
     if (t) { setToken(t); fetchStatus(t); }
   }, []);
 
@@ -965,13 +1121,16 @@ export default function Dashboard() {
     } catch { }
   };
 
-  const handleLogin = (t: string, r: string) => {
-    setToken(t); setRole(r); fetchStatus(t);
+  const handleLogin = (t: string, r: string, forceChange: boolean, user: any) => {
+    localStorage.setItem('sentinel_user', JSON.stringify({ ...user, role: r, force_password_change: forceChange }));
+    setToken(t); setRole(r); setForcePasswordChange(forceChange); fetchStatus(t);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try { await api.post('/api/v2/auth/logout'); } catch { }
     localStorage.removeItem('sentinel_token');
-    setToken(null); setRole('STAFF'); setStatus(null);
+    localStorage.removeItem('sentinel_user');
+    setToken(null); setRole('STAFF'); setStatus(null); setForcePasswordChange(false);
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -986,6 +1145,9 @@ export default function Dashboard() {
   };
 
   if (!token) return <LoginScreen onLogin={handleLogin} />;
+  if (forcePasswordChange) return <PasswordChangeScreen onChanged={() => {
+    setToken(null); setRole('STAFF'); setStatus(null); setForcePasswordChange(false);
+  }} />;
 
   const NAV = [
     { id: 'overview',    icon: Activity,     label: 'Overview' },
