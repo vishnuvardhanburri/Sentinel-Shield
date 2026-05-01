@@ -6,6 +6,9 @@
     "dev:full": "docker compose --profile airgap --profile cloud up --build",
     "dev:backend": "cd backend && uvicorn app:app --host 0.0.0.0 --port 8000",
     "dev:frontend": "cd frontend && pnpm dev",
+    "lint": "pnpm --dir frontend lint",
+    "build": "pnpm --dir frontend build",
+    "check": "python3 -m compileall backend tests && pnpm lint && pnpm build",
     "production:seal": "bash scripts/production_seal.sh"
   }
 }

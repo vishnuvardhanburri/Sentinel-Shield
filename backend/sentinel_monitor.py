@@ -1,4 +1,4 @@
-# VISHNULABS - SENTINEL SHIELD VERSION 1
+# XAVIRA TECH LABS - SENTINEL SHIELD VERSION 1
 import os
 import time
 import sys
@@ -46,7 +46,7 @@ os.makedirs(VAULT_ARCHIVE, exist_ok=True)
 
 # --- VERSIONING ---
 VERSION = "1.0"
-VISHNULABS_VERSION_URL = os.getenv("UPDATE_SERVER_URL", "https://api.vishnulabs.com/sentinel/version")
+XAVIRA_VERSION_URL = os.getenv("UPDATE_SERVER_URL", "https://api.xaviratechlabs.com/sentinel/version")
 
 # --- LOGGING SETUP ---
 alert_log = os.path.join(LOGS_DIR, "alerts.log")
@@ -176,18 +176,18 @@ class SentinelMonitor:
             logging.error(f"State Encryption Failed: {e}")
 
     def check_for_updates(self):
-        """Checks for new version via VishnuLabs API. Skips if air-gapped."""
+        """Checks for new version via Xavira Tech Labs API. Skips if air-gapped."""
         try:
             logging.info(f"Checking for updates (Current: v{VERSION})...")
             # Simple version check - server returns json like {"version": "1.1", "notes": "..."}
-            response = requests.get(VISHNULABS_VERSION_URL, timeout=10)
+            response = requests.get(XAVIRA_VERSION_URL, timeout=10)
             if response.status_code == 200:
                 remote_data = response.json()
                 remote_version = str(remote_data.get("version", VERSION))
                 
                 if remote_version > VERSION:
                     logging.warning(f"NEW VERSION AVAILABLE: v{remote_version}")
-                    update_msg = f"New version v{remote_version} available — FREE Lifetime Update from VishnuLabs!"
+                    update_msg = f"New version v{remote_version} available — FREE Lifetime Update from Xavira Tech Labs!"
                     
                     # Store the URL for the CLI to use
                     self.state["stats"]["update_available"] = remote_version
@@ -198,7 +198,7 @@ class SentinelMonitor:
                     # 2. Email Notification (if valid)
                     if SMTP_CONFIG["VALID"]:
                         try:
-                            mime = MIMEText(f"{update_msg}\n\nDownload the new version from your client portal or contact support@vishnulabs.com.")
+                            mime = MIMEText(f"{update_msg}\n\nDownload the new version from your client portal or contact support@xaviratechlabs.com.")
                             mime["Subject"] = "Sentinel Shield: Lifetime Free Update Available"
                             mime["From"] = ALERT_CONFIG['SENDER']
                             mime["To"] = ALERT_CONFIG['RECEIVER']

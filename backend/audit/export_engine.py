@@ -157,7 +157,7 @@ class AuditExporter:
         footer_style = ParagraphStyle("Footer", parent=styles["Normal"],
                                       fontSize=7, textColor=colors.HexColor("#9ca3af"))
         story.append(Paragraph(
-            "Sentinel Shield v2 · VishnuLabs · This report is cryptographically signed via SHA-256 hash chain. "
+            "Sentinel Shield v2 · Xavira Tech Labs · This report is cryptographically signed via SHA-256 hash chain. "
             "Tampering with audit logs invalidates the chain and is detectable.",
             footer_style
         ))

@@ -16,7 +16,7 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 show_header() {
-    echo -e "${CYAN}${BOLD}--- SENTINEL SHIELD VERSION 1 (VISHNULABS) ---${NC}"
+    echo -e "${CYAN}${BOLD}--- SENTINEL SHIELD VERSION 1 (XAVIRA TECH LABS) ---${NC}"
 }
 
 is_running() {
@@ -74,7 +74,7 @@ case "${1:-}" in
             echo -e "${RED}[!] ERROR: SYSTEM NOT LICENSED.${NC}"
             echo -e "To activate Sentinel Shield, run:"
             echo -e "${CYAN}  ./shield.sh register-license <YOUR_KEY>${NC}"
-            echo -e "\nIf you do not have a key, please send your Hardware ID to VishnuLabs."
+            echo -e "\nIf you do not have a key, please send your Hardware ID to Xavira Tech Labs."
             echo -e "Hardware ID: ${YELLOW}$(python3 -c "import sys; sys.path.append('backend'); from vault_crypto import sentinel_crypto; print(sentinel_crypto.get_machine_id())")${NC}"
             exit 1
         fi
@@ -220,7 +220,7 @@ case "${1:-}" in
         VER=$(grep 'VERSION = "' backend/sentinel_monitor.py | cut -d'"' -f2 || echo "1.0")
         echo -e "Software: Sentinel Shield"
         echo -e "Version:  ${VER}"
-        echo -e "License:  Lifetime Enterprise (VishnuLabs)"
+        echo -e "License:  Lifetime Enterprise (Xavira Tech Labs)"
         echo -e "Updates:  Enrolled (Checks every 6 months)"
         ;;
     update)
@@ -283,7 +283,7 @@ case "${1:-}" in
         show_header
         HW_ID=$(python3 -c "import sys; sys.path.append('backend'); from vault_crypto import sentinel_crypto; print(sentinel_crypto.get_machine_id())")
         echo -e "Your Unique Hardware ID: ${GREEN}${BOLD}${HW_ID}${NC}"
-        echo -e "Please send this ID to ${CYAN}hello@vishnulabs.com${NC} to receive your license key."
+        echo -e "Please send this ID to ${CYAN}hello@xaviratechlabs.com${NC} to receive your license key."
         ;;
     register-license)
         show_header
@@ -349,7 +349,7 @@ case "${1:-}" in
             echo "PII Incidents       : 0 (fully redacted before indexing)"
             echo "Compliance Status   : HIPAA Ready"
             echo ""
-            echo "Powered by VishnuLabs Sentinel Shield v1"
+            echo "Powered by Xavira Tech Labs Sentinel Shield v1"
         } > "$REPORT_FILE"
         echo -e "${GREEN}[✔] ROI report saved to: $REPORT_FILE${NC}"
         ;;

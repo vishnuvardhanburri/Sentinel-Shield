@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sentinel Shield Professional Startup (VishnuLabs)
+# Sentinel Shield Professional Startup (Xavira Tech Labs)
 # ------------------------------------------------
 # This script starts the background services and opens the landing dashboard.
 

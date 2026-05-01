@@ -136,7 +136,7 @@ class LicenseServer:
         if record["seats_used"] >= record["seats_total"]:
             raise HTTPException(
                 status_code=403,
-                detail=f"Seat limit reached ({record['seats_total']} seats). Contact VishnuLabs to expand."
+                detail=f"Seat limit reached ({record['seats_total']} seats). Contact Xavira Tech Labs to expand."
             )
 
         # Hardware lock check (for airgap licenses)

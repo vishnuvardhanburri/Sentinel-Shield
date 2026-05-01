@@ -1,182 +1,170 @@
-# Sentinel Shield v2 — Enterprise AI Data Governance Platform
+# Sentinel Shield
 
-<div align="center">
-  <img src="docs/media/dashboard_v1.png" alt="Sentinel Shield Dashboard" width="800" />
+**Sentinel Shield by Xavira Tech Labs** is a sovereign AI security gateway for enterprises that need private local AI, PII masking, policy enforcement, audit evidence, and compliance reporting from one localhost control plane.
 
-  <h3>🛡️ <strong>SENTINEL SHIELD v2.0</strong></h3>
-  <p><em>HIPAA · DPDP 2026 · GDPR-Ready AI Governance — from $100k/year</em></p>
+The system is designed to run without external LLM API keys. Vault AI uses the buyer's own local Ollama model by default.
 
-  ![Python](https://img.shields.io/badge/Python-3.11-blue?style=flat-square)
-  ![FastAPI](https://img.shields.io/badge/FastAPI-0.110-green?style=flat-square)
-  ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square)
-  ![License](https://img.shields.io/badge/License-Enterprise-gold?style=flat-square)
-</div>
+## What It Does
 
----
+| Layer | Capability |
+| --- | --- |
+| Vault AI | Private local AI assistant powered by Ollama |
+| Identity Masking Proxy | Pseudonymizes sensitive values before model inference |
+| India PII Scanner | Detects Aadhaar, PAN, IFSC, UPI, GST, UHID, ABHA, phone, bank and other DPDP categories |
+| Prompt Injection Shield | Blocks jailbreaks, instruction override attempts, and prompt leakage requests |
+| Semantic DLP | Detects sensitive business context such as trade secrets and M&A discussion |
+| Obsidian Ledger | Tamper-evident JSONL audit chain with salted signatures |
+| Oracle Risk Engine | Scores actors, tracks repeated PII attempts, and auto-quarantines risky users |
+| Evidence Reports | Generates PDF evidence for CISO, board, and DPDP/GDPR review |
+| Universal Proxy | Standard inspection API for Slack, Teams, CRM, and custom enterprise apps |
 
-## What Is Sentinel Shield?
+## Local URLs
 
-Sentinel Shield is an **enterprise AI governance platform** that ensures every AI interaction inside your organisation is scanned, redacted, policy-governed, and audit-logged before any data leaves your perimeter.
-
-> A nurse types a patient's name into ChatGPT. Sentinel intercepts it, blocks the request, logs the attempt in an immutable ledger, and fires a compliance alert — in under 200ms.
-
----
-
-## The 6 Enterprise Capabilities
-
-| # | Capability | Status |
-|---|-----------|--------|
-| 1 | **Real-time PII Interception** — Presidio + 22 India-specific patterns (Aadhaar, PAN, UHID…) | ✅ Live |
-| 2 | **RBAC + JWT Authentication** — 4 roles, 18 permissions, SSO-ready | ✅ Live |
-| 3 | **Immutable Audit Ledger** — SHA-256 hash-chained JSONL, tamper-proof | ✅ Live |
-| 4 | **DPDP 2026 Compliance** — Data Principal rights, consent management, DPB incident reporting | ✅ Live |
-| 5 | **Automated License Server** — `SNTL-XXXX` keys, seat tracking, hardware lock, expiry | ✅ Live |
-| 6 | **Multi-Model Gateway** — Ollama (air-gap) · GPT-4o · Claude · Gemini · hybrid fallback | ✅ Live |
-
----
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────┐
-│                   SENTINEL SHIELD v2                      │
-│                                                          │
-│  ┌──────────┐   ┌──────────────────────────────────────┐ │
-│  │ Next.js  │──▶│          FastAPI Backend              │ │
-│  │ Dashboard│   │                                      │ │
-│  │ (v2.0)   │   │  RBAC │ Audit │ Policy │ Compliance  │ │
-│  └──────────┘   │  Gateway │ License │ Integrations    │ │
-│                 └──────────────┬─────────────────────┘ │
-│                                │                        │
-│         ┌──────────────────────┼────────────────────┐  │
-│         │                      │                    │  │
-│    ┌────▼───┐             ┌────▼───┐           ┌───▼──┐ │
-│    │Presidio│             │Chroma  │           │ YAML  │ │
-│    │+ India │             │Vector  │           │Policy │ │
-│    │Scanner │             │  DB    │           │Engine │ │
-│    └────────┘             └────────┘           └──────┘ │
-│                                                          │
-│  ══════════════════════════════════════════════════════  │
-│  Air-Gap (SQLite + Ollama) ↔ Cloud (PostgreSQL + GPT-4)  │
-└──────────────────────────────────────────────────────────┘
+```text
+Dashboard: http://localhost:3000
+API:       http://localhost:8000
+Docs:      http://localhost:8000/api/docs
+Health:    http://localhost:8000/health
 ```
 
----
+## First Login
 
-## Quick Start
+Production builds do not ship demo credentials.
 
-### Air-Gap (Local) Mode
+On first boot, if no Super Admin exists, the backend generates a random temporary password in the backend logs.
+
+Default first-run admin email:
+
+```text
+admin@sentinel.local
+```
+
+The account is marked `force_password_change: true`. Protected features stay blocked until the password is changed through:
+
+```text
+POST /api/v2/auth/change-password
+```
+
+## Required Environment
+
+The backend refuses to boot if these values are missing, short, or placeholders:
+
+```text
+JWT_SECRET_KEY
+LICENSE_MASTER_SECRET
+ACTOR_HASH_SALT
+LEDGER_MASTER_SALT
+ALLOWED_ORIGINS
+```
+
+Generate secure values with:
 
 ```bash
-# 1. Clone and enter
-git clone https://github.com/vishnuvardhanburri/Sentinel-Shield
-cd Sentinel-Shield
-
-# 2. Configure
-cp .env.example .env
-# Set JWT_SECRET_KEY and optionally OPENAI_API_KEY
-
-# 3. Install Python deps
-pip install -r requirements.txt
-python -m spacy download en_core_web_lg
-
-# 4. Start Ollama (local LLM)
-ollama pull llama3.1
-
-# 5. Start backend
-cd backend && uvicorn app:app --host 0.0.0.0 --port 8000
-
-# 6. Start frontend (new terminal)
-cd frontend && npm install && npm run dev
-# Visit http://localhost:3000
+pnpm production:seal
 ```
 
-### Cloud / Docker Mode
+## Run The Full Stack
 
 ```bash
-# Full stack (backend + frontend + PostgreSQL + Ollama)
-docker compose --profile airgap up
-
-# Cloud mode (PostgreSQL + Redis instead of SQLite + Ollama)
-DEPLOYMENT_MODE=cloud \
-DATABASE_URL=postgresql+psycopg2://user:pass@host/sentinel \
-OPENAI_API_KEY=sk-... \
-docker compose --profile cloud up
+pnpm dev:full
 ```
 
----
+This launches:
 
-## Compliance Scorecard
+- FastAPI security gateway
+- CISO dashboard
+- Redis risk tracker
+- PostgreSQL
+- Ollama local model service
 
-| Framework | Coverage |
-|-----------|---------|
-| **HIPAA** | Audit chain integrity · PHI redaction · breach detection · MFA enforcement |
-| **DPDP 2026** | Data Principal rights (Sec 6-13) · DPB incident reporting (Sec 8) · consent management |
-| **GDPR Lite** | Policy accountability · 72-hour breach reporting scaffolding · data minimisation |
-| **ISO 27001 Lite** | Access control · audit logs · incident management · cryptographic controls |
+For manual local development:
 
----
+```bash
+# Backend
+set -a; source .env; set +a
+.runtime_venv/bin/uvicorn backend.app:app --host 127.0.0.1 --port 8000
 
-## Industry Presets
+# Frontend
+cd frontend
+pnpm dev
+```
 
-Drop into `presets/` and reload:
+## Production Seal
 
-| Preset | Department | Key Enforcement |
-|--------|-----------|----------------|
-| `hospital.yaml` | ICU, Emergency, OPD | BLOCK PHI + ICD codes, redact clinical data |
-| `ivf_clinic.yaml` | IVF/Fertility | BLOCK donor anonymity, REDACT genetic data |
-| `law_firm.yaml` | Legal | BLOCK client identity, REDACT privileged docs |
-| `real_estate.yaml` | Realty | BLOCK buyer/seller PII, REDACT deed values |
-| `logistics.yaml` | Supply Chain | BLOCK recipient PII, REDACT AWB/tracking |
+```bash
+pnpm production:seal
+```
 
----
+The seal script:
 
-## API Reference
+- Rotates JWT, license, actor-hash, and ledger salts
+- Scrubs runtime logs and local evidence
+- Creates an isolated Python test environment
+- Installs test dependencies
+- Runs the full test suite
+- Stages all changes
+- Commits the sealed state with:
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/auth/login` | — | Get JWT token |
-| `GET` | `/status` | JWT | System health + audit stats |
-| `POST` | `/ask` | JWT | Governed AI query (scan→redact→policy→route→log) |
-| `GET` | `/audit/log` | JWT | Immutable audit entries |
-| `POST` | `/export-audit` | JWT | CSV or PDF compliance export |
-| `GET` | `/compliance/score` | JWT | HIPAA/DPDP/GDPR/ISO scorecard |
-| `GET` | `/policy/list` | JWT | Active YAML policies |
-| `POST` | `/policy/reload` | Admin | Reload policies from disk |
-| `POST` | `/license/issue` | Admin | Issue new license key |
-| `POST` | `/license/activate` | — | Activate key on machine |
-| `POST` | `/license/validate` | — | Check license status |
-| `GET` | `/shadow-ai/detections` | JWT | Shadow AI usage events |
-| `POST` | `/shadow-ai/scan` | JWT | Trigger on-demand scan |
-| `POST` | `/integrations/webhooks/register` | Admin | Register outbound webhook |
-| `POST` | `/integrations/incoming/emr` | HMAC | Receive EMR data (Epic/Practo) |
-| `GET` | `/api/docs` | — | Swagger UI |
+```text
+chore: enterprise production seal applied
+```
 
----
+## Verification Checklist
 
-## Security Architecture
+Before showing or submitting the product, run:
 
-- **Encryption**: AES-256-GCM, hardware-bound key derivation (PBKDF2 + machine UUID)
-- **Audit Integrity**: SHA-256 hash chaining — any tampered entry invalidates the entire chain
-- **Auth**: JWT (HS256) + bcrypt password hashing + RBAC with 18 granular permissions
-- **PII Scanning**: Microsoft Presidio (English NER) + 22 India-specific regex patterns
-- **Policy DSL**: YAML rules with WARN / REDACT / BLOCK enforcement + risk thresholds
-- **Network**: All LLM traffic stays local in air-gap mode (Ollama on `localhost:11434`)
+```bash
+python3 -m compileall backend tests
+cd frontend && pnpm lint && pnpm build
+curl http://localhost:8000/health
+```
 
----
+Expected:
 
-## Pricing (Reference)
+```text
+Backend compile: pass
+Frontend lint: 0 errors
+Frontend build: pass
+Health: {"status":"awake","engine":"Sentinel Shield v2.0"}
+```
 
-| Plan | Price | Seats | Mode |
-|------|-------|-------|------|
-| Starter | $20k/year | 5 | Air-gap |
-| Professional | $50k/year | 25 | Air-gap + Cloud |
-| Enterprise | $100k+/year | Unlimited | Multi-tenant Cloud |
+## Key API Endpoints
 
----
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/v2/auth/login` | Login and receive JWT |
+| `POST` | `/api/v2/auth/change-password` | Change first-run temporary password |
+| `GET` | `/api/v2/system/diagnostics` | Self-diagnostic bootstrap status |
+| `POST` | `/ask` | Governed Vault AI query |
+| `POST` | `/api/v2/proxy/inspect` | Raw-vs-masked universal proxy preview |
+| `GET` | `/api/v2/risk/heatmap` | Oracle user/API-key risk heatmap |
+| `GET` | `/audit/log` | Obsidian ledger entries |
+| `POST` | `/api/v2/audit/report` | CISO evidence PDF |
+| `GET` | `/compliance/score` | Compliance scorecard |
+| `POST` | `/policy/reload` | Reload local YAML policies |
+
+## Security Guarantees
+
+- Local-first AI routing through Ollama
+- Fail-closed secrets
+- No wildcard CORS
+- No hardcoded demo admin password
+- Pseudonymization before inference
+- Prompt injection detection before model routing
+- Salted tamper-evident ledger signatures
+- Actor risk scoring and quarantine
+- Board-ready PDF evidence generation
+
+## Xavira Tech Labs Branding
+
+The product is branded as:
+
+```text
+Sentinel Shield by Xavira Tech Labs
+```
+
+No starter framework logos or external model branding are used in the buyer-facing UI.
 
 ## License
 
-Proprietary — VishnuLabs © 2026. All rights reserved.  
-Contact: [support@vishnulabs.com](mailto:support@vishnulabs.com)
- 
+Proprietary — Xavira Tech Labs © 2026. All rights reserved.

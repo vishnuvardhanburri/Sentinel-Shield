@@ -1,4 +1,4 @@
-# Sentinel Shield v1.3 | Technical Security Architecture by VishnuLabs
+# Sentinel Shield v1.3 | Technical Security Architecture by Xavira Tech Labs
 **Elite Standard: Military-Grade Hardware-Bound Data Protection**
 
 ---
@@ -44,4 +44,4 @@ Because the vault is mathematically tied to the hardware UUID, copying the `sent
 2.  **Liability Shield**: If an audit happens, our "Compliance Audit CSV" proves you took "Exemplary Caution" with patient/client data.
 3.  **Hardware Persistence**: The vault cannot be cloned or pirated. Your license is tied to your authorized hardware.
 
-*Developed by VishnuLabs Engineering for Professional Excellence.*
+*Developed by Xavira Tech Labs Engineering for Professional Excellence.*

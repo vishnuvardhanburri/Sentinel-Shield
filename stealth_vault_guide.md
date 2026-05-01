@@ -1,4 +1,4 @@
-# Sentinel Shield: Version 1 | Enterprise AI Vault by VishnuLabs
+# Sentinel Shield: Version 1 | Enterprise AI Vault by Xavira Tech Labs
 **The Gold Standard in Private Data Security & Compliance**
 
 ---
@@ -23,7 +23,7 @@ Before starting the system for the first time, you must register your **Enterpri
     ```bash
     ./shield.sh get-hardware-id
     ```
-2.  Send the resulting ID to **hello@vishnulabs.com**.
+2.  Send the resulting ID to **hello@xaviratechlabs.com**.
 3.  Once you receive your key, register it:
     ```bash
     ./shield.sh register-license <YOUR_KEY>
@@ -86,10 +86,10 @@ Your security shouldn't go stale. Every purchase includes **Lifetime Free Update
 ---
 
 ## 📧 Premium Support & Updates
-If you encounter any issues or require your 6-month secure update package, contact the VishnuLabs Engineering Team directly.
+If you encounter any issues or require your 6-month secure update package, contact the Xavira Tech Labs Engineering Team directly.
 
-**Email:** [hello@vishnulabs.com](mailto:hello@vishnulabs.com)  
-**Brand:** VishnuLabs | *Excellence in Autonomous Architecture*
+**Email:** [hello@xaviratechlabs.com](mailto:hello@xaviratechlabs.com)  
+**Brand:** Xavira Tech Labs | *Excellence in Autonomous Architecture*
 
 ---
-*Sentinel Shield: Version 1. Professional Privacy. Built by VishnuLabs.*
+*Sentinel Shield: Version 1. Professional Privacy. Built by Xavira Tech Labs.*

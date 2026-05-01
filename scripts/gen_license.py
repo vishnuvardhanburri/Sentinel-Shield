@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Master License Generator (VishnuLabs Internal)
+Sentinel Shield v2 — Master License Generator (Xavira Tech Labs Internal)
 Generates hardware-bound, ECC-signed license files for clients.
 """
 import json
@@ -20,7 +20,7 @@ PRIVATE_KEY_FILE = "master_private.pem"
 PUBLIC_KEY_FILE = "master_public.pem"
 
 def ensure_master_keys():
-    """Generates the VishnuLabs master signing keys if they don't exist."""
+    """Generates the Xavira Tech Labs master signing keys if they don't exist."""
     if not os.path.exists(PRIVATE_KEY_FILE):
         print("🔑 Generating new Master signing keys...")
         private_key = ec.generate_private_key(ec.SECP256K1())

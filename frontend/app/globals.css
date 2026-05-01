@@ -27,8 +27,8 @@ body {
   }
 }
 
-/* 🛡️ VISHNULABS CLEAN-ROOM CSS 🛡️ */
-/* Hide ALL Next.js / Turbopack / Vercel branding, toasts, and portals */
+/* 🛡️ XAVIRA TECH LABS CLEAN-ROOM CSS 🛡️ */
+/* Hide framework development overlays, toasts, and portals */
 nextjs-portal,
 [data-nextjs-portal],
 [data-nextjs-toast],

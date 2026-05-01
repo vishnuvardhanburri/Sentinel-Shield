@@ -122,7 +122,7 @@ class DPDPEngine:
         affected_data_types: List[str],
         estimated_records_affected: int,
         description: str,
-        organization: str = "VishnuLabs Client",
+        organization: str = "Xavira Tech Labs Client",
         is_test: bool = False
     ) -> Dict[str, Any]:
         """

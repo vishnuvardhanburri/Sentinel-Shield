@@ -40,7 +40,7 @@ export default function LoginPage() {
       } else {
         setError(data.detail || 'Access Denied: Invalid Security Credentials');
       }
-    } catch (err) {
+    } catch {
       setError('Sentinel Engine Offline: Connection to Cloud Failed');
     } finally {
       setLoading(false);
@@ -60,7 +60,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-3xl font-extrabold text-[#f8fafc] tracking-tight">Sentinel Shield</h1>
-          <p className="text-[#38bdf8] mt-2 text-xs uppercase tracking-widest font-bold opacity-80">BY VISHNULABS</p>
+          <p className="text-[#38bdf8] mt-2 text-xs uppercase tracking-widest font-bold opacity-80">BY XAVIRA TECH LABS</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">

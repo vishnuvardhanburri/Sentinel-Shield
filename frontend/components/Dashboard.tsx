@@ -1,5 +1,5 @@
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/set-state-in-effect, react-hooks/immutability, react-hooks/exhaustive-deps, @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/set-state-in-effect, react-hooks/immutability, react-hooks/exhaustive-deps */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -61,10 +61,10 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, role: string) => vo
       >
         <div className="mb-8 text-center">
           <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-[0_0_40px_rgba(16,185,129,0.15)] overflow-hidden">
-            <img src="https://www.vishnulabs.com/vishnulabs-logo-mark.svg" className="w-10 h-10 object-contain" alt="VishnuLabs" />
+            <span className="text-2xl font-black text-emerald-300 tracking-tight">XT</span>
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight">SENTINEL <span className="text-emerald-400">SHIELD</span></h1>
-          <p className="text-emerald-500/80 text-xs uppercase tracking-[0.2em] font-bold mt-2 font-display">BY VISHNULABS</p>
+          <p className="text-emerald-500/80 text-xs uppercase tracking-[0.2em] font-bold mt-2 font-display">BY XAVIRA TECH LABS</p>
         </div>
 
         <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
@@ -290,8 +290,8 @@ function VaultTab({ role }: { role: string }) {
             <ShieldCheck className="text-emerald-400" size={16} />
           </div>
           <div>
-            <p className="font-bold text-white text-sm">Sentinel Intelligence</p>
-            <p className="text-xs text-slate-600">All prompts scanned · PII redacted · Audit logged</p>
+            <p className="font-bold text-white text-sm">Vault AI</p>
+            <p className="text-xs text-slate-600">Private local assistant · scanned · masked · audit logged</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -304,11 +304,10 @@ function VaultTab({ role }: { role: string }) {
           </select>
           <select id="model-select" value={model} onChange={e => setModel(e.target.value)}
             className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-400 focus:outline-none">
-            <option value="">Auto Model</option>
-            <option value="ollama/llama3.1">Ollama (Local)</option>
-            <option value="openrouter/google/gemini-2.0-flash-001">Gemini Pro (Cloud)</option>
-            <option value="openrouter/anthropic/claude-3.5-sonnet">Claude Sonnet (Cloud)</option>
-            <option value="openrouter/openai/gpt-4o">GPT-4o (Cloud)</option>
+            <option value="">Vault AI Local</option>
+            <option value="ollama/llama3.1">Llama 3.1 Local</option>
+            <option value="ollama/llama3.2">Llama 3.2 Local</option>
+            <option value="ollama/deepseek-r1:8b">DeepSeek R1 Local</option>
           </select>
         </div>
       </div>
@@ -319,8 +318,8 @@ function VaultTab({ role }: { role: string }) {
             <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/8">
               <Lock className="text-slate-500" size={24} />
             </div>
-            <p className="font-bold text-white mb-1">Secure Query Interface</p>
-            <p className="text-sm text-slate-600 max-w-xs">Ask anything about your documents. Every prompt is scanned, redacted, and audit-logged before reaching the AI.</p>
+            <p className="font-bold text-white mb-1">Private Local AI Interface</p>
+            <p className="text-sm text-slate-600 max-w-xs">Ask anything. Vault AI answers through your own local model, with sensitive data masked before inference.</p>
           </div>
         )}
         {history.map((msg, i) => (
@@ -1006,11 +1005,11 @@ export default function Dashboard() {
         <div className="p-5 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-emerald-500/15 border border-emerald-500/25 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.15)] overflow-hidden p-1.5">
-              <img src="https://www.vishnulabs.com/vishnulabs-logo-mark.svg" className="w-full h-full object-contain" alt="V" />
+              <span className="text-sm font-black text-emerald-300 tracking-tight">XT</span>
             </div>
             <div>
               <h1 className="text-sm font-black text-white tracking-tight">SENTINEL <span className="text-emerald-400">SHIELD</span></h1>
-              <p className="text-[10px] text-emerald-500/80 font-bold uppercase tracking-widest">BY VISHNULABS</p>
+              <p className="text-[10px] text-emerald-500/80 font-bold uppercase tracking-widest">BY XAVIRA TECH LABS</p>
             </div>
           </div>
         </div>
@@ -1052,7 +1051,7 @@ export default function Dashboard() {
             <h2 className="text-2xl font-black text-white">
               {NAV.find(n => n.id === activeTab)?.label || 'Dashboard'}
             </h2>
-            <p className="text-xs text-slate-600 mt-0.5">Sentinel Shield Enterprise · VishnuLabs</p>
+            <p className="text-xs text-slate-600 mt-0.5">Sentinel Shield Enterprise · Xavira Tech Labs</p>
           </div>
           <div className="flex items-center gap-3">
             <button id="refresh-status-btn" onClick={() => fetchStatus()}

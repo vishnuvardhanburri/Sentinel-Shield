@@ -3,8 +3,7 @@ Sentinel Shield v2 — Multi-Model Gateway (Router)
 Routes governed prompts to any AI model backend transparently.
 Deployment modes:
   - AIRGAP: Ollama local models only
-  - CLOUD:  OpenAI / Anthropic / Gemini via their APIs
-  - HYBRID: Try cloud; fall back to Ollama if unavailable
+  - CLOUD/HYBRID: Still default to the local Ollama model unless explicitly configured otherwise.
 """
 import os
 import logging
@@ -21,10 +20,12 @@ class ModelRouter:
     and routes it to the appropriate backend.
     """
 
+    LOCAL_MODEL = f"ollama/{os.getenv('OLLAMA_MODEL', 'llama3.1')}"
+
     DEFAULT_MODEL_MAP = {
-        "airgap": "ollama/llama3.1",
-        "cloud":  "openrouter/google/gemini-2.0-flash-001", # Primary: Stable OpenRouter Gemini
-        "hybrid": "openrouter/google/gemini-2.0-flash-001",
+        "airgap": LOCAL_MODEL,
+        "cloud": LOCAL_MODEL,
+        "hybrid": LOCAL_MODEL,
     }
 
     def __init__(self):
@@ -84,21 +85,14 @@ class ModelRouter:
         Returns: {answer, model_used, tokens_used, fallback_used}
         """
         force_airgap = sensitivity_score is not None and sensitivity_score > 7.0
-        target = preferred_model or self.DEFAULT_MODEL_MAP.get(self.mode, "ollama/llama3.1")
+        target = preferred_model or self.DEFAULT_MODEL_MAP.get(self.mode, self.LOCAL_MODEL)
         if force_airgap:
-            target = "ollama/llama3.1"
+            target = self.LOCAL_MODEL
         provider, model_name = self._parse_model(target)
 
         if force_airgap and provider != "ollama":
             provider = "ollama"
-            target = "ollama/llama3.1"
-
-        # DYNAMIC FALLBACK: If Native Gemini is default but KEY is missing, pivot to OpenRouter
-        if provider == "gemini" and "gemini" not in self._adapters:
-            if "openrouter" in self._adapters:
-                logger.warning("Native Gemini key missing, falling back to OpenRouter...")
-                provider = "openrouter"
-                target = "openrouter/google/gemini-2.0-flash-001" # Using high-stability verified ID
+            target = self.LOCAL_MODEL
 
         # Attempt primary
         adapter = self._adapters.get(provider)
@@ -125,9 +119,9 @@ class ModelRouter:
                     prompt=prompt,
                     context=context or "",
                     system_prompt=system_prompt or self._default_system_prompt(),
-                    model="ollama/llama3.1",
+                    model=self.LOCAL_MODEL,
                 )
-                result["model_used"] = "ollama/llama3.1"
+                result["model_used"] = self.LOCAL_MODEL
                 result["fallback_used"] = True
                 result["airgap_forced"] = force_airgap
                 return result
@@ -135,7 +129,7 @@ class ModelRouter:
                 logger.error(f"Fallback Ollama also failed: {e}")
 
         return {
-            "answer": "⚠️ No AI model available. Check your DEPLOYMENT_MODE and API keys.",
+            "answer": "Local Sentinel AI is unavailable. Start Ollama and pull the configured local model.",
             "model_used": "none",
             "fallback_used": False,
             "airgap_forced": force_airgap,
@@ -153,11 +147,14 @@ class ModelRouter:
     @staticmethod
     def _default_system_prompt() -> str:
         return (
-            "You are the Sentinel Shield Auditor — a secure, enterprise-grade AI assistant. "
-            "All data provided to you has already been scanned and redacted for PII/PHI by "
-            "Sentinel Shield v2. If you see [REDACTED_*] tokens, acknowledge them as blocked "
-            "sensitive information. Provide accurate, professional responses for enterprise use. "
-            "Never request or reconstruct redacted information."
+            "You are Vault AI, the private local assistant inside Sentinel Shield by Xavira Tech Labs. "
+            "Answer like a capable general-purpose AI assistant: explain, plan, draft, reason, summarize, "
+            "write code, analyze business/security questions, and help the user get work done. "
+            "You run through the local sovereign AI gateway, so never claim to be an external cloud model. "
+            "All user data has already been scanned and sensitive values may be replaced "
+            "with pseudonym tokens such as [Aadhaar_1] or [PAN_1]. Treat those as protected placeholders. "
+            "Do not ask for, infer, reveal, reconstruct, or bypass masked personal/secret data. "
+            "Be direct, useful, and professional."
         )
 
     def list_available(self) -> Dict[str, bool]:

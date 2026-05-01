@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# VISHNULABS - SENTINEL SHIELD VERSION 1
+# XAVIRA TECH LABS - SENTINEL SHIELD VERSION 1
 
 set -euo pipefail
 

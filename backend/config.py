@@ -36,7 +36,7 @@ PLACEHOLDER_VALUES = {
     "change-me",
     "CHANGE_ME",
     "CHANGE_ME_USE_SECRETS_TOKEN_HEX_32",
-    "VISHNULABS_SENTINEL_MASTER_2026",
+    "XAVIRA TECH LABS_SENTINEL_MASTER_2026",
     "SENTINEL_SHIELD_V2_DEFAULT_AIRGAP",
     "sentinel-local-dev",
     "your-secret-here",
@@ -63,7 +63,7 @@ def require_secret(name: str, *, min_length: int = 32, forbidden: Iterable[str] 
 def allowed_origins() -> List[str]:
     raw = os.getenv(
         "ALLOWED_ORIGINS",
-        "http://localhost:3000,http://localhost:3001,https://sentinel-shield.vishnulabs.com",
+        "http://localhost:3000,http://localhost:3001,https://sentinel-shield.xaviratechlabs.com",
     )
     origins = [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()]
     if "*" in origins:

@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sentinel Shield | BY VISHNULABS",
-  description: "Enterprise AI Data Governance & PII Redaction — VishnuLabs",
+  title: "Sentinel Shield | BY XAVIRA TECH LABS",
+  description: "Enterprise AI Data Governance & PII Redaction — Xavira Tech Labs",
   icons: {
-    icon: "https://www.vishnulabs.com/vishnulabs-logo-mark.svg",
+    icon: "/favicon.ico",
   }
 };
 

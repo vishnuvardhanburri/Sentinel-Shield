@@ -1,7 +1,7 @@
 # Sentinel Shield v2 — Backend Dockerfile
 FROM python:3.11-slim
 
-LABEL maintainer="VishnuLabs <support@vishnulabs.com>"
+LABEL maintainer="Xavira Tech Labs <support@xaviratechlabs.com>"
 LABEL version="2.0"
 LABEL description="Sentinel Shield v2 — Enterprise AI Data Governance Backend"
 

@@ -69,7 +69,7 @@ SECURITY_SETTINGS = security_settings()
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Sentinel Shield v2",
-    description="Enterprise AI Data Governance Platform — VishnuLabs",
+    description="Enterprise AI Data Governance Platform — Xavira Tech Labs",
     version="2.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
@@ -175,7 +175,7 @@ class PolicyUpdateRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     context: Optional[str] = None
-    preferred_model: Optional[str] = "openrouter/google/gemini-2.0-flash-lite-preview-02-05:free"
+    preferred_model: Optional[str] = None
 
 class ProxyInspectRequest(BaseModel):
     text: str
@@ -277,7 +277,7 @@ def force_seed():
 @app.post("/api/v2/chat")
 def chat(req: ChatRequest, current_user: TokenPayload = Depends(get_current_user)):
     """
-    Secure Conversational AI endpoint.
+    Secure local conversational AI endpoint.
     Governs the prompt (redacts PII) and routes to the selected AI model.
     """
     enforce_password_rotation(current_user)
@@ -287,9 +287,9 @@ def chat(req: ChatRequest, current_user: TokenPayload = Depends(get_current_user
     # 2. Add system context (Role-play as Sentinel Auditor)
     system_ctx = (
         f"User Role: {current_user.role}. Department: {current_user.department}. "
-        "You are the Sentinel Shield AI Security Auditor. Your goal is to help "
-        "the user manage data governance and compliance risks. Be professional, "
-        "concise, and never bypass redaction [REDACTED_*] tokens."
+        "You are Vault AI, a private local assistant running inside Sentinel Shield. "
+        "Answer broadly and helpfully like a premium AI assistant, while preserving "
+        "all masked/pseudonymized privacy tokens. Never claim to be a cloud API model."
     )
     
     # 3. Route to AI Gateway
@@ -334,7 +334,7 @@ async def root():
         "status": "online",
         "platform": "SENTINEL SHIELD",
         "version": "1.0.0",
-        "signature": "BY VISHNULABS",
+        "signature": "BY XAVIRA TECH LABS",
         "message": "Vault Gateway is Secure. Welcome Commander."
     }
 
@@ -428,7 +428,7 @@ def query_vault(req: Query, current_user: TokenPayload = Depends(get_current_use
      1. RBAC permission check
      2. India PII + Presidio dual-layer scan + redaction
      3. Policy engine evaluation (WARN / REDACT / BLOCK)
-     4. Governed model routing (Ollama / GPT-4 / Gemini)
+     4. Governed local model routing through Ollama
      5. Immutable audit logging
     """
     global vectorstore
@@ -727,7 +727,7 @@ def get_recovery_info(current_user: TokenPayload = Depends(get_current_user)):
         "machine_id": sentinel_crypto.get_machine_id(),
         "encryption_algo": "AES-256-GCM",
         "deployment_mode": os.getenv("DEPLOYMENT_MODE", "airgap").upper(),
-        "instructions": "To migrate vault to a new machine, provide your original Machine UUID to VishnuLabs support.",
+        "instructions": "To migrate vault to a new machine, provide your original Machine UUID to Xavira Tech Labs support.",
         "v2_note": "v2 supports cloud + air-gap modes. See LICENSE_SERVER_URL in .env for cloud licensing.",
     }
 
