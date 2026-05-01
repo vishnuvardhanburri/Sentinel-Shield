@@ -10,6 +10,7 @@
     "build": "pnpm --dir frontend build",
     "check": "python3 -m compileall backend tests && pnpm lint && pnpm build",
     "smoke:e2e": ".runtime_venv/bin/python scripts/smoke_e2e.py",
+    "browser:e2e": ".runtime_venv/bin/python scripts/browser_e2e.py",
     "production:seal": "bash scripts/production_seal.sh"
   }
 }

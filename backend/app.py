@@ -226,6 +226,8 @@ class EvidenceReportRequest(BaseModel):
     org_name: Optional[str] = "Buyer Organization"
     tenant_id: Optional[str] = "default"
     limit: int = 500
+    primary_color: Optional[str] = "#047857"
+    compliance_frameworks: Optional[list[str]] = None
 
 class TenantBrandingRequest(BaseModel):
     company_name: str = "Buyer Organization"
@@ -250,6 +252,13 @@ class MTLSWizardRequest(BaseModel):
     ca_cert_path: str = "/etc/sentinel/ca.crt"
     client_cert_header: str = "X-SSL-Client-Fingerprint"
     upstream_url: str = "http://127.0.0.1:8000"
+
+class ModelPullRequest(BaseModel):
+    model: str = "llama3.1"
+
+class SIEMExportRequest(BaseModel):
+    target_url: Optional[str] = None
+    event_type: str = "CISO_ALERT"
 
 
 # ── Auth Endpoints (V2 Professional) ──────────────────────────────────────────
@@ -845,7 +854,47 @@ def model_management(current_user: TokenPayload = Depends(get_active_user)):
         "gateway_adapters": model_router.list_available(),
         "installed_models": models,
         "install_command": "ollama pull llama3.1",
+        "model_pull_enabled": os.getenv("ENABLE_MODEL_PULL", "false").lower() == "true",
     }
+
+@app.post("/api/v2/enterprise/models/pull")
+def pull_model(req: ModelPullRequest, current_user: TokenPayload = Depends(get_active_user)):
+    """Disabled-by-default model pull job for controlled local model onboarding."""
+    rbac.enforce(current_user.role, Permission.MANAGE_USERS)
+    if os.getenv("ENABLE_MODEL_PULL", "false").lower() != "true":
+        raise HTTPException(status_code=403, detail="MODEL_PULL_DISABLED")
+    if not req.model.replace(":", "").replace(".", "").replace("-", "").replace("_", "").isalnum():
+        raise HTTPException(status_code=400, detail="INVALID_MODEL_NAME")
+    import subprocess
+    completed = subprocess.run(["ollama", "pull", req.model], capture_output=True, text=True, timeout=1800)
+    audit_ledger.log(
+        action="MODEL_PULL_REQUESTED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+        metadata={"model": req.model, "returncode": completed.returncode},
+    )
+    return {"status": "SUCCESS" if completed.returncode == 0 else "FAILED", "model": req.model, "output": completed.stdout[-2000:], "error": completed.stderr[-2000:]}
+
+@app.get("/api/v2/enterprise/version")
+def release_version(current_user: TokenPayload = Depends(get_active_user)):
+    rbac.enforce(current_user.role, Permission.VIEW_VAULT_STATUS)
+    release_path = os.path.join(BASE_DIR, "release.json")
+    data = {}
+    if os.path.exists(release_path):
+        with open(release_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    try:
+        import subprocess
+        commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=BASE_DIR, text=True, timeout=2).strip()
+    except Exception:
+        commit = os.getenv("RELEASE_COMMIT", "unknown")
+    data.update({
+        "commit": commit,
+        "deployment_mode": os.getenv("DEPLOYMENT_MODE", "airgap"),
+        "seal_state": "sealed" if all(os.getenv(k) for k in ("JWT_SECRET_KEY", "LICENSE_MASTER_SECRET", "ACTOR_HASH_SALT", "LEDGER_MASTER_SALT")) else "unsealed",
+    })
+    return data
 
 @app.get("/api/v2/enterprise/reports")
 def evidence_report_history(current_user: TokenPayload = Depends(get_active_user)):
@@ -899,6 +948,29 @@ def ciso_alert_center(current_user: TokenPayload = Depends(get_active_user)):
             })
     return {"alerts": alerts, "total": len(alerts)}
 
+@app.post("/api/v2/enterprise/alerts/export")
+def export_alerts_to_siem(req: SIEMExportRequest, current_user: TokenPayload = Depends(get_active_user)):
+    """Send critical alerts to a generic SIEM/webhook endpoint when configured."""
+    rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
+    target_url = req.target_url or os.getenv("SIEM_WEBHOOK_URL") or os.getenv("SLACK_WEBHOOK_URL") or os.getenv("DISCORD_WEBHOOK_URL")
+    if not target_url:
+        raise HTTPException(status_code=400, detail="SIEM_WEBHOOK_URL_NOT_CONFIGURED")
+    alerts = ciso_alert_center(current_user).get("alerts", [])
+    try:
+        import requests
+        resp = requests.post(target_url, json={"event_type": req.event_type, "alerts": alerts}, timeout=8)
+        ok = 200 <= resp.status_code < 300
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"SIEM_EXPORT_FAILED: {exc}")
+    audit_ledger.log(
+        action="SIEM_ALERT_EXPORT",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+        metadata={"alert_count": len(alerts), "target_configured": True, "success": ok},
+    )
+    return {"status": "SENT" if ok else "FAILED", "alert_count": len(alerts)}
+
 @app.get("/api/v2/enterprise/quarantine")
 def quarantine_management(current_user: TokenPayload = Depends(get_active_user)):
     rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
@@ -931,7 +1003,12 @@ def sign_policy_bundle(req: PolicyBundleRequest, current_user: TokenPayload = De
         "created_by": current_user.sub,
     }
     signature = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
-    return {"manifest": payload, "signature": signature, "apply_mode": "manual-review-required"}
+    bundle_dir = os.path.join(BASE_DIR, "logs", "policy_bundles")
+    os.makedirs(bundle_dir, exist_ok=True)
+    path = os.path.join(bundle_dir, f"{req.bundle_name}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"manifest": payload, "signature": signature, "yaml_content": req.yaml_content}, f, indent=2)
+    return {"manifest": payload, "signature": signature, "file": path, "apply_mode": "manual-review-required"}
 
 @app.post("/api/v2/enterprise/firewall/rules")
 def build_firewall_rule(req: FirewallRuleRequest, current_user: TokenPayload = Depends(get_active_user)):
@@ -981,7 +1058,12 @@ def tenant_branding_pack(req: TenantBrandingRequest, current_user: TokenPayload 
     pack["generated_at"] = datetime.now(timezone.utc).isoformat()
     pack["report_title"] = f"{req.company_name} Sovereign AI Evidence Report"
     pack["dashboard_label"] = f"{req.product_name} by Xavira Tech Labs"
-    return {"branding": pack}
+    branding_dir = os.path.join(BASE_DIR, "logs", "branding")
+    os.makedirs(branding_dir, exist_ok=True)
+    path = os.path.join(branding_dir, f"branding_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(pack, f, indent=2)
+    return {"branding": pack, "file": path}
 
 @app.post("/api/v2/enterprise/ledger/anchor")
 def anchor_ledger_root(current_user: TokenPayload = Depends(get_active_user)):
@@ -1041,6 +1123,8 @@ def evidence_report(req: EvidenceReportRequest, current_user: TokenPayload = Dep
         org_name=req.org_name or "Buyer Organization",
         tenant_id=tenant_id,
         limit=req.limit,
+        primary_color=req.primary_color or "#047857",
+        compliance_frameworks=req.compliance_frameworks or ["DPDP_2026", "GDPR", "FedRAMP"],
     )
     audit_ledger.log(
         action="EVIDENCE_REPORT_GENERATED",

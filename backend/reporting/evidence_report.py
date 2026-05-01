@@ -32,7 +32,14 @@ class EvidencePDFGenerator:
     def __init__(self):
         os.makedirs(EXPORT_DIR, exist_ok=True)
 
-    def generate(self, org_name: str = "Buyer Organization", tenant_id: str = "default", limit: int = 500) -> Dict[str, Any]:
+    def generate(
+        self,
+        org_name: str = "Buyer Organization",
+        tenant_id: str = "default",
+        limit: int = 500,
+        primary_color: str = "#047857",
+        compliance_frameworks: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         entries = audit_ledger.get_entries(limit=limit, tenant_id=tenant_id)
         stats = audit_ledger.get_summary_stats(tenant_id=tenant_id)
         chain = audit_ledger.verify_chain()
@@ -43,7 +50,7 @@ class EvidencePDFGenerator:
         filename = f"sentinel_evidence_{org_name.replace(' ', '_')}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.pdf"
         path = os.path.join(EXPORT_DIR, filename)
         if REPORTLAB_AVAILABLE:
-            self._write_pdf(path, org_name, stats, chain, heatmap, high_sensitivity, certificate)
+            self._write_pdf(path, org_name, stats, chain, heatmap, high_sensitivity, certificate, primary_color, compliance_frameworks or [])
         else:
             path = self._write_text_fallback(path.replace(".pdf", ".txt"), org_name, stats, chain, heatmap, high_sensitivity, certificate)
 
@@ -67,16 +74,20 @@ class EvidencePDFGenerator:
         heatmap: Dict[str, Any],
         high_sensitivity: List[Dict[str, Any]],
         certificate: str,
+        primary_color: str = "#047857",
+        compliance_frameworks: Optional[List[str]] = None,
     ):
         doc = SimpleDocTemplate(path, pagesize=A4, rightMargin=1.7 * cm, leftMargin=1.7 * cm, topMargin=1.5 * cm, bottomMargin=1.5 * cm)
         styles = getSampleStyleSheet()
-        title = ParagraphStyle("SentinelTitle", parent=styles["Title"], fontSize=20, textColor=colors.HexColor("#047857"))
+        title = ParagraphStyle("SentinelTitle", parent=styles["Title"], fontSize=20, textColor=colors.HexColor(primary_color or "#047857"))
         section = ParagraphStyle("Section", parent=styles["Heading2"], fontSize=12, textColor=colors.HexColor("#111827"))
         mono = ParagraphStyle("Mono", parent=styles["Normal"], fontName="Courier", fontSize=7, textColor=colors.HexColor("#374151"))
         story: List[Any] = []
 
         story.append(Paragraph("Sentinel Shield Evidence Report", title))
         story.append(Paragraph(f"{org_name} · Generated {datetime.now(timezone.utc).isoformat()}", styles["Normal"]))
+        if compliance_frameworks:
+            story.append(Paragraph("Frameworks: " + ", ".join(compliance_frameworks), styles["Normal"]))
         story.append(Spacer(1, 0.4 * cm))
 
         summary = [

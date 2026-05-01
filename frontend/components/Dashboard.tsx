@@ -1022,6 +1022,7 @@ function RiskTab() {
 // ── Enterprise Center Tab ───────────────────────────────────────────────────
 function EnterpriseCenterTab() {
   const [models, setModels] = useState<any>(null);
+  const [version, setVersion] = useState<any>(null);
   const [reports, setReports] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [quarantine, setQuarantine] = useState<any[]>([]);
@@ -1038,11 +1039,22 @@ function EnterpriseCenterTab() {
         api.get('/api/v2/enterprise/quarantine'),
       ]);
       setModels(m.data);
+      api.get('/api/v2/enterprise/version').then(v => setVersion(v.data)).catch(() => { });
       setReports(r.data.reports || []);
       setAlerts(a.data.alerts || []);
       setQuarantine(q.data.actors || []);
     } catch { }
     finally { setLoading(false); }
+  };
+
+  const downloadReport = async (r: any) => {
+    const res = await api.get(r.download_url, { responseType: 'blob' });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = r.name;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   useEffect(() => { load(); }, []);
@@ -1084,6 +1096,23 @@ function EnterpriseCenterTab() {
         <StatCard icon={Lock} label="Quarantined" value={quarantine.length} sub="Contained actors" glow={quarantine.length ? 'rose' : 'blue'} />
       </div>
 
+      {version && (
+        <div className="p-4 bg-[#080808] border border-white/8 rounded-2xl grid grid-cols-5 gap-3 text-xs">
+          {[
+            ['Version', version.version],
+            ['Commit', version.commit],
+            ['Mode', version.deployment_mode],
+            ['Seal', version.seal_state],
+            ['Company', version.company],
+          ].map(([k, v]) => (
+            <div key={k}>
+              <p className="text-slate-600 uppercase tracking-widest text-[10px]">{k}</p>
+              <p className="text-slate-300 font-mono">{v || 'unknown'}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
         <div className="p-5 bg-[#080808] border border-white/8 rounded-2xl">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Model Management Center</h3>
@@ -1104,10 +1133,10 @@ function EnterpriseCenterTab() {
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Evidence Report History</h3>
           <div className="space-y-2 max-h-44 overflow-auto">
             {reports.slice(0, 5).map((r: any) => (
-              <a key={r.name} href={`${API_BASE}${r.download_url}`} target="_blank" className="block text-xs bg-white/5 rounded-xl p-2 hover:bg-white/10">
+              <button key={r.name} onClick={() => downloadReport(r)} className="block w-full text-left text-xs bg-white/5 rounded-xl p-2 hover:bg-white/10">
                 <span className="text-slate-300">{r.name}</span>
                 <span className="block text-slate-600 font-mono">{r.certificate?.slice(0, 24)}...</span>
-              </a>
+              </button>
             ))}
             {reports.length === 0 && <p className="text-xs text-slate-600">No reports generated yet.</p>}
           </div>

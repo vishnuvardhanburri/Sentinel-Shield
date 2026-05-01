@@ -8,6 +8,7 @@ Use this checklist before buyer handoff, investor demo, or production deployment
 pnpm check
 .runtime_venv/bin/python -m pytest tests/ --cov=backend --cov-report=xml --cov-report=term-missing -v --tb=short
 pnpm smoke:e2e
+pnpm browser:e2e
 ```
 
 For authenticated smoke:

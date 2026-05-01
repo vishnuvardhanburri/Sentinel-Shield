@@ -127,6 +127,7 @@ python3 -m compileall backend tests
 cd frontend && pnpm lint && pnpm build
 curl http://localhost:8000/health
 pnpm smoke:e2e
+pnpm browser:e2e
 ```
 
 Expected:
@@ -171,6 +172,9 @@ pnpm smoke:e2e
 | `POST` | `/api/v2/enterprise/mtls/nginx` | mTLS Nginx config wizard |
 | `POST` | `/api/v2/enterprise/branding` | Tenant branding pack |
 | `POST` | `/api/v2/enterprise/ledger/anchor` | Off-box ledger root anchor |
+| `GET` | `/api/v2/enterprise/version` | Release, commit, mode, and seal state |
+| `POST` | `/api/v2/enterprise/models/pull` | Disabled-by-default Ollama pull job |
+| `POST` | `/api/v2/enterprise/alerts/export` | Export CISO alerts to SIEM/webhook |
 | `GET` | `/audit/log` | Obsidian ledger entries |
 | `POST` | `/api/v2/audit/report` | CISO evidence PDF |
 | `GET` | `/compliance/score` | Compliance scorecard |

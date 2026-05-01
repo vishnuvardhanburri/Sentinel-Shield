@@ -80,6 +80,9 @@ flowchart LR
 | mTLS Deployment Wizard | Active | `/api/v2/enterprise/mtls/nginx` |
 | Tenant Branding Pack | Active | `/api/v2/enterprise/branding` |
 | Off-Box Ledger Anchoring | Active | `/api/v2/enterprise/ledger/anchor` |
+| Release Metadata | Active | `/api/v2/enterprise/version` |
+| SIEM Alert Export | Active | `/api/v2/enterprise/alerts/export` |
+| Safe Model Pull Job | Disabled by default | `ENABLE_MODEL_PULL=false` |
 
 ## Security Disclosure
 
