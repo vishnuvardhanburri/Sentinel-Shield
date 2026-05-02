@@ -31,6 +31,26 @@ Docs:      http://localhost:8000/api/docs
 Health:    http://localhost:8000/health
 ```
 
+## One-Command Start
+
+For a simple buyer demo or submission check:
+
+```bash
+pnpm launch
+```
+
+For full end-to-end readiness proof:
+
+```bash
+pnpm submit:ready
+```
+
+`submit:ready` prints live progress and writes a verification JSON under `logs/verification/`.
+The local Next.js production build is reported as optional because GitHub Actions remains
+the authoritative production build gate.
+
+See `START_HERE.md` for the non-technical handoff flow.
+
 ## First Login
 
 Production builds do not ship demo credentials.

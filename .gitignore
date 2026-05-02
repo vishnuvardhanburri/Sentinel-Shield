@@ -32,6 +32,8 @@ pack_for_client.sh
 
 # --- SYSTEM & ENVIRONMENT ---
 venv/
+.buyer_venv/
+.runtime_venv/
 node_modules/
 __pycache__/
 *.pyc
