@@ -49,7 +49,7 @@ def copy_if_exists(src: Path, dst: Path):
 
 def main() -> int:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    room = OUT / f"sentinel_shield_data_room_{stamp}"
+    room = OUT / f"sovereign_shield_data_room_{stamp}"
     room.mkdir(parents=True, exist_ok=True)
 
     run(["python3", "scripts/generate_deployment_pack.py"])
@@ -70,6 +70,7 @@ def main() -> int:
         "docs/HOMEPAGE_COPY.md",
         "docs/ACQUIRE_LISTING_COPY.md",
         "docs/COMPLIANCE_MAPPING.md",
+        "docs/BUYER_REPLIES.md",
         "docs/API_INTEGRATION_EXAMPLES.md",
         "docs/RED_TEAM_TEST_PACK.md",
     ]
@@ -78,10 +79,10 @@ def main() -> int:
 
     write_pdf(
         room / "architecture_summary.pdf",
-        "Sentinel Shield Architecture Summary",
+        "Sovereign Shield Architecture Summary",
         [
             "Category: Enterprise AI Security Gateway for Private LLM Deployments.",
-            "Core path: enterprise app -> Sentinel proxy -> redaction/DLP/prompt-injection checks -> local/cloud router -> model.",
+            "Core path: enterprise app -> Sovereign Shield proxy -> redaction/DLP/prompt-injection checks -> local/cloud router -> model.",
             "Default positioning: local-first AI using Ollama, with high-sensitivity prompts forced to private inference.",
             "Evidence path: every security decision can be written to a tamper-evident JSONL ledger and summarized into PDF reports.",
         ],
@@ -111,7 +112,7 @@ def main() -> int:
         api_spec.write_text(json.dumps({"error": str(exc), "note": "Run with backend dependencies installed."}, indent=2))
 
     manifest = {
-        "product": "Sentinel Shield",
+        "product": "Sovereign Shield",
         "company": "Xavira Tech Labs",
         "category": "Enterprise AI Security Gateway for Private LLM Deployments",
         "generated_at": datetime.now(timezone.utc).isoformat(),

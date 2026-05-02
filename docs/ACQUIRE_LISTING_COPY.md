@@ -2,65 +2,83 @@
 
 ## Title
 
-Sentinel Shield: Enterprise AI Security Gateway for Private LLM Deployments
+Enterprise AI Security Gateway (Compliance + Audit + Local LLM Infrastructure)
 
 ## Hook
 
-Secure private LLM adoption without leaking PII to external APIs.
-DPDP/GDPR-ready redaction, prompt-injection defense, local model routing, and audit evidence.
-Built for internal enterprise use, now available as a single acquisition.
+Sovereign Shield replaces 6-12 months of enterprise AI security engineering.
+Production-ready PII protection, compliance evidence, audit trails, and local LLM routing.
+Built for internal use and available as a single acquisition.
 
 ## Full Description
 
-Sentinel Shield is an enterprise AI security gateway designed for organizations adopting private LLMs while managing compliance, data residency, and audit risk.
+Sovereign Shield is an enterprise AI security gateway for organizations deploying internal AI while managing PII exposure, compliance obligations, audit evidence, and local-model infrastructure.
 
-The product intercepts LLM requests, detects and pseudonymizes sensitive data, blocks prompt injection attempts, scores user and prompt risk, routes high-sensitivity prompts to local models, and creates tamper-evident audit evidence.
+The system intercepts LLM requests before inference, detects and pseudonymizes sensitive data, blocks prompt injection attempts, scores risk, routes high-sensitivity prompts to local Ollama-backed models, and writes security decisions to a tamper-evident audit ledger.
 
-It is positioned for regulated teams that want AI productivity without sending protected data directly to external LLM APIs. The stack includes a FastAPI security gateway, Next.js CISO dashboard, Redis-ready risk tracking, local Ollama model support, PDF evidence generation, policy bundles, and buyer handoff automation.
+The acquisition value is speed and risk reduction. A buyer gets the foundation for a private AI governance product without spending 6-12 months assembling backend security controls, dashboard UX, policy logic, audit evidence, redaction, deployment scripts, and data-room materials from scratch.
 
-This is a single acquisition opportunity, not a licensing campaign. It is suitable for buyers who want to own and commercialize an enterprise AI governance asset without spending 6-12 months building the security, dashboard, audit, and packaging layers from scratch.
-
-No customer or revenue claims are included. The repository includes simulated demo metrics and buyer data-room artifacts to help acquirers evaluate product depth, deployment readiness, and enterprise positioning.
+No fake customers or revenue claims are included. Demo metrics are simulated and clearly labeled as proof data. The product is positioned for CISOs, AI infrastructure teams, and enterprises deploying internal AI systems that need privacy, governance, and evidence.
 
 ## Why Buyers Care Now
 
-- AI usage is moving faster than enterprise security approvals.
-- PII and trade secrets can leak through employee prompts.
-- DPDP/GDPR programs require evidence, not just policy documents.
-- Local LLM deployments still need redaction, audit, risk scoring, and centralized controls.
-- Building this internally requires backend, frontend, security, compliance, and DevOps capacity.
+- Enterprises are adopting internal AI faster than governance teams can approve it.
+- Employee prompts can expose PII, trade secrets, HR records, source code, or regulated identifiers.
+- Compliance programs need evidence trails, not only policy documents.
+- Local LLM deployments still require redaction, prompt-injection defense, routing policy, and audit reporting.
+- Owning the asset is faster than building the control plane internally.
 
 ## Key Assets
 
-- Private LLM gateway with local-first routing
-- PII masking and pseudonymization engine
-- Prompt injection and jailbreak shield
+- Private AI gateway with local LLM routing
+- PII detection and pseudonymization
+- Prompt-injection and jailbreak shield
 - Semantic DLP hook
 - Tamper-evident audit ledger
-- Risk scoring and quarantine workflows
-- Evidence PDF generator
+- Risk scoring and quarantine flows
+- Evidence PDF generation
 - Pricing page and license validation endpoint
-- Data room generator
-- One-command demo and submit verification
+- Data-room generator
+- One-command enterprise deploy and buyer verification
+
+## Price Strategy
+
+List price target: `$450K-$500K`
+
+Target close range: `$320K-$420K`
+
+Anchor rationale: the asset compresses 6-12 months of specialized security, AI infrastructure, compliance, and product engineering into an owned acquisition package.
 
 ## Buyer FAQ
 
 ### Does it claim real customers or revenue?
 
-No. Demo metrics are clearly marked simulated.
+No. Demo metrics are simulated and labeled. The listing should not claim revenue, customers, pilots, or signed contracts unless those exist.
 
-### What makes it valuable?
+### What is the strongest buyer ROI?
 
-It compresses months of enterprise AI security engineering into a working gateway, dashboard, compliance evidence system, and deployment package.
+It reduces AI governance build time, helps prevent PII leakage into LLM workflows, and gives buyers a productized compliance/audit control plane.
 
 ### Is it dependent on paid LLM APIs?
 
 No. The default architecture supports local Ollama-backed models for private deployments.
 
-### Can a buyer turn it into SaaS?
+### Who should buy it?
 
-Yes. The repo includes pricing, license validation, API-key integration paths, and tenant-oriented endpoints.
+CISOs, AI infrastructure vendors, compliance tooling companies, security founders, MSPs, or enterprise software buyers that want to own a private AI gateway.
 
-### What does the buyer receive?
+### Can a buyer commercialize it?
 
-The full repository, docs, deployment scripts, data-room generator, demo flow, and enterprise positioning package.
+Yes. The repo includes a pricing page, license validation stub, API-key integration surfaces, enterprise docs, and deploy/data-room automation.
+
+### Is this a licensing sale?
+
+No. The recommended positioning is a single acquisition.
+
+## Safe Demand Language
+
+Use only when true:
+
+> We are in discussions with interested buyers and are prioritizing the cleanest close.
+
+Do not imply active buyer discussions unless they are real.

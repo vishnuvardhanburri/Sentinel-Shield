@@ -16,15 +16,15 @@ const plans = [
   },
   {
     name: 'Enterprise',
-    price: 'Custom',
+    price: 'Contact Sales',
     description: 'For air-gapped, multi-tenant, and board-level compliance needs.',
     features: ['Everything in Growth', 'mTLS deployment pack', 'Custom compliance mapping', 'Buyer-controlled data residency', 'Priority handoff'],
   },
 ];
 
 export const metadata = {
-  title: 'Pricing | Sentinel Shield by Xavira Tech Labs',
-  description: 'Pricing signal for Sentinel Shield, an enterprise AI security gateway for private LLM deployments.',
+  title: 'Pricing | Sovereign Shield',
+  description: 'Pricing signal for Sovereign Shield, an enterprise AI security gateway for PII protection, compliance, audit, and local LLM deployments.',
 };
 
 export default function PricingPage() {
@@ -39,7 +39,7 @@ export default function PricingPage() {
             Private LLM protection priced like enterprise compliance infrastructure.
           </h1>
           <p className="mt-5 text-lg leading-8 text-slate-300">
-            Sentinel Shield helps regulated teams mask PII, route high-sensitivity prompts to local models,
+            Sovereign Shield helps regulated teams mask PII, route high-sensitivity prompts to local models,
             and produce audit evidence without sending protected data to external LLM APIs.
           </p>
         </div>

@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main() -> int:
-    print("Sentinel Shield Enterprise Deploy")
+    print("Sovereign Shield Enterprise Deploy")
     print("Target: runs locally in under 15 minutes on a prepared machine.")
     print("Dashboard: http://localhost:3000")
     print("API:       http://localhost:8000")

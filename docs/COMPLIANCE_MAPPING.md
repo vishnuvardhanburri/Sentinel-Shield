@@ -2,7 +2,7 @@
 
 This document is an implementation-oriented mapping, not legal advice.
 
-| Control Area | DPDP/GDPR Need | Sentinel Shield Capability |
+| Control Area | DPDP/GDPR Need | Sovereign Shield Capability |
 | --- | --- | --- |
 | Data minimization | Reduce exposure of personal data | PII pseudonymization before LLM inference |
 | Purpose limitation | Govern use of sensitive data | Policy engine and source-app metadata |
@@ -14,4 +14,4 @@ This document is an implementation-oriented mapping, not legal advice.
 
 ## Buyer Positioning
 
-Sentinel Shield helps buyers demonstrate that AI prompts are inspected, masked, routed, and logged before reaching model inference. This creates a defensible evidence trail for internal AI governance programs.
+Sovereign Shield helps buyers demonstrate that AI prompts are inspected, masked, routed, and logged before reaching model inference. This creates a defensible evidence trail for internal AI governance programs.

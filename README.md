@@ -1,8 +1,8 @@
-# Sentinel Shield
+# Sovereign Shield
 
-[![Sentinel Shield v2 — CI Pipeline](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml/badge.svg)](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml)
+[![Sovereign Shield v2 — CI Pipeline](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml/badge.svg)](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml)
 
-**Sentinel Shield by Xavira Tech Labs** is an **Enterprise AI Security Gateway for Private LLM Deployments**. It helps regulated teams adopt local AI while protecting PII, enforcing DPDP/GDPR controls, and generating audit evidence from one localhost control plane.
+**Sovereign Shield by Xavira Tech Labs** is an **Enterprise AI Security Gateway for Private LLM Deployments**. It helps regulated teams adopt local AI while protecting PII, enforcing DPDP/GDPR controls, and generating audit evidence from one localhost control plane.
 
 The system is designed to run without external LLM API keys. Vault AI uses the buyer's own local Ollama model by default.
 
@@ -201,7 +201,7 @@ Expected:
 Backend compile: pass
 Frontend lint: 0 errors
 Frontend build: pass
-Health: {"status":"awake","engine":"Sentinel Shield v2.0"}
+Health: {"status":"awake","engine":"Sovereign Shield v2.0"}
 Smoke: security headers and probe blocking pass
 ```
 
@@ -288,7 +288,7 @@ pnpm screenshots:capture     # Capture dashboard screenshots when Playwright is 
 The product is branded as:
 
 ```text
-Sentinel Shield by Xavira Tech Labs
+Sovereign Shield by Xavira Tech Labs
 ```
 
 No starter framework logos or external model branding are used in the buyer-facing UI.
@@ -307,6 +307,7 @@ Proprietary — Xavira Tech Labs © 2026. All rights reserved.
 - `docs/API_INTEGRATION_EXAMPLES.md` — Python, Node, Slack/Teams integration examples
 - `docs/HOMEPAGE_COPY.md` — acquisition-ready homepage copy and pitch narrative
 - `docs/ACQUIRE_LISTING_COPY.md` — listing title, hook, full description, and buyer FAQ
+- `docs/BUYER_REPLIES.md` — initial reply, data-room reply, negotiation scripts, and price strategy
 - `docs/COMPLIANCE_MAPPING.md` — DPDP/GDPR implementation mapping
 - `docs/RED_TEAM_TEST_PACK.md` — adversarial prompts and expected outcomes
 - `docs/buyer_pitch_deck.html` — browser-ready buyer pitch deck

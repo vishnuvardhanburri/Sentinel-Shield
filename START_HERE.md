@@ -1,4 +1,4 @@
-# Sentinel Shield: Start Here
+# Sovereign Shield: Start Here
 
 Use these two commands only.
 
