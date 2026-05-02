@@ -29,6 +29,14 @@ def client():
 
 def test_deployment_doctor_license_usage_and_model_benchmark(monkeypatch):
     c = client()
+    license_check = c.post("/api/v1/license/validate", json={"tenant_id": "default"})
+    assert license_check.status_code == 200
+    assert license_check.json()["valid"] is True
+
+    demo_metrics = c.get("/demo/metrics")
+    assert demo_metrics.status_code == 200
+    assert demo_metrics.json()["mode"] == "SIMULATED_ENTERPRISE_USAGE"
+
     badge = c.get("/api/v2/enterprise/badge")
     assert badge.status_code == 200
     assert badge.json()["company"] == "Xavira Tech Labs"

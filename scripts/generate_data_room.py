@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Generate acquisition data-room artifacts for buyer diligence."""
+import json
+import shutil
+import subprocess
+import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / "logs" / "data_room"
+OUT.mkdir(parents=True, exist_ok=True)
+
+
+def run(command: list[str]):
+    subprocess.run(command, cwd=ROOT, check=False)
+
+
+def write_pdf(path: Path, title: str, lines: list[str]):
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+    except Exception:
+        path.with_suffix(".txt").write_text(title + "\n\n" + "\n".join(lines))
+        return
+    c = canvas.Canvas(str(path), pagesize=letter)
+    width, height = letter
+    y = height - 72
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(72, y, title)
+    y -= 28
+    c.setFont("Helvetica", 10)
+    for line in lines:
+        for chunk in [line[i:i + 95] for i in range(0, len(line), 95)] or [""]:
+            if y < 72:
+                c.showPage()
+                y = height - 72
+                c.setFont("Helvetica", 10)
+            c.drawString(72, y, chunk)
+            y -= 15
+    c.save()
+
+
+def copy_if_exists(src: Path, dst: Path):
+    if src.exists():
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+
+
+def main() -> int:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    room = OUT / f"sentinel_shield_data_room_{stamp}"
+    room.mkdir(parents=True, exist_ok=True)
+
+    run(["python3", "scripts/generate_deployment_pack.py"])
+    run(["python3", "scripts/generate_handoff_pdf.py"])
+    run(["python3", "scripts/production_readiness_certificate.py"])
+    run(["python3", "scripts/seed_demo_data.py"])
+    run(["python3", "scripts/capture_dashboard_screenshots.py"])
+
+    docs = [
+        "README.md",
+        "DOCS.md",
+        "SECURITY.md",
+        "THREAT_MODEL.md",
+        "DATA_PROCESSING.md",
+        "PRIVACY.md",
+        "BUYER_FAQ.md",
+        "START_HERE.md",
+        "docs/HOMEPAGE_COPY.md",
+        "docs/ACQUIRE_LISTING_COPY.md",
+        "docs/COMPLIANCE_MAPPING.md",
+        "docs/API_INTEGRATION_EXAMPLES.md",
+        "docs/RED_TEAM_TEST_PACK.md",
+    ]
+    for name in docs:
+        copy_if_exists(ROOT / name, room / name)
+
+    write_pdf(
+        room / "architecture_summary.pdf",
+        "Sentinel Shield Architecture Summary",
+        [
+            "Category: Enterprise AI Security Gateway for Private LLM Deployments.",
+            "Core path: enterprise app -> Sentinel proxy -> redaction/DLP/prompt-injection checks -> local/cloud router -> model.",
+            "Default positioning: local-first AI using Ollama, with high-sensitivity prompts forced to private inference.",
+            "Evidence path: every security decision can be written to a tamper-evident JSONL ledger and summarized into PDF reports.",
+        ],
+    )
+    write_pdf(
+        room / "deployment_guide.pdf",
+        "Enterprise Deployment Guide",
+        [
+            "Run pnpm deploy:enterprise for local launch and validation.",
+            "Run pnpm submit:ready before buyer submission or handoff.",
+            "Production mode should set JWT_SECRET_KEY, LICENSE_MASTER_SECRET, ACTOR_HASH_SALT, LEDGER_MASTER_SALT, and ALLOWED_ORIGINS.",
+            "Use Nginx/Envoy for mTLS termination and forward verified certificate headers to the gateway.",
+        ],
+    )
+
+    screenshots_src = ROOT / "docs" / "screenshots"
+    if screenshots_src.exists():
+        shutil.copytree(screenshots_src, room / "screenshots", dirs_exist_ok=True)
+
+    api_spec = room / "api_docs_openapi.json"
+    try:
+        import sys
+        sys.path.insert(0, str(ROOT / "backend"))
+        from app import app
+        api_spec.write_text(json.dumps(app.openapi(), indent=2))
+    except Exception as exc:
+        api_spec.write_text(json.dumps({"error": str(exc), "note": "Run with backend dependencies installed."}, indent=2))
+
+    manifest = {
+        "product": "Sentinel Shield",
+        "company": "Xavira Tech Labs",
+        "category": "Enterprise AI Security Gateway for Private LLM Deployments",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "disclaimer": "Demo usage metrics are simulated; no customer or revenue claims are made.",
+        "contents": sorted(str(p.relative_to(room)) for p in room.rglob("*") if p.is_file()),
+    }
+    (room / "DATA_ROOM_MANIFEST.json").write_text(json.dumps(manifest, indent=2))
+
+    zip_path = OUT / f"{room.name}.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in room.rglob("*"):
+            if path.is_file():
+                zf.write(path, str(path.relative_to(room.parent)))
+    print(json.dumps({"status": "DATA_ROOM_READY", "folder": str(room), "zip": str(zip_path)}, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

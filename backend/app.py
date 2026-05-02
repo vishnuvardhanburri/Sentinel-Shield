@@ -259,6 +259,11 @@ class APIKeyUpdateRequest(BaseModel):
     is_active: Optional[bool] = None
     scopes: Optional[list[str]] = None
 
+class V1LicenseValidateRequest(BaseModel):
+    license_key: Optional[str] = None
+    tenant_id: Optional[str] = "default"
+    deployment_id: Optional[str] = None
+
 class PolicySimulatorRequest(BaseModel):
     prompt: str
     department: Optional[str] = None
@@ -848,9 +853,91 @@ async def root():
     return {
         "status": "online",
         "platform": "SENTINEL SHIELD",
-        "version": "1.0.0",
+        "category": "Enterprise AI Security Gateway for Private LLM Deployments",
+        "version": "2.1.0",
         "signature": "BY XAVIRA TECH LABS",
-        "message": "Vault Gateway is Secure. Welcome Commander."
+        "message": "Private LLM security, PII protection, and audit evidence for DPDP/GDPR-ready deployments."
+    }
+
+
+@app.post("/api/v1/license/validate")
+def validate_license_v1(req: V1LicenseValidateRequest):
+    """SaaS-style license validation stub for acquisition demos and future billing."""
+    configured_key = os.getenv("SENTINEL_LICENSE_KEY", "")
+    submitted_key = req.license_key or configured_key
+    demo_mode = os.getenv("SENTINEL_LICENSE_DEMO_MODE", "true").lower() == "true"
+    if not submitted_key and not demo_mode:
+        raise HTTPException(status_code=402, detail="LICENSE_REQUIRED")
+    if configured_key and submitted_key != configured_key:
+        raise HTTPException(status_code=403, detail="LICENSE_INVALID")
+    return {
+        "valid": True,
+        "mode": "DEMO_VALIDATION_STUB" if demo_mode and not configured_key else "LICENSED",
+        "tenant_id": req.tenant_id or "default",
+        "plan": os.getenv("SENTINEL_LICENSE_PLAN", "ENTERPRISE"),
+        "deployment_id": req.deployment_id or os.getenv("SENTINEL_DEPLOYMENT_ID", "local-private-llm-gateway"),
+        "expires_at": os.getenv("SENTINEL_LICENSE_EXPIRES_AT", "perpetual"),
+        "features": ["private_llm_gateway", "pii_redaction", "audit_evidence", "risk_scoring"],
+        "note": "Stub endpoint for buyer evaluation; connect to license server or billing provider in production.",
+    }
+
+
+@app.get("/demo/metrics")
+def demo_metrics():
+    """Simulated enterprise usage metrics for buyer demos. No customer claims."""
+    now = datetime.now(timezone.utc)
+    samples = [
+        {"hour": "09:00", "blocked": 18, "pii": 41, "risk": 4.2},
+        {"hour": "10:00", "blocked": 27, "pii": 63, "risk": 5.1},
+        {"hour": "11:00", "blocked": 44, "pii": 88, "risk": 6.8},
+        {"hour": "12:00", "blocked": 39, "pii": 71, "risk": 5.9},
+        {"hour": "13:00", "blocked": 56, "pii": 104, "risk": 7.4},
+        {"hour": "14:00", "blocked": 31, "pii": 59, "risk": 4.7},
+    ]
+    detections = [
+        {"type": "Aadhaar", "count": 91, "action": "pseudonymized", "sample_token": "[Aadhaar_1]"},
+        {"type": "PAN", "count": 48, "action": "pseudonymized", "sample_token": "[PAN_1]"},
+        {"type": "Bank Account", "count": 36, "action": "pseudonymized", "sample_token": "[BankAccount_1]"},
+        {"type": "Prompt Injection", "count": 17, "action": "blocked", "sample_token": "LLM_FINGERPRINT_PROMPT_INJECTION"},
+        {"type": "Trade Secret Context", "count": 12, "action": "local_only", "sample_token": "SEMANTIC_DLP_HIGH"},
+    ]
+    events = [
+        {
+            "timestamp": (now - timedelta(minutes=5)).isoformat(),
+            "actor": "finance-analyst-demo",
+            "event": "PII_MASKED_BEFORE_LLM",
+            "policy": "DPDP_PII_PSEUDONYMIZATION",
+            "risk_score": 6.6,
+        },
+        {
+            "timestamp": (now - timedelta(minutes=13)).isoformat(),
+            "actor": "vendor-chatbot-demo",
+            "event": "PROMPT_INJECTION_BLOCKED",
+            "policy": "LLM_FINGERPRINT_SHIELD",
+            "risk_score": 9.2,
+        },
+        {
+            "timestamp": (now - timedelta(minutes=21)).isoformat(),
+            "actor": "legal-ops-demo",
+            "event": "HIGH_SENSITIVITY_LOCAL_ROUTE",
+            "policy": "AIR_GAPPED_ROUTING",
+            "risk_score": 8.1,
+        },
+    ]
+    return {
+        "mode": "SIMULATED_ENTERPRISE_USAGE",
+        "disclaimer": "Synthetic metrics for product demonstration only; not customer traction.",
+        "generated_at": now.isoformat(),
+        "summary": {
+            "security_events_blocked": sum(s["blocked"] for s in samples),
+            "pii_detections": sum(s["pii"] for s in samples),
+            "high_sensitivity_local_routes": 43,
+            "audit_evidence_files": 6,
+            "estimated_engineering_months_replaced": "6-12",
+        },
+        "timeseries": samples,
+        "detections": detections,
+        "recent_events": events,
     }
 
 @app.get("/status")

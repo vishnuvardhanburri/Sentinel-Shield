@@ -34,7 +34,7 @@ def main() -> int:
         for folder in [ROOT / "logs" / "deployment_pack", ROOT / "logs" / "certificates", ROOT / "logs" / "handoff"]:
             if folder.exists():
                 for path in folder.rglob("*"):
-                    if path.is_file() and path != zip_path:
+                    if path.is_file() and path != zip_path and path.suffix != ".zip":
                         zf.write(path, str(path.relative_to(ROOT)))
     digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
     manifest = {

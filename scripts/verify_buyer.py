@@ -102,7 +102,7 @@ def start_backend_if_needed() -> tuple[subprocess.Popen | None, dict]:
         stderr=subprocess.PIPE,
         text=True,
     )
-    for _ in range(40):
+    for _ in range(180):
         if port_open(8000):
             return proc, {"name": "backend_autostart", "ok": True, "detail": f"started with {python}"}
         if proc.poll() is not None:

@@ -2,9 +2,15 @@
 
 [![Sentinel Shield v2 — CI Pipeline](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml/badge.svg)](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml)
 
-**Sentinel Shield by Xavira Tech Labs** is a sovereign AI security gateway for enterprises that need private local AI, PII masking, policy enforcement, audit evidence, and compliance reporting from one localhost control plane.
+**Sentinel Shield by Xavira Tech Labs** is an **Enterprise AI Security Gateway for Private LLM Deployments**. It helps regulated teams adopt local AI while protecting PII, enforcing DPDP/GDPR controls, and generating audit evidence from one localhost control plane.
 
 The system is designed to run without external LLM API keys. Vault AI uses the buyer's own local Ollama model by default.
+
+## High-Conversion Hook
+
+Secure private LLM adoption without leaking PII to external APIs.
+Mask regulated data, block prompt injection, and route sensitive prompts to local models.
+Generate audit-ready DPDP/GDPR evidence from every AI request.
 
 ## What It Does
 
@@ -50,6 +56,43 @@ The local Next.js production build is reported as optional because GitHub Action
 the authoritative production build gate.
 
 See `START_HERE.md` for the non-technical handoff flow.
+
+## Acquisition / Buyer Commands
+
+```bash
+pnpm deploy:enterprise    # Start services, print URLs, validate local health
+pnpm demo:investor        # Seed synthetic security activity and open dashboard
+pnpm generate:data-room   # Produce architecture, compliance, API, screenshots, and ZIP
+pnpm submit:ready         # End-to-end buyer verification
+```
+
+## Monetization Signal
+
+Pricing page:
+
+```text
+http://localhost:3000/pricing
+```
+
+Plans:
+
+- Starter: `$499/mo`
+- Growth: `$999/mo`
+- Enterprise: `Custom`
+
+License validation signal:
+
+```text
+POST /api/v1/license/validate
+```
+
+## Simulated Demo Proof
+
+```text
+GET /demo/metrics
+```
+
+The demo metrics endpoint returns clearly labeled synthetic enterprise activity for buyer evaluation. It does not claim customer traction or production usage.
 
 ## First Login
 
@@ -262,6 +305,9 @@ Proprietary — Xavira Tech Labs © 2026. All rights reserved.
 - `SUBMISSION_CHECKLIST.md` — demo/submission gate
 - `RELEASE_NOTES_v2.1.md` — enterprise lockdown release notes
 - `docs/API_INTEGRATION_EXAMPLES.md` — Python, Node, Slack/Teams integration examples
+- `docs/HOMEPAGE_COPY.md` — acquisition-ready homepage copy and pitch narrative
+- `docs/ACQUIRE_LISTING_COPY.md` — listing title, hook, full description, and buyer FAQ
+- `docs/COMPLIANCE_MAPPING.md` — DPDP/GDPR implementation mapping
 - `docs/RED_TEAM_TEST_PACK.md` — adversarial prompts and expected outcomes
 - `docs/buyer_pitch_deck.html` — browser-ready buyer pitch deck
 - `BUYER_FAQ.md`, `PRIVACY.md`, `DATA_PROCESSING.md`, `THREAT_MODEL.md` — procurement pack

@@ -40,6 +40,30 @@ Expected final result:
 BUYER_VERIFIED
 ```
 
+## Build The Buyer Data Room
+
+```bash
+pnpm generate:data-room
+```
+
+This creates a ZIP under `logs/data_room/` with architecture, threat model, compliance mapping, deployment guide, API docs, screenshots when available, and buyer-facing listing copy.
+
+## Investor / Acquisition Demo
+
+```bash
+pnpm demo:investor
+```
+
+This seeds synthetic security events, opens the dashboard, and launches the live local system.
+
+## Enterprise Deploy
+
+```bash
+pnpm deploy:enterprise
+```
+
+This starts services, prints URLs, and validates system health.
+
 ## Local URLs
 
 ```text
