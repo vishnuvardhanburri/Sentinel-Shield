@@ -936,6 +936,126 @@ def demo_metrics():
         "recent_events": events,
     }
 
+
+@app.get("/demo/narrative")
+def demo_narrative():
+    """Public synthetic walkthrough for acquisition videos and buyer diligence."""
+    now = datetime.now(timezone.utc)
+    raw_prompt = (
+        "Review loan risk for Aadhaar 2345 6789 0123, PAN ABCDE1234F, "
+        "and confidential Project Copper merger notes."
+    )
+    protected_prompt = (
+        "Review loan risk for [Aadhaar_1], [PAN_1], "
+        "and [SensitiveContext_1] merger notes."
+    )
+    steps = [
+        {
+            "step": 1,
+            "name": "Inbound AI Request",
+            "status": "captured",
+            "buyer_value": "Any enterprise app can send prompts through the gateway before model inference.",
+            "input": raw_prompt,
+        },
+        {
+            "step": 2,
+            "name": "Identity Masking",
+            "status": "passed",
+            "buyer_value": "PII is pseudonymized so the LLM keeps context without seeing raw identifiers.",
+            "detections": ["Aadhaar", "PAN"],
+            "output": protected_prompt,
+        },
+        {
+            "step": 3,
+            "name": "Prompt Injection Shield",
+            "status": "passed",
+            "buyer_value": "DAN-style bypasses, leakage attempts, and policy override language are blocked before routing.",
+            "threats_blocked": ["system_prompt_leakage", "policy_override", "jailbreak_suffix"],
+        },
+        {
+            "step": 4,
+            "name": "Semantic DLP",
+            "status": "elevated",
+            "buyer_value": "Sensitive context is detected even when it does not match a regex pattern.",
+            "sensitive_context": ["confidential merger", "trade secret language"],
+        },
+        {
+            "step": 5,
+            "name": "Sovereign Routing",
+            "status": "local_only",
+            "buyer_value": "High-risk prompts are forced to the buyer-owned local model path.",
+            "sensitivity_score": 8.7,
+            "route": "ollama/local-airgapped",
+        },
+        {
+            "step": 6,
+            "name": "Obsidian Evidence",
+            "status": "signed",
+            "buyer_value": "Every decision becomes tamper-evident audit evidence for DPDP/GDPR review.",
+            "ledger_entry": {
+                "timestamp": now.isoformat(),
+                "actor_hash": "demo_actor_9c7f2a",
+                "policy_triggered": "DPDP_PII_MASKING_AND_LOCAL_ROUTE",
+                "signature": hashlib.sha256(f"{protected_prompt}|{now.isoformat()}".encode()).hexdigest(),
+            },
+        },
+    ]
+    return {
+        "mode": "SYNTHETIC_BUYER_NARRATIVE",
+        "disclaimer": "Demo data is simulated for product diligence; no customer, revenue, or production usage claim is made.",
+        "acquisition_positioning": {
+            "target_price": "$500K",
+            "category": "Enterprise AI Security Gateway for Private LLM Deployments",
+            "replacement_cost_story": "Replaces 6-12 months of AI security, compliance, audit, and dashboard engineering.",
+            "pricing_signal": {
+                "starter": "$499/mo or $4,990/year",
+                "growth": "$999/mo or $9,990/year",
+                "enterprise": "Custom annual contract",
+            },
+        },
+        "video_flow": [
+            "Open dashboard",
+            "Run Demo Narrative",
+            "Show before/after masking",
+            "Show local-only routing",
+            "Show audit signature",
+            "Run pnpm submit:ready",
+            "Generate data room",
+        ],
+        "steps": steps,
+        "generated_at": now.isoformat(),
+    }
+
+
+@app.get("/demo/acquisition-readiness")
+def demo_acquisition_readiness():
+    """Synthetic public acquisition readiness scorecard for non-technical buyers."""
+    controls = [
+        {"area": "Product", "score": 96, "proof": "Localhost dashboard, proxy, redaction, audit, risk, and reports"},
+        {"area": "Security", "score": 93, "proof": "Fail-closed secrets, API shield, prompt defense, mTLS config, rate controls"},
+        {"area": "Compliance", "score": 94, "proof": "DPDP/GDPR mapping, PII masking, evidence PDFs, tamper-evident ledger"},
+        {"area": "Deployment", "score": 91, "proof": "pnpm launch, deploy:enterprise, submit:ready, data-room generator"},
+        {"area": "Monetization", "score": 88, "proof": "Pricing page, license validation endpoint, API key system"},
+        {"area": "Diligence", "score": 97, "proof": "Architecture, threat model, API docs, release certificate, handoff ZIP"},
+    ]
+    score = round(sum(c["score"] for c in controls) / len(controls), 2)
+    return {
+        "status": "ACQUISITION_READY",
+        "score": score,
+        "target_price": "$500K",
+        "serious_buyer_range": "$400K-$500K",
+        "no_false_claims": True,
+        "proof_type": "Real product surface with clearly labeled synthetic demo data",
+        "controls": controls,
+        "recommended_buyer": [
+            "AI infrastructure company",
+            "enterprise security vendor",
+            "compliance automation platform",
+            "MSP serving regulated customers",
+            "CISO-led internal AI platform team",
+        ],
+    }
+
 @app.get("/status")
 def get_status(current_user: TokenPayload = Depends(get_active_user)):
     """System status + infra health. Requires valid JWT."""

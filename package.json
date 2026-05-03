@@ -17,6 +17,7 @@
     "deployment:pack": "python3 scripts/generate_deployment_pack.py",
     "deployment:doctor": "python3 scripts/deployment_doctor.py",
     "demo:buyer": "python3 scripts/buyer_demo.py",
+    "demo:narrative": "python3 scripts/demo_narrative.py",
     "demo:investor": "python3 scripts/demo_investor.py",
     "verify:buyer": "python3 scripts/verify_buyer.py",
     "submit:ready": "python3 scripts/verify_buyer.py",

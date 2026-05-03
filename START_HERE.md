@@ -56,6 +56,14 @@ pnpm demo:investor
 
 This seeds synthetic security events, opens the dashboard, and launches the live local system.
 
+## Acquisition Demo Narrative
+
+```bash
+pnpm demo:narrative
+```
+
+Use this before recording the Acquire video. It prints the $500K acquisition story, the synthetic demo flow, the readiness score, and the exact localhost URLs to show. Demo metrics are clearly labeled as synthetic so the listing stays defensible.
+
 ## Enterprise Deploy
 
 ```bash

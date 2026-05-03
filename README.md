@@ -61,6 +61,7 @@ See `START_HERE.md` for the non-technical handoff flow.
 
 ```bash
 pnpm deploy:enterprise    # Start services, print URLs, validate local health
+pnpm demo:narrative       # Print the $500K acquisition video flow
 pnpm demo:investor        # Seed synthetic security activity and open dashboard
 pnpm generate:data-room   # Produce architecture, compliance, API, screenshots, and ZIP
 pnpm submit:ready         # End-to-end buyer verification
@@ -79,6 +80,12 @@ Plans:
 - Starter: `$499/mo`
 - Growth: `$999/mo`
 - Enterprise: `Custom`
+
+Annual positioning:
+
+- Starter: `$4,990/year`
+- Growth: `$9,990/year`
+- Enterprise: `Custom annual contract`
 
 License validation signal:
 

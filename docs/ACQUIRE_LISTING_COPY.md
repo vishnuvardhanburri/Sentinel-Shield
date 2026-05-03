@@ -40,6 +40,8 @@ No fake customers or revenue claims are included. Demo metrics are simulated and
 - Pricing page and license validation endpoint
 - Data-room generator
 - One-command enterprise deploy and buyer verification
+- Demo Narrative Mode for acquisition videos and non-technical buyer walkthroughs
+- Acquisition Readiness scorecard across product, security, compliance, deployment, monetization, and diligence
 
 ## Price Strategy
 
@@ -56,6 +58,18 @@ Anchor rationale: the asset compresses 6-12 months of specialized security, AI i
 - Enterprise: `Custom annual contract`
 
 These packages are positioning signals for the acquirer. They show how the product can become subscription revenue after acquisition without claiming existing revenue.
+
+## Buyer Demo Flow
+
+Use this flow in the Acquire video:
+
+1. Run `pnpm launch`.
+2. Open `http://localhost:3000` and show the Sovereign Shield dashboard.
+3. Open `http://localhost:3000/pricing` and show the monetization signal.
+4. Run `pnpm demo:narrative` to show the acquisition story.
+5. Open `http://localhost:8000/demo/narrative` to show the raw-to-protected prompt flow.
+6. Run `pnpm submit:ready` to show buyer verification.
+7. Run `pnpm generate:data-room` to show diligence artifacts.
 
 ## Buyer FAQ
 
