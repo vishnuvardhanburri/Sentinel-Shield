@@ -116,7 +116,7 @@ On first boot, if no Super Admin exists, the backend generates a random temporar
 Default first-run admin email:
 
 ```text
-admin@sentinel.local
+admin@sovereign.local
 ```
 
 The account is marked `force_password_change: true`. Protected features stay blocked until the password is changed through:
@@ -221,7 +221,7 @@ Smoke: security headers and probe blocking pass
 Authenticated smoke proof:
 
 ```bash
-SENTINEL_SMOKE_EMAIL=admin@sentinel.local \
+SENTINEL_SMOKE_EMAIL=admin@sovereign.local \
 SENTINEL_SMOKE_PASSWORD='<changed-password>' \
 pnpm smoke:e2e
 ```

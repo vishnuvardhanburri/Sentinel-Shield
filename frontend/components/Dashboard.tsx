@@ -36,7 +36,7 @@ const risk_color = (score: number) =>
 
 // ── Login Screen ─────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }: { onLogin: (token: string, role: string, forcePasswordChange: boolean, user: any) => void }) {
-  const [email, setEmail] = useState('admin@sentinel.local');
+  const [email, setEmail] = useState('admin@sovereign.local');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

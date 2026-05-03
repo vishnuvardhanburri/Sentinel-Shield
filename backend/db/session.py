@@ -56,7 +56,7 @@ def seed_db():
     try:
         admin_exists = db.query(User).filter(User.role == "SUPER_ADMIN").first()
         if not admin_exists:
-            admin_email = os.getenv("FIRST_RUN_ADMIN_EMAIL", "admin@sentinel.local")
+            admin_email = os.getenv("FIRST_RUN_ADMIN_EMAIL", "admin@sovereign.local")
             temporary_password = secrets.token_urlsafe(24)
             admin_user = User(
                 id=str(uuid.uuid4()),
