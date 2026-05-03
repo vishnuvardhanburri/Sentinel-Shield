@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Generate acquisition data-room artifacts for buyer diligence."""
 import json
+import os
+import sys
 import shutil
 import subprocess
 import zipfile
@@ -11,9 +13,14 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "logs" / "data_room"
 OUT.mkdir(parents=True, exist_ok=True)
 
+BUYER_PYTHON = ROOT / ".buyer_venv" / "bin" / "python"
+if BUYER_PYTHON.exists() and Path(sys.executable).resolve() != BUYER_PYTHON.resolve():
+    os.execv(str(BUYER_PYTHON), [str(BUYER_PYTHON), *sys.argv])
+
+
 
 def run(command: list[str]):
-    subprocess.run(command, cwd=ROOT, check=False)
+    subprocess.run([sys.executable if part == "python3" else part for part in command], cwd=ROOT, check=False)
 
 
 def write_pdf(path: Path, title: str, lines: list[str]):

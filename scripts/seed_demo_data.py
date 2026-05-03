@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed safe synthetic demo events for Sentinel Shield buyer walkthroughs."""
+"""Seed safe synthetic demo events for Sovereign Shield buyer walkthroughs."""
 import os
 import sys
 from pathlib import Path

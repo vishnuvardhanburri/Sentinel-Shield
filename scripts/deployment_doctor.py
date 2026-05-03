@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local deployment doctor for Sentinel Shield."""
+"""Local deployment doctor for Sovereign Shield."""
 import json
 import os
 import socket

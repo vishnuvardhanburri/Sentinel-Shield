@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Master License Generator (Xavira Tech Labs Internal)
+Sovereign Shield v2 — Master License Generator (Xavira Tech Labs Internal)
 Generates hardware-bound, ECC-signed license files for clients.
 """
 import json

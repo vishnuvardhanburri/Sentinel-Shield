@@ -1,4 +1,4 @@
-# Sentinel Shield API Integration Examples
+# Sovereign Shield API Integration Examples
 
 Use scoped app keys from the Enterprise Center. The raw key is shown once.
 

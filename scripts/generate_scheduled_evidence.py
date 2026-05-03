@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate scheduled Sentinel Shield evidence PDFs from local schedule files."""
+"""Generate scheduled Sovereign Shield evidence PDFs from local schedule files."""
 import json
 import os
 import sys

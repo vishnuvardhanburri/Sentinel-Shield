@@ -15,16 +15,16 @@ def main() -> int:
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     except Exception as exc:
-        path = OUT / "sentinel_shield_architecture_handoff.pdf"
+        path = OUT / "sovereign_shield_architecture_handoff.pdf"
         write_minimal_pdf(path)
         print(f"{path} (minimal PDF fallback; ReportLab unavailable: {exc})")
         return 0
 
-    path = OUT / "sentinel_shield_architecture_handoff.pdf"
-    doc = SimpleDocTemplate(str(path), pagesize=letter, title="Sentinel Shield Architecture Handoff")
+    path = OUT / "sovereign_shield_architecture_handoff.pdf"
+    doc = SimpleDocTemplate(str(path), pagesize=letter, title="Sovereign Shield Architecture Handoff")
     styles = getSampleStyleSheet()
     story = []
-    story.append(Paragraph("Sentinel Shield Enterprise Handoff", styles["Title"]))
+    story.append(Paragraph("Sovereign Shield Enterprise Handoff", styles["Title"]))
     story.append(Paragraph("Xavira Tech Labs", styles["Heading2"]))
     story.append(Paragraph(f"Generated {datetime.now(timezone.utc).isoformat()}", styles["Normal"]))
     story.append(Spacer(1, 16))
@@ -77,7 +77,7 @@ def main() -> int:
 
 def write_minimal_pdf(path: Path):
     lines = [
-        "Sentinel Shield Enterprise Handoff",
+        "Sovereign Shield Enterprise Handoff",
         "Xavira Tech Labs",
         f"Generated {datetime.now(timezone.utc).isoformat()}",
         "",

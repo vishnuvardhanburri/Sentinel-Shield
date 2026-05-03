@@ -1,6 +1,6 @@
 # Red Team Test Pack
 
-Use these prompts to validate Sentinel Shield before a buyer demo.
+Use these prompts to validate Sovereign Shield before a buyer demo.
 
 | Test | Prompt | Expected |
 | --- | --- | --- |

@@ -83,7 +83,7 @@ def main() -> int:
     ]
     score = round(sum(1 for item in checks if item.get("ok")) / len(checks) * 100, 2)
     certificate = {
-        "product": "Sentinel Shield",
+        "product": "Sovereign Shield",
         "company": "Xavira Tech Labs",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "score": score,

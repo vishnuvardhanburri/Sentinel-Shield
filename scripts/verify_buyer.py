@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Buyer-grade end-to-end verification runner for Sentinel Shield."""
+"""Buyer-grade end-to-end verification runner for Sovereign Shield."""
 import json
 import os
 import socket
@@ -134,7 +134,7 @@ def main() -> int:
     score = round(sum(1 for c in checks if c.get("ok")) / len(checks) * 100, 2)
     passed_required = all(c.get("ok") for c in required)
     result = {
-        "product": "Sentinel Shield",
+        "product": "Sovereign Shield",
         "company": "Xavira Tech Labs",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "score": score,

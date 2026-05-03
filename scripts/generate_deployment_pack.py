@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Sentinel Shield deployment hardening pack."""
+"""Generate Sovereign Shield deployment hardening pack."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -8,7 +8,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 (OUT / "nginx-sentinel.conf").write_text("""server {
     listen 443 ssl http2;
-    server_name sentinel-shield.local;
+    server_name sovereign-shield.local;
 
     ssl_certificate /etc/sentinel/tls/server.crt;
     ssl_certificate_key /etc/sentinel/tls/server.key;
@@ -30,7 +30,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 """)
 
 (OUT / "sentinel-backend.service").write_text(f"""[Unit]
-Description=Sentinel Shield FastAPI Gateway
+Description=Sovereign Shield FastAPI Gateway
 After=network-online.target
 
 [Service]
@@ -57,7 +57,7 @@ ufw allow 443/tcp
 ufw enable
 """)
 
-(OUT / "production-env-checklist.md").write_text("""# Sentinel Shield Production Checklist
+(OUT / "production-env-checklist.md").write_text("""# Sovereign Shield Production Checklist
 
 - Set strong `JWT_SECRET_KEY`, `LICENSE_MASTER_SECRET`, `ACTOR_HASH_SALT`, `LEDGER_MASTER_SALT`.
 - Set `ALLOWED_ORIGINS` to buyer dashboard domains only.

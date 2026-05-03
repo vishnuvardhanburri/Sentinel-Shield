@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Database Session Manager
+Sovereign Shield v2 — Database Session Manager
 Supports PostgreSQL (cloud) and SQLite (air-gap) via DATABASE_URL env var.
 """
 import os
@@ -61,7 +61,7 @@ def seed_db():
             admin_user = User(
                 id=str(uuid.uuid4()),
                 email=admin_email,
-                full_name="Sentinel First-Run Admin",
+                full_name="Sovereign Shield First-Run Admin",
                 hashed_password=pwd_context.hash(temporary_password),
                 role="SUPER_ADMIN",
                 department="GLOBAL_SECURITY",
@@ -75,9 +75,9 @@ def seed_db():
             print(f"Temporary password: {temporary_password}")
             print("Change this password immediately after first login. It will not be printed again.")
         else:
-            print("SENTINEL DB: Super Admin exists. [READY]")
+            print("SOVEREIGN DB: Super Admin exists. [READY]")
     except Exception as e:
-        print(f"❌ SENTINEL DB ERROR: Seeding failed: {e}")
+        print(f"❌ SOVEREIGN DB ERROR: Seeding failed: {e}")
         db.rollback()
     finally:
         db.close()

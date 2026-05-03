@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Sentinel Shield end-to-end smoke proof.
+Sovereign Shield end-to-end smoke proof.
 
 Unauthenticated checks always run. Authenticated checks run when
 SENTINEL_SMOKE_EMAIL and SENTINEL_SMOKE_PASSWORD are provided.

@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def log(message: str):
-    print(f"[Sentinel Launch] {message}", flush=True)
+    print(f"[Sovereign Launch] {message}", flush=True)
 
 
 def port_open(port: int) -> bool:

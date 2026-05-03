@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/logs/due_diligence"
 mkdir -p "$OUT"
 
-echo "[Sentinel] Generating dependency due-diligence artifacts..."
+echo "[Sovereign] Generating dependency due-diligence artifacts..."
 
 if command -v pnpm >/dev/null 2>&1; then
   (cd "$ROOT/frontend" && pnpm audit --json > "$OUT/frontend_pnpm_audit.json" || true)
@@ -21,7 +21,7 @@ fi
 "$PYTHON_BIN" -m cyclonedx_py requirements "$ROOT/requirements.txt" -o "$OUT/backend_sbom.cdx.json" || true
 
 cat > "$OUT/README.md" <<'EOF'
-# Sentinel Shield Security Due Diligence
+# Sovereign Shield Security Due Diligence
 
 Artifacts in this folder are generated locally for buyer review:
 
@@ -32,4 +32,4 @@ Artifacts in this folder are generated locally for buyer review:
 Review any reported vulnerabilities before production exposure.
 EOF
 
-echo "[Sentinel] Due-diligence artifacts written to $OUT"
+echo "[Sovereign] Due-diligence artifacts written to $OUT"

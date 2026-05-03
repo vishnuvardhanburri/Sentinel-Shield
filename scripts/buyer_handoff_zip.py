@@ -27,7 +27,7 @@ def main() -> int:
     run_optional(["python3", "scripts/production_readiness_certificate.py"])
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    zip_path = OUT / f"sentinel_shield_buyer_handoff_{stamp}.zip"
+    zip_path = OUT / f"sovereign_shield_buyer_handoff_{stamp}.zip"
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for name in ["README.md", "DOCS.md", "SECURITY.md", "RELEASE.md", "SUBMISSION_CHECKLIST.md", ".env.example.production", "release.json"]:
             add_if_exists(zf, ROOT / name)

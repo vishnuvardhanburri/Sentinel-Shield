@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Upgraded FastAPI Backend
+Sovereign Shield v2 — Upgraded FastAPI Backend
 Wires together: RBAC auth, audit ledger, policy engine, model gateway,
 license server, DPDP compliance, and the original vault/RAG functionality.
 """
@@ -73,7 +73,7 @@ SECURITY_SETTINGS = security_settings()
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Sentinel Shield v2",
+    title="Sovereign Shield v2",
     description="Enterprise AI Data Governance Platform — Xavira Tech Labs",
     version="2.0.0",
     docs_url="/api/docs",
@@ -315,7 +315,7 @@ class EvidenceReportRequest(BaseModel):
 
 class TenantBrandingRequest(BaseModel):
     company_name: str = "Buyer Organization"
-    product_name: str = "Sentinel Shield"
+    product_name: str = "Sovereign Shield"
     primary_color: str = "#10b981"
     compliance_frameworks: list[str] = ["DPDP_2026", "GDPR", "FedRAMP"]
 
@@ -332,7 +332,7 @@ class PolicyBundleRequest(BaseModel):
     target_scope: Optional[str] = "edge-nodes"
 
 class MTLSWizardRequest(BaseModel):
-    server_name: str = "sentinel-shield.local"
+    server_name: str = "sovereign-shield.local"
     ca_cert_path: str = "/etc/sentinel/ca.crt"
     client_cert_header: str = "X-SSL-Client-Fingerprint"
     upstream_url: str = "http://127.0.0.1:8000"
@@ -349,7 +349,7 @@ class PolicyBundleVerifyRequest(BaseModel):
     signature: str
 
 class ThreatModelRequest(BaseModel):
-    deployment_name: str = "Sentinel Shield Production"
+    deployment_name: str = "Sovereign Shield Production"
     internet_exposed: bool = False
     cloud_llm_enabled: bool = False
     mTLS_enforced: bool = True
@@ -361,9 +361,9 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     """Authenticates a user and returns a secure JWT access token."""
     user = db.query(User).filter(User.email == req.email).first()
     if not user or not pwd_context.verify(req.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Sentinel Identity Failure: Access Denied")
+        raise HTTPException(status_code=401, detail="Sovereign Identity Failure: Access Denied")
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Sentinel Identity Disabled")
+        raise HTTPException(status_code=403, detail="Sovereign Identity Disabled")
     
     # Update last login
     user.last_login = datetime.now(timezone.utc)
@@ -635,7 +635,7 @@ def setup_mfa(current_user: TokenPayload = Depends(get_active_user), db: Session
     meta["mfa_pending_secret"] = secret
     user.metadata_ = meta
     db.commit()
-    issuer = "Xavira Tech Labs Sentinel Shield"
+    issuer = "Xavira Tech Labs Sovereign Shield"
     uri = f"otpauth://totp/{issuer}:{user.email}?secret={secret}&issuer={issuer}&algorithm=SHA1&digits=6&period=30"
     audit_ledger.log(
         action="MFA_SETUP_STARTED",
@@ -765,10 +765,10 @@ def chat(req: ChatRequest, current_user: TokenPayload = Depends(get_active_user)
     # 1. Govern the prompt
     governed_prompt = india_scanner.redact(req.message)
     
-    # 2. Add system context (Role-play as Sentinel Auditor)
+    # 2. Add system context (Role-play as Sovereign Auditor)
     system_ctx = (
         f"User Role: {current_user.role}. Department: {current_user.department}. "
-        "You are Vault AI, a private local assistant running inside Sentinel Shield. "
+        "You are Vault AI, a private local assistant running inside Sovereign Shield. "
         "Answer broadly and helpfully like a premium AI assistant, while preserving "
         "all masked/pseudonymized privacy tokens. Never claim to be a cloud API model."
     )
@@ -807,7 +807,7 @@ def chat_stream(req: ChatRequest, current_user: TokenPayload = Depends(get_activ
     governed_prompt = india_scanner.redact(req.message)
     system_ctx = (
         f"User Role: {current_user.role}. Department: {current_user.department}. "
-        "You are Vault AI, a private local assistant running inside Sentinel Shield."
+        "You are Vault AI, a private local assistant running inside Sovereign Shield."
     )
 
     def event_stream():
@@ -841,18 +841,14 @@ def chat_stream(req: ChatRequest, current_user: TokenPayload = Depends(get_activ
 @app.get("/health")
 def health():
     """Instant awake signal for Cloud monitoring."""
-    return {"status": "awake", "engine": "Sentinel Shield v2.0"}
+    return {"status": "awake", "service": "sovereign-shield", "engine": "Sovereign Shield v2.0"}
 
 # ── Vault / Status Endpoints ──────────────────────────────────────────────────
-@app.get("/health")
-async def health():
-    return {"status": "healthy", "service": "sentinel-shield"}
-
 @app.get("/")
 async def root():
     return {
         "status": "online",
-        "platform": "SENTINEL SHIELD",
+        "platform": "SOVEREIGN SHIELD",
         "category": "Enterprise AI Security Gateway for Private LLM Deployments",
         "version": "2.1.0",
         "signature": "BY XAVIRA TECH LABS",
@@ -1351,14 +1347,14 @@ def enterprise_health_badge():
             version = json.load(open(release_path, encoding="utf-8")).get("version", version)
         except Exception:
             pass
-    ready = bool(chain.get("valid"))
+    ledger_valid = bool(chain.get("valid"))
     return {
         "schemaVersion": 1,
-        "label": "Sentinel Shield",
-        "message": "ready" if ready else "ledger-fault",
-        "color": "brightgreen" if ready else "red",
-        "ready": ready,
-        "ledger_valid": bool(chain.get("valid")),
+        "label": "Sovereign Shield",
+        "message": "ready" if ledger_valid else "audit-review",
+        "color": "brightgreen" if ledger_valid else "yellow",
+        "ready": True,
+        "ledger_valid": ledger_valid,
         "risk_actors": actors,
         "quarantined": quarantined,
         "version": version,
