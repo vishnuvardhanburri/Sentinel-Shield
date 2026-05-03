@@ -1,7 +1,7 @@
 import Dashboard from '../components/Dashboard';
 
 export const metadata = {
-  title: 'Sentinel Shield v2 | Enterprise AI Data Governance',
+  title: 'Sovereign Shield v2 | Enterprise AI Security Gateway',
   description: 'HIPAA · DPDP 2026 · GDPR compliant AI governance platform with real-time PII redaction, immutable audit ledger, and department-level policy enforcement.',
 };
 

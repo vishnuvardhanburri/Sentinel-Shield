@@ -64,7 +64,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string, role: string, force
           <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-[0_0_40px_rgba(16,185,129,0.15)] overflow-hidden">
             <span className="text-2xl font-black text-emerald-300 tracking-tight">XT</span>
           </div>
-          <h1 className="text-3xl font-black text-white tracking-tight">SENTINEL <span className="text-emerald-400">SHIELD</span></h1>
+          <h1 className="text-3xl font-black text-white tracking-tight">SOVEREIGN <span className="text-emerald-400">SHIELD</span></h1>
           <p className="text-emerald-500/80 text-xs uppercase tracking-[0.2em] font-bold mt-2 font-display">BY XAVIRA TECH LABS</p>
         </div>
 
@@ -144,7 +144,7 @@ function PasswordChangeScreen({ onChanged }: { onChanged: () => void }) {
             <Key className="text-amber-400" size={24} />
           </div>
           <h1 className="text-2xl font-black text-white">Rotate Temporary Password</h1>
-          <p className="text-xs text-slate-500 mt-2">Required before protected Sentinel Shield features unlock.</p>
+          <p className="text-xs text-slate-500 mt-2">Required before protected Sovereign Shield features unlock.</p>
         </div>
         {error && <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm">{error}</div>}
         <div className="space-y-4">
@@ -1075,7 +1075,7 @@ function EnterpriseCenterTab() {
       firewall: ['/api/v2/enterprise/firewall/rules', { name: 'Block Secret Merger', action: 'quarantine', pattern: 'secret merger', department: 'GLOBAL', severity: 9 }],
       bundle: ['/api/v2/enterprise/policy-bundles/sign', { bundle_name: 'global-sensitive-context-v1', target_scope: 'all-edge-nodes', yaml_content: 'rules: []' }],
       mtls: ['/api/v2/enterprise/mtls/nginx', { server_name: 'sentinel-shield.local', ca_cert_path: '/etc/sentinel/ca.crt', upstream_url: 'http://127.0.0.1:8000' }],
-      branding: ['/api/v2/enterprise/branding', { company_name: 'Buyer Organization', product_name: 'Sentinel Shield', primary_color: '#10b981', compliance_frameworks: ['DPDP_2026', 'GDPR', 'FedRAMP'] }],
+      branding: ['/api/v2/enterprise/branding', { company_name: 'Buyer Organization', product_name: 'Sovereign Shield', primary_color: '#10b981', compliance_frameworks: ['DPDP_2026', 'GDPR', 'FedRAMP'] }],
       anchor: ['/api/v2/enterprise/ledger/anchor', {}],
       backup: ['/api/v2/enterprise/backup', {}],
       threat: ['/api/v2/enterprise/threat-model', { deployment_name: 'Buyer Production', internet_exposed: false, cloud_llm_enabled: false, mTLS_enforced: true }],
@@ -1466,7 +1466,7 @@ export default function Dashboard() {
               <span className="text-sm font-black text-emerald-300 tracking-tight">XT</span>
             </div>
             <div>
-              <h1 className="text-sm font-black text-white tracking-tight">SENTINEL <span className="text-emerald-400">SHIELD</span></h1>
+              <h1 className="text-sm font-black text-white tracking-tight">SOVEREIGN <span className="text-emerald-400">SHIELD</span></h1>
               <p className="text-[10px] text-emerald-500/80 font-bold uppercase tracking-widest">BY XAVIRA TECH LABS</p>
             </div>
           </div>
@@ -1509,7 +1509,7 @@ export default function Dashboard() {
             <h2 className="text-2xl font-black text-white">
               {NAV.find(n => n.id === activeTab)?.label || 'Dashboard'}
             </h2>
-            <p className="text-xs text-slate-600 mt-0.5">Sentinel Shield Enterprise · Xavira Tech Labs</p>
+            <p className="text-xs text-slate-600 mt-0.5">Sovereign Shield Enterprise · Xavira Tech Labs</p>
           </div>
           <div className="flex items-center gap-3">
             <button id="refresh-status-btn" onClick={() => fetchStatus()}

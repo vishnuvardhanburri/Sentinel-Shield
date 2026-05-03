@@ -28,15 +28,17 @@ The product is positioned as a single acquisition, not a licensing campaign. Dem
 
 ## Negotiation Reply: Anchor High
 
-I appreciate the offer. I am anchoring the asset in the `$450K-$500K` range because the buyer is acquiring a complete enterprise AI security gateway foundation: redaction, prompt-injection defense, local LLM routing, audit evidence, dashboard, compliance mapping, deployment scripts, and data-room automation.
+I appreciate the offer. I am anchoring the asset at `$500K` because the buyer is acquiring a complete enterprise AI security gateway foundation: redaction, prompt-injection defense, local LLM routing, audit evidence, dashboard, compliance mapping, deployment scripts, pricing signal, and data-room automation.
 
-For the right buyer and a clean close, I would focus serious conversations in the `$320K-$420K` range. Below that, the replacement cost and time-to-market advantage are not being valued properly.
+For the right buyer and a clean close, I would focus serious conversations in the `$400K-$500K` range. Below that, the replacement cost and time-to-market advantage are not being valued properly.
 
 ## Counter To Low Offer
 
 Thanks for the offer. I cannot justify that range for this asset.
 
 The value is not just code volume. It is the packaged enterprise security product surface: compliance narrative, technical controls, deployability, buyer evidence, and a path to monetize AI governance. Rebuilding the same control plane would likely take a focused team multiple quarters.
+
+The pricing surface supports Starter at `$499/mo`, Growth at `$999/mo`, and custom Enterprise annual contracts. These are monetization signals for the buyer, not claimed existing revenue.
 
 I can continue if you are able to move closer to the target close range.
 

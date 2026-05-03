@@ -35,3 +35,9 @@ Enterprises are moving internal workflows to LLMs faster than security and compl
 Sovereign Shield reframes the LLM layer as an enterprise security gateway. It intercepts AI requests before inference, pseudonymizes regulated data, detects prompt injection attempts, scores sensitivity, and routes high-risk prompts to local Ollama-backed models. Every decision is written to a tamper-evident ledger and can be turned into board-ready evidence PDFs.
 
 The buyer gets a working private LLM security layer instead of starting a 6-12 month internal engineering program. The product is built for internal enterprise use cases and is now packaged for a single acquisition.
+
+## Monetization Positioning
+
+Starter teams can be positioned at `$499/mo` or `$4,990/year` for private LLM governance pilots. Growth teams can be positioned at `$999/mo` or `$9,990/year` for department-wide controls, evidence reports, and risk heatmaps. Enterprise buyers can package custom annual contracts for air-gapped deployments, mTLS, data residency, and board-level audit workflows.
+
+The acquisition ask is `$500K`, anchored on replacement cost, compliance urgency, and the speed advantage of owning a complete AI security gateway foundation.

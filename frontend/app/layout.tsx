@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sentinel Shield | BY XAVIRA TECH LABS",
+  title: "Sovereign Shield | Xavira Tech Labs",
   description: "Enterprise AI Data Governance & PII Redaction — Xavira Tech Labs",
   icons: {
     icon: "/favicon.ico",

@@ -4,21 +4,24 @@ const plans = [
   {
     name: 'Starter',
     price: '$499/mo',
+    annual: '$4,990/year',
     description: 'For teams piloting private LLM governance.',
-    features: ['PII redaction gateway', 'Local LLM routing', 'Audit ledger', 'Basic policy presets'],
+    features: ['PII redaction gateway', 'Local LLM routing', 'Audit ledger', 'Basic policy presets', 'Buyer-owned deployment'],
   },
   {
     name: 'Growth',
     price: '$999/mo',
+    annual: '$9,990/year',
     description: 'For regulated teams deploying across departments.',
-    features: ['Everything in Starter', 'Risk heatmap', 'Evidence reports', 'API-key integrations', 'Policy bundles'],
+    features: ['Everything in Starter', 'Risk heatmap', 'Evidence reports', 'API-key integrations', 'Policy bundles', 'Quarterly compliance export'],
     featured: true,
   },
   {
     name: 'Enterprise',
     price: 'Contact Sales',
+    annual: 'Custom annual',
     description: 'For air-gapped, multi-tenant, and board-level compliance needs.',
-    features: ['Everything in Growth', 'mTLS deployment pack', 'Custom compliance mapping', 'Buyer-controlled data residency', 'Priority handoff'],
+    features: ['Everything in Growth', 'mTLS deployment pack', 'Custom compliance mapping', 'Buyer-controlled data residency', 'Priority handoff', 'Private model governance'],
   },
 ];
 
@@ -42,6 +45,9 @@ export default function PricingPage() {
             Sovereign Shield helps regulated teams mask PII, route high-sensitivity prompts to local models,
             and produce audit evidence without sending protected data to external LLM APIs.
           </p>
+          <p className="mt-4 text-sm font-semibold uppercase tracking-[0.22em] text-emerald-300">
+            Acquisition positioning: $500K single-asset sale
+          </p>
         </div>
         <div className="grid gap-5 md:grid-cols-3">
           {plans.map((plan) => (
@@ -52,6 +58,7 @@ export default function PricingPage() {
               <h2 className="text-2xl font-black">{plan.name}</h2>
               <p className="mt-2 min-h-14 text-sm text-slate-400">{plan.description}</p>
               <div className="mt-7 text-4xl font-black text-emerald-300">{plan.price}</div>
+              <div className="mt-2 text-sm font-semibold text-slate-300">{plan.annual}</div>
               <ul className="mt-7 space-y-3 text-sm text-slate-200">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex gap-3">

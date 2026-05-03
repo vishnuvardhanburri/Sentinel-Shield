@@ -8,7 +8,7 @@ Enterprise AI Security Gateway (Compliance + Audit + Local LLM Infrastructure)
 
 Sovereign Shield replaces 6-12 months of enterprise AI security engineering.
 Production-ready PII protection, compliance evidence, audit trails, and local LLM routing.
-Built for internal use and available as a single acquisition.
+Built for internal use and available as a single $500K acquisition.
 
 ## Full Description
 
@@ -43,11 +43,19 @@ No fake customers or revenue claims are included. Demo metrics are simulated and
 
 ## Price Strategy
 
-List price target: `$450K-$500K`
+List price target: `$500K`
 
-Target close range: `$320K-$420K`
+Serious buyer conversation range: `$400K-$500K`
 
-Anchor rationale: the asset compresses 6-12 months of specialized security, AI infrastructure, compliance, and product engineering into an owned acquisition package.
+Anchor rationale: the asset compresses 6-12 months of specialized security, AI infrastructure, compliance, and product engineering into an owned acquisition package. A buyer is acquiring the product foundation, positioning, security controls, dashboard, deployment workflow, and diligence materials rather than only source code.
+
+## Monetization Signal
+
+- Starter: `$499/mo` or `$4,990/year`
+- Growth: `$999/mo` or `$9,990/year`
+- Enterprise: `Custom annual contract`
+
+These packages are positioning signals for the acquirer. They show how the product can become subscription revenue after acquisition without claiming existing revenue.
 
 ## Buyer FAQ
 
@@ -70,6 +78,10 @@ CISOs, AI infrastructure vendors, compliance tooling companies, security founder
 ### Can a buyer commercialize it?
 
 Yes. The repo includes a pricing page, license validation stub, API-key integration surfaces, enterprise docs, and deploy/data-room automation.
+
+### Why is the ask $500K?
+
+The value is speed, defensibility, and replacement cost. Sovereign Shield gives the buyer a productized enterprise AI security gateway with compliance evidence, local LLM routing, redaction, prompt defense, risk scoring, and acquisition-ready packaging. Rebuilding and positioning this from zero would require specialized security, AI infrastructure, compliance, and frontend/backend product work across multiple quarters.
 
 ### Is this a licensing sale?
 
