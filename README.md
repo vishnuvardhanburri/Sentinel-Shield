@@ -75,6 +75,12 @@ Pricing page:
 http://localhost:3000/pricing
 ```
 
+Buyer demo page:
+
+```text
+http://localhost:3000/demo
+```
+
 Plans:
 
 - Starter: `$499/mo`
