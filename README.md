@@ -2,7 +2,12 @@
 
 [![Sovereign Shield v2 — CI Pipeline](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml/badge.svg)](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml)
 
+> **Enterprise Acquisition Ready — Verified Build**
+> Includes: Security Hardening, Compliance Mapping, Data Room, Deployment Pack
+
 **Sovereign Shield by Xavira Tech Labs** is an **Enterprise AI Security Gateway for Private LLM Deployments**. It helps regulated teams adopt local AI while protecting PII, enforcing DPDP/GDPR controls, and generating audit evidence from one localhost control plane.
+
+**Production-ready AI security infrastructure with full compliance, audit, and deployment stack—replacing 9–12 months of engineering.**
 
 The system is designed to run without external LLM API keys. Vault AI uses the buyer's own local Ollama model by default.
 

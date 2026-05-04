@@ -1,42 +1,42 @@
-# Buyer Reply System
+# Buyer Response System
 
-## Initial Reply
+## 1. Initial Reply
 
-Thanks for reaching out. Sovereign Shield is an Enterprise AI Security Gateway for internal AI deployments: PII protection, prompt-injection defense, local LLM routing, audit evidence, and compliance reporting in one deployable package.
+Thanks for reaching out. Sovereign Shield is an Enterprise AI Security Gateway for internal AI deployments: PII protection, prompt-injection defense, semantic DLP, local LLM routing, risk scoring, quarantine, audit evidence, and compliance reporting in one deployable package.
 
-The strongest acquisition angle is speed. A buyer can own the foundation instead of spending 6-12 months building the gateway, dashboard, policy layer, evidence system, and deployment pack internally.
+The acquisition angle is speed and risk reduction. A buyer can own the foundation instead of spending 6-12 months building the gateway, dashboard, policy layer, evidence system, deployment pack, and diligence materials internally.
 
-There are no revenue or customer claims in the listing. The proof system uses clearly labeled simulated metrics so diligence can focus on product depth and buyer ROI.
+There are no revenue or customer claims in the listing. The proof system uses clearly labeled simulated validation metrics so diligence can focus on product depth, implementation quality, and buyer ROI.
 
-I can share the data room with architecture, threat model, compliance mapping, API docs, deployment guide, screenshots, and verification outputs.
+I can share the data room with architecture, threat model, security controls, compliance mapping, API docs, deployment guide, screenshots, known limitations, and verification outputs.
 
-## Data Room Share Reply
+## 2. Data Room Share Reply
 
-Here is the diligence package for Sovereign Shield.
+Here is the Sovereign Shield diligence package.
 
-It includes:
+It includes architecture, threat model, DPDP/GDPR mapping, security controls, API documentation, deployment guide, screenshots, simulated proof metrics, evidence/audit report samples, known limitations, and one-command verification instructions.
 
-- Architecture and deployment flow
-- Threat model
-- DPDP/GDPR compliance mapping
-- API docs
-- Simulated proof metrics
-- Evidence/audit report samples
-- One-command deploy and verification instructions
+The product is positioned as a single acquisition, not a licensing campaign. Demo proof is simulated and labeled; no fake revenue, customers, pilots, or production usage claims are included.
 
-The product is positioned as a single acquisition, not a licensing campaign. Demo proof is simulated and labeled; no fake revenue or customer claims are included.
+The fastest diligence path is:
 
-## Negotiation Reply: Anchor High
+```bash
+pnpm deploy:enterprise
+pnpm submit:ready
+pnpm generate:data-room
+```
 
-I appreciate the offer. I am anchoring the asset at `$500K` because the buyer is acquiring a complete enterprise AI security gateway foundation: redaction, prompt-injection defense, local LLM routing, audit evidence, dashboard, compliance mapping, deployment scripts, pricing signal, and data-room automation.
+## 3. Negotiation Reply: Anchor High
 
-For the right buyer and a clean close, I would focus serious conversations in the `$400K-$500K` range. Below that, the replacement cost and time-to-market advantage are not being valued properly.
+I appreciate the offer. I am anchoring Sovereign Shield at `$500K` because the buyer is acquiring a complete enterprise AI security gateway foundation: redaction, prompt-injection defense, semantic DLP, local LLM routing, risk scoring, quarantine, audit evidence, dashboard, compliance mapping, deployment automation, pricing signal, and data-room readiness.
+
+For the right buyer and a clean close, I would focus serious conversations in the `$450K-$500K` listing range, with a target close in the `$350K-$450K` range depending on timeline, structure, and handoff scope.
 
 ## Counter To Low Offer
 
 Thanks for the offer. I cannot justify that range for this asset.
 
-The value is not just code volume. It is the packaged enterprise security product surface: compliance narrative, technical controls, deployability, buyer evidence, and a path to monetize AI governance. Rebuilding the same control plane would likely take a focused team multiple quarters.
+The value is not just source code. It is the packaged enterprise security product surface: compliance narrative, technical controls, deployability, buyer evidence, and a path to monetize AI governance. Rebuilding the same control plane would likely take a focused team multiple quarters.
 
 The pricing surface supports Starter at `$499/mo`, Growth at `$999/mo`, and custom Enterprise annual contracts. These are monetization signals for the buyer, not claimed existing revenue.
 
@@ -44,4 +44,12 @@ I can continue if you are able to move closer to the target close range.
 
 ## Close Push
 
-If your team wants to move fast, the cleanest structure is a single acquisition with repository transfer, docs, data-room artifacts, and a handoff call. I am prioritizing buyers who understand the urgency around private AI governance and can close without stretching diligence into a custom consulting engagement.
+If your team wants to move fast, the cleanest structure is a single acquisition with repository transfer, docs, generated data-room artifacts, and a focused handoff call. I am prioritizing buyers who understand the urgency around private AI governance and can close without turning diligence into a custom consulting engagement.
+
+## Price Strategy
+
+- List: `$450K-$500K`
+- Public anchor: `$500K`
+- Target close: `$350K-$450K`
+- Avoid discounting early; trade price movement for faster close, reduced custom support, or simpler transfer terms.
+- Use urgency carefully: only say “in discussions with interested buyers” when that is true.

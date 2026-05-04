@@ -142,6 +142,15 @@ class ZeroTrustAPIShieldMiddleware(BaseHTTPMiddleware):
         headers.setdefault("Referrer-Policy", "no-referrer")
         headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         headers.setdefault("Cache-Control", "no-store")
+        headers.setdefault(
+            "Content-Security-Policy",
+            os.getenv(
+                "API_SHIELD_CSP",
+                "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+            ),
+        )
+        if os.getenv("API_SHIELD_ENABLE_HSTS", "true").lower() == "true":
+            headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 
     @staticmethod
     def _estimate_request_cost(request: Request) -> float:

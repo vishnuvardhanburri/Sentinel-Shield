@@ -21,6 +21,16 @@ def add_if_exists(archive: zipfile.ZipFile, path: Path, arcname: str | None = No
         archive.write(path, arcname or str(path.relative_to(ROOT)))
 
 
+def latest_files(folder: Path, patterns: tuple[str, ...], limit: int = 8) -> list[Path]:
+    if not folder.exists():
+        return []
+    files: list[Path] = []
+    for pattern in patterns:
+        files.extend(path for path in folder.glob(pattern) if path.is_file())
+    unique = {path.resolve(): path for path in files}
+    return sorted(unique.values(), key=lambda p: p.stat().st_mtime, reverse=True)[:limit]
+
+
 def main() -> int:
     run_optional(["python3", "scripts/generate_deployment_pack.py"])
     run_optional(["python3", "scripts/generate_handoff_pdf.py"])
@@ -31,11 +41,16 @@ def main() -> int:
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for name in ["README.md", "DOCS.md", "SECURITY.md", "RELEASE.md", "SUBMISSION_CHECKLIST.md", ".env.example.production", "release.json"]:
             add_if_exists(zf, ROOT / name)
-        for folder in [ROOT / "logs" / "deployment_pack", ROOT / "logs" / "certificates", ROOT / "logs" / "handoff"]:
-            if folder.exists():
-                for path in folder.rglob("*"):
-                    if path.is_file() and path != zip_path and path.suffix != ".zip":
-                        zf.write(path, str(path.relative_to(ROOT)))
+        for folder, patterns in [
+            (ROOT / "logs" / "deployment_pack", ("*.json", "*.md", "*.txt", "*.pdf")),
+            (ROOT / "logs" / "certificates", ("*.json", "*.pdf")),
+            (ROOT / "logs" / "handoff", ("*.pdf", "*.json")),
+            (ROOT / "logs" / "exports", ("*.pdf", "*.json")),
+            (ROOT / "logs" / "demo", ("*.jsonl",)),
+        ]:
+            for path in latest_files(folder, patterns):
+                if path != zip_path and path.suffix != ".zip":
+                    zf.write(path, str(path.relative_to(ROOT)))
     digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
     manifest = {
         "file": str(zip_path),

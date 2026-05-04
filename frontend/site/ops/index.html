@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Operations Dashboard | Sovereign Shield</title>
+    <meta name="description" content="Live operations dashboard for Sovereign Shield security events and code map." />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <div class="topbar">
+        <div class="badge">Sovereign Shield Operations</div>
+        <div class="navlinks">
+          <a class="btn-secondary" href="/">Dashboard</a>
+          <a class="btn-secondary" href="/demo/">Buyer Demo</a>
+          <a class="btn" href="/pricing/">Pricing</a>
+        </div>
+      </div>
+
+      <section class="hero">
+        <div>
+          <p class="eyebrow">CISO Control Room</p>
+          <h1>Security events, risk logs, readiness score, and implementation map.</h1>
+          <p class="lede">
+            This operator view pulls from the live FastAPI backend so buyers can see the control plane,
+            event stream, detection classes, and source modules behind the acquisition asset.
+          </p>
+        </div>
+        <div class="panel panel-strong">
+          <h2>System State</h2>
+          <p><strong>Backend:</strong> <span id="backend-state">Checking...</span></p>
+          <p><strong>Readiness:</strong> <span id="readiness-score">Loading...</span></p>
+          <p><strong>Last refresh:</strong> <span id="last-refresh">--</span></p>
+          <button class="btn" id="refresh" type="button">Refresh Logs</button>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="panel">
+          <div class="small">Security Events Blocked</div>
+          <div class="metric" id="blocked-count">--</div>
+          <p>Demo event stream from the gateway proof system.</p>
+        </div>
+        <div class="panel">
+          <div class="small">PII Detections</div>
+          <div class="metric" id="pii-count">--</div>
+          <p>Aadhaar, PAN, bank, and other sensitive identifier detections.</p>
+        </div>
+        <div class="panel">
+          <div class="small">Local Routes</div>
+          <div class="metric" id="local-routes">--</div>
+          <p>High-sensitivity prompts forced to local-owned model path.</p>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-bottom:28px;">
+        <div class="topbar" style="margin-bottom:12px;">
+          <div>
+            <p class="eyebrow">Risk Event Logs</p>
+            <h2 style="margin:0;">Recent security events</h2>
+          </div>
+          <code>GET /demo/metrics</code>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Actor</th>
+                <th>Event</th>
+                <th>Policy</th>
+                <th>Risk</th>
+              </tr>
+            </thead>
+            <tbody id="events-body">
+              <tr><td colspan="5">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="cards">
+        <div class="panel">
+          <div class="topbar" style="margin-bottom:12px;">
+            <div>
+              <p class="eyebrow">Detection Classes</p>
+              <h2 style="margin:0;">What the gateway blocks</h2>
+            </div>
+            <code>GET /demo/metrics</code>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Count</th>
+                  <th>Action</th>
+                  <th>Sample Token</th>
+                </tr>
+              </thead>
+              <tbody id="detections-body">
+                <tr><td colspan="4">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="topbar" style="margin-bottom:12px;">
+            <div>
+              <p class="eyebrow">Implementation Map</p>
+              <h2 style="margin:0;">Actual code behind the demo</h2>
+            </div>
+            <code>local repo</code>
+          </div>
+          <div class="code-map">
+            <div class="code-card"><strong>FastAPI gateway</strong><code>backend/app.py</code></div>
+            <div class="code-card"><strong>Identity masking proxy</strong><code>backend/redaction_middleware.py</code></div>
+            <div class="code-card"><strong>PII scanner</strong><code>backend/security_scanner.py</code></div>
+            <div class="code-card"><strong>India patterns</strong><code>backend/compliance/india_patterns.py</code></div>
+            <div class="code-card"><strong>Prompt injection shield</strong><code>backend/prompt_injection.py</code></div>
+            <div class="code-card"><strong>Semantic DLP</strong><code>backend/semantic_dlp.py</code></div>
+            <div class="code-card"><strong>Audit ledger</strong><code>backend/audit/ledger.py</code></div>
+            <div class="code-card"><strong>Evidence report</strong><code>backend/reporting/evidence_report.py</code></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:28px;">
+        <div class="console-header">
+          <span class="live-dot">RAW METRICS RESPONSE</span>
+          <span id="metrics-run">Not loaded</span>
+        </div>
+        <pre class="console-body" id="metrics-json">Waiting for backend...</pre>
+      </section>
+    </main>
+
+    <script>
+      async function loadOps() {
+        const host = window.location.hostname || "localhost";
+        const now = new Date();
+        document.getElementById("last-refresh").textContent = now.toLocaleTimeString();
+        try {
+          const [healthRes, metricsRes, readinessRes] = await Promise.all([
+            fetch(`http://${host}:8000/health`),
+            fetch(`http://${host}:8000/demo/metrics`),
+            fetch(`http://${host}:8000/demo/acquisition-readiness`)
+          ]);
+          const health = await healthRes.json();
+          const metrics = await metricsRes.json();
+          const readiness = await readinessRes.json();
+
+          document.getElementById("backend-state").textContent = health.status + " / " + health.engine;
+          document.getElementById("readiness-score").textContent = readiness.score + "/100";
+          document.getElementById("blocked-count").textContent = metrics.summary.security_events_blocked;
+          document.getElementById("pii-count").textContent = metrics.summary.pii_detections;
+          document.getElementById("local-routes").textContent = metrics.summary.high_sensitivity_local_routes;
+          document.getElementById("metrics-json").textContent = JSON.stringify({ health, metrics, readiness }, null, 2);
+          document.getElementById("metrics-run").textContent = "Loaded: " + now.toLocaleTimeString();
+
+          document.getElementById("events-body").innerHTML = metrics.recent_events.map((event) => `
+            <tr>
+              <td>${new Date(event.timestamp).toLocaleTimeString()}</td>
+              <td>${event.actor}</td>
+              <td>${event.event}</td>
+              <td>${event.policy}</td>
+              <td>${event.risk_score}/10</td>
+            </tr>
+          `).join("");
+
+          document.getElementById("detections-body").innerHTML = metrics.detections.map((item) => `
+            <tr>
+              <td>${item.type}</td>
+              <td>${item.count}</td>
+              <td>${item.action}</td>
+              <td><code>${item.sample_token}</code></td>
+            </tr>
+          `).join("");
+        } catch (error) {
+          document.getElementById("backend-state").textContent = "Offline";
+          document.getElementById("metrics-json").textContent = "ERROR: " + error.message + "\nRun: pnpm launch";
+        }
+      }
+
+      document.getElementById("refresh").addEventListener("click", loadOps);
+      loadOps();
+      setInterval(loadOps, 15000);
+    </script>
+  </body>
+</html>

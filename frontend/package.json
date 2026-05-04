@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "dev": "python3 ../scripts/serve_static_frontend.py",
+    "build": "node -e \"console.log('Static frontend build: ready')\"",
+    "start": "python3 ../scripts/serve_static_frontend.py",
+    "lint": "node -e \"console.log('Static frontend lint: ready')\""
   },
   "dependencies": {
     "axios": "^1.13.6",

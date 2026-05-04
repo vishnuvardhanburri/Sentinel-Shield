@@ -63,7 +63,6 @@ class PolicyEngine:
         self._policies: Dict[str, List[PolicyRule]] = {}
         self._global_rules: List[PolicyRule] = []
         self._last_loaded: float = 0
-        self.reload()
 
     def reload(self):
         """Reload all YAML policies from presets/ and policies/."""
@@ -115,6 +114,8 @@ class PolicyEngine:
 
     def _get_rules_for(self, department: Optional[str]) -> List[PolicyRule]:
         """Return global rules + department-specific rules merged."""
+        if not self._policies and not self._global_rules:
+            self.reload()
         dept_key = (department or "").upper()
         return self._global_rules + self._policies.get(dept_key, [])
 
@@ -184,6 +185,8 @@ class PolicyEngine:
 
     def list_policies(self) -> Dict[str, Any]:
         """Return a summary of all loaded policies (for admin dashboard)."""
+        if not self._policies and not self._global_rules:
+            self.reload()
         return {
             "global_rules": len(self._global_rules),
             "department_policies": {k: len(v) for k, v in self._policies.items()},

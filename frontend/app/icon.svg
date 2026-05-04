@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Sovereign Shield">
+  <rect width="256" height="256" rx="56" fill="#03110d"/>
+  <path d="M128 28l70 24v54c0 49-27 93-70 122-43-29-70-73-70-122V52l70-24z" fill="#0f2f26" stroke="#34d399" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M128 60l42 14v32c0 33-17 63-42 83-25-20-42-50-42-83V74l42-14z" fill="#34d399" fill-opacity=".15"/>
+  <path d="M87 132l25 25 58-58" fill="none" stroke="#a7f3d0" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -31,10 +31,12 @@ class ModelRouter:
     def __init__(self):
         self.mode = DEPLOYMENT_MODE
         self._adapters: Dict[str, Any] = {}
-        self._load_adapters()
+        self._loaded = False
 
     def _load_adapters(self):
         """Lazily load adapters based on deployment mode."""
+        if self._loaded:
+            return
         if self.mode in ("airgap", "hybrid"):
             try:
                 from .ollama_adapter import OllamaAdapter
@@ -70,6 +72,7 @@ class ModelRouter:
                     self._adapters["openrouter"] = OpenRouterAdapter()
                 except ImportError:
                     logger.warning("OpenRouter adapter unavailable")
+        self._loaded = True
 
     def route(
         self,
@@ -85,6 +88,7 @@ class ModelRouter:
         Returns: {answer, model_used, tokens_used, fallback_used}
         """
         force_airgap = sensitivity_score is not None and sensitivity_score > 7.0
+        self._load_adapters()
         target = preferred_model or self.DEFAULT_MODEL_MAP.get(self.mode, self.LOCAL_MODEL)
         if force_airgap:
             target = self.LOCAL_MODEL
@@ -159,6 +163,7 @@ class ModelRouter:
 
     def list_available(self) -> Dict[str, bool]:
         """Return which adapters are currently available."""
+        self._load_adapters()
         return {name: True for name in self._adapters}
 
 

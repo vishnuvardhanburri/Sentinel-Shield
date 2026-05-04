@@ -77,6 +77,7 @@ def main() -> int:
         "docs/HOMEPAGE_COPY.md",
         "docs/ACQUIRE_LISTING_COPY.md",
         "docs/COMPLIANCE_MAPPING.md",
+        "docs/KNOWN_LIMITATIONS.md",
         "docs/BUYER_REPLIES.md",
         "docs/API_INTEGRATION_EXAMPLES.md",
         "docs/RED_TEAM_TEST_PACK.md",
@@ -92,6 +93,30 @@ def main() -> int:
             "Core path: enterprise app -> Sovereign Shield proxy -> redaction/DLP/prompt-injection checks -> local/cloud router -> model.",
             "Default positioning: local-first AI using Ollama, with high-sensitivity prompts forced to private inference.",
             "Evidence path: every security decision can be written to a tamper-evident JSONL ledger and summarized into PDF reports.",
+        ],
+    )
+    write_pdf(
+        room / "security_controls.pdf",
+        "Security Controls Checklist",
+        [
+            "Auth: JWT, RBAC, token revocation, disabled-user enforcement.",
+            "Gateway: rate limiting, cost controls, request size limits, suspicious path blocking.",
+            "Network: strict CORS, secure headers, mTLS support via Nginx/Envoy verified headers.",
+            "AI Security: PII detection, pseudonymization, prompt injection blocking, semantic DLP, local routing.",
+            "Audit: salted SHA-256 hash-chained JSONL ledger and evidence PDF certificates.",
+            "Operations: pnpm deploy:enterprise, pnpm submit:ready, pnpm demo:investor, pnpm generate:data-room.",
+        ],
+    )
+    write_pdf(
+        room / "known_limitations.pdf",
+        "Known Limitations",
+        [
+            "Demo metrics are simulated validation data, not customer usage, revenue, or traction.",
+            "Compliance mapping is implementation evidence, not legal certification.",
+            "mTLS enforcement expects a buyer-controlled reverse proxy.",
+            "Redis is recommended for production multi-node state.",
+            "Off-box immutable ledger anchoring must be configured by the buyer.",
+            "Local model performance depends on buyer-selected Ollama model and hardware.",
         ],
     )
     write_pdf(

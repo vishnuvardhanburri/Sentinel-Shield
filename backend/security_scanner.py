@@ -3,20 +3,28 @@ import os
 import hashlib
 from collections import defaultdict
 from typing import List, Dict, Any
-try:
-    from presidio_analyzer import AnalyzerEngine
-    from presidio_analyzer.nlp_engine import NlpEngineProvider
-except ImportError:
-    AnalyzerEngine = None
-    NlpEngineProvider = None
+
+AnalyzerEngine = None
+NlpEngineProvider = None
 
 class EnterpriseScanner:
     """Enterprise-grade security scanner for local data leakage detection."""
     
     def __init__(self):
-        # NLP Analyzer for PII
-        if AnalyzerEngine and NlpEngineProvider:
+        # NLP Analyzer for PII.
+        #
+        # Presidio + spaCy initialization is expensive and has been a source of
+        # startup stalls on buyer/demo machines. Keep regex + India patterns
+        # always-on, and enable NLP only when explicitly requested.
+        enable_nlp = os.getenv("ENABLE_PRESIDIO_NLP", "false").strip().lower() in {"1", "true", "yes", "on"}
+        if enable_nlp:
             try:
+                global AnalyzerEngine, NlpEngineProvider
+                if AnalyzerEngine is None or NlpEngineProvider is None:
+                    from presidio_analyzer import AnalyzerEngine as _AnalyzerEngine
+                    from presidio_analyzer.nlp_engine import NlpEngineProvider as _NlpEngineProvider
+                    AnalyzerEngine = _AnalyzerEngine
+                    NlpEngineProvider = _NlpEngineProvider
                 # Force small model for Cloud memory efficiency (512MB limit)
                 configuration = {
                     "nlp_engine_name": "spacy",

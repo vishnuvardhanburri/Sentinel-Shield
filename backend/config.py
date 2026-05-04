@@ -63,7 +63,7 @@ def require_secret(name: str, *, min_length: int = 32, forbidden: Iterable[str] 
 def allowed_origins() -> List[str]:
     raw = os.getenv(
         "ALLOWED_ORIGINS",
-        "http://localhost:3000,http://localhost:3001,https://sentinel-shield.xaviratechlabs.com",
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,https://sentinel-shield.xaviratechlabs.com",
     )
     origins = [origin.strip().rstrip("/") for origin in raw.split(",") if origin.strip()]
     if "*" in origins:

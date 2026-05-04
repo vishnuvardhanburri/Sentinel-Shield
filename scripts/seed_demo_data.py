@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Seed safe synthetic demo events for Sovereign Shield buyer walkthroughs."""
+import json
 import os
 import sys
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,7 +58,34 @@ def main() -> int:
             policy_triggered="DEMO_QUARANTINE",
         )
 
-    print("Seeded safe synthetic buyer demo data.")
+    demo_dir = ROOT / "logs" / "demo"
+    demo_dir.mkdir(parents=True, exist_ok=True)
+    validation_path = demo_dir / "simulated_validation_events.jsonl"
+    actors = ["finance-analyst-demo", "banking-crm-demo", "hospital-intake-demo", "legal-ops-demo", "redteam-api-demo"]
+    event_types = [
+        ("PII_MASKED_BEFORE_LLM", "DPDP_PII_PSEUDONYMIZATION", "Aadhaar", 6.5),
+        ("PII_MASKED_BEFORE_LLM", "INDIA_STACK_PAN_MASKING", "PAN", 6.1),
+        ("PROMPT_INJECTION_BLOCKED", "LLM_FINGERPRINT_SHIELD", "Prompt Injection", 9.2),
+        ("SEMANTIC_DLP_BLOCKED", "SEMANTIC_TRADE_SECRET_DLP", "Trade Secret Context", 8.8),
+        ("HIGH_SENSITIVITY_LOCAL_ROUTE", "AIR_GAPPED_ROUTING", "Trade Secret Context", 8.1),
+        ("AUTO_QUARANTINE", "ORACLE_AUTO_QUARANTINE", "Aadhaar", 10.0),
+    ]
+    now = datetime.now(timezone.utc)
+    with validation_path.open("w", encoding="utf-8") as handle:
+        for idx in range(1200):
+            event_name, policy, detection_type, risk = event_types[idx % len(event_types)]
+            handle.write(json.dumps({
+                "timestamp": (now - timedelta(minutes=1200 - idx)).isoformat(),
+                "actor": actors[idx % len(actors)],
+                "event": event_name,
+                "policy": policy,
+                "detection_type": detection_type,
+                "risk_score": round(min(10.0, risk + ((idx % 5) * 0.1)), 2),
+                "simulated": True,
+                "disclaimer": "Simulated system validation data; not customer usage.",
+            }) + "\n")
+
+    print(f"Seeded safe synthetic buyer demo data: {validation_path} (1200 events).")
     return 0
 
 
