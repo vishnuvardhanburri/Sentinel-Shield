@@ -22,6 +22,7 @@ Positioning: production-ready AI security infrastructure with full compliance, a
 | Demo event disclaimer | Simulated system validation data; not customer usage, revenue, or traction |
 | Deployment command | `pnpm deploy:enterprise` |
 | Verification command | `pnpm submit:ready` |
+| Tier 3 proof endpoint | `GET /demo/tier3-self-healing` |
 | Target deployment time | Under 15 minutes on a prepared machine |
 | Data-room command | `pnpm generate:data-room` |
 
@@ -44,7 +45,7 @@ No OpenRouter, OpenAI, Anthropic, Gemini, or other third-party LLM API key is re
 
 ## Security Controls Count
 
-18 core security controls are implemented or packaged for buyer deployment:
+22 core security controls are implemented or packaged for buyer deployment:
 
 1. JWT authentication
 2. RBAC permissions
@@ -64,6 +65,10 @@ No OpenRouter, OpenAI, Anthropic, Gemini, or other third-party LLM API key is re
 16. Semantic DLP detection
 17. Oracle risk scoring and quarantine
 18. Tamper-evident JSONL audit ledger with evidence PDF certificate
+19. Hallucination and jailbreak guardian
+20. Base64/adversarial suffix bypass detection
+21. Active-passive HA state-sync package
+22. Golden-image Terraform/CloudFormation deployment pack
 
 ## Components
 
@@ -76,6 +81,7 @@ No OpenRouter, OpenAI, Anthropic, Gemini, or other third-party LLM API key is re
 | Identity masking proxy | `backend/redaction_middleware.py` |
 | India PII patterns | `backend/compliance/india_patterns.py` |
 | Prompt injection shield | `backend/prompt_injection.py` |
+| Hallucination/jailbreak guardian | `backend/llm_guardian.py` |
 | Semantic DLP | `backend/semantic_dlp.py` |
 | Risk/quarantine engine | `backend/risk_engine.py` |
 | Local/cloud model router | `backend/gateway/model_router.py` |
@@ -85,6 +91,8 @@ No OpenRouter, OpenAI, Anthropic, Gemini, or other third-party LLM API key is re
 | Data room generator | `scripts/generate_data_room.py` |
 | Enterprise deploy launcher | `scripts/deploy_enterprise.py` |
 | Buyer verifier | `scripts/verify_buyer.py` |
+| Active-passive HA runbook | `docs/HA_RUNBOOK.md` |
+| Golden-image IaC | `iac/terraform/aws/`, `iac/cloudformation/sovereign-shield-ha.yaml` |
 
 ## Buyer Proof Commands
 

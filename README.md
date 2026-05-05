@@ -35,6 +35,7 @@ Generate audit-ready DPDP/GDPR evidence from every AI request.
 | Identity Masking Proxy | Pseudonymizes sensitive values before model inference |
 | India PII Scanner | Detects Aadhaar, PAN, IFSC, UPI, GST, UHID, ABHA, phone, bank and other DPDP categories |
 | Prompt Injection Shield | Blocks jailbreaks, instruction override attempts, and prompt leakage requests |
+| Hallucination & Jailbreak Guardian | Locally validates adversarial intent, Base64 bypasses, roleplay attacks, and suffix/token smuggling |
 | Semantic DLP | Detects sensitive business context such as trade secrets and M&A discussion |
 | Obsidian Ledger | Tamper-evident JSONL audit chain with salted signatures |
 | Oracle Risk Engine | Scores actors, tracks repeated PII attempts, and auto-quarantines risky users |
@@ -42,6 +43,7 @@ Generate audit-ready DPDP/GDPR evidence from every AI request.
 | Universal Proxy | Standard inspection API for Slack, Teams, CRM, and custom enterprise apps |
 | Admin Console | Live user creation, disablement, forced reset, and RBAC visibility |
 | Enterprise Center | Model inventory, CISO alerts, report history, policy bundles, mTLS config, branding, firewall rules, and ledger anchoring |
+| Active-Passive HA Pack | Redis/Postgres state sync, failover runbook, Terraform, and CloudFormation for buyer-owned private cloud |
 
 ## Local URLs
 
@@ -126,9 +128,12 @@ POST /api/v1/license/validate
 
 ```text
 GET /demo/metrics
+GET /demo/tier3-self-healing
 ```
 
 The demo metrics endpoint returns clearly labeled synthetic enterprise activity for buyer evaluation. It does not claim customer traction or production usage.
+
+The Tier 3 endpoint proves the self-healing security layer: jailbreak guardian, semantic IP DLP, active-passive HA packaging, and golden-image IaC readiness.
 
 ## First Login
 

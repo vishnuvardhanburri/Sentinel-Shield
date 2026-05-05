@@ -69,4 +69,40 @@ ufw enable
 - Generate `/api/v2/enterprise/backup` and store it in buyer-controlled storage.
 """)
 
+(OUT / "ha-failover-runbook.md").write_text("""# Sovereign Shield Active-Passive HA Pack
+
+State sync:
+
+- Redis: JWT revocation, Oracle risk state, quarantine state
+- Postgres: users, tenants, policies, licenses, metadata
+- Obsidian ledger: append-only JSONL hash chain, anchored to buyer storage
+
+Recommended topology:
+
+1. Buyer load balancer sends traffic to active Shield API node.
+2. Passive Shield API node runs the same signed image and shares Redis/Postgres.
+3. Health check `/api/v2/enterprise/deployment-doctor`.
+4. Failover promotes passive node when active health fails.
+
+Target RTO: under 60 seconds with buyer load-balancer health checks.
+Target RPO: zero for Redis/Postgres-backed state; ledger RPO depends on buyer storage sync.
+""")
+
+(OUT / "terraform-golden-image-notes.md").write_text("""# Golden Image Deployment Notes
+
+Packaged IaC paths:
+
+- iac/terraform/aws
+- iac/cloudformation/sovereign-shield-ha.yaml
+
+Example:
+
+```bash
+terraform -chdir=iac/terraform/aws init
+terraform -chdir=iac/terraform/aws apply
+```
+
+Buyer owns VPC, TLS CA, DNS, secrets, container registry, image signing, monitoring, and backup retention.
+""")
+
 print(f"Deployment pack generated: {OUT}")

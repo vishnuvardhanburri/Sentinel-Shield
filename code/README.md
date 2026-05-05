@@ -15,6 +15,7 @@ The production code remains in the root-level application folders so existing co
 | PII and India-stack detection | `../backend/security_scanner.py`, `../backend/compliance/india_patterns.py` |
 | Identity masking proxy | `../backend/redaction_middleware.py` |
 | Prompt injection defense | `../backend/prompt_injection.py` |
+| Hallucination and jailbreak guardian | `../backend/llm_guardian.py` |
 | Semantic DLP | `../backend/semantic_dlp.py` |
 | Risk scoring and quarantine | `../backend/risk_engine.py` |
 | Local/cloud model routing | `../backend/gateway/` |
@@ -23,6 +24,8 @@ The production code remains in the root-level application folders so existing co
 | Buyer dashboard | `../frontend/site/` |
 | Enterprise scripts | `../scripts/` |
 | Tests | `../tests/` |
+| Golden-image IaC | `../iac/` |
+| HA and Tier 3 docs | `../docs/HA_RUNBOOK.md`, `../docs/TIER3_SELF_HEALING.md` |
 
 ## Buyer Verification
 

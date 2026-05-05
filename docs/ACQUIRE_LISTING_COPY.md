@@ -36,6 +36,7 @@ No fake customers or revenue claims are included. Demo metrics are simulated and
 - India and global PII detection
 - Pseudonymization before LLM inference
 - Prompt-injection and jailbreak detector
+- Hallucination and jailbreak guardian for Base64 bypasses, roleplay attacks, and adversarial suffixes
 - Semantic DLP for trade-secret context
 - Local Ollama routing for high-sensitivity prompts
 - Oracle risk scoring and quarantine
@@ -47,6 +48,8 @@ No fake customers or revenue claims are included. Demo metrics are simulated and
 - One-command enterprise deploy and buyer verification
 - Demo Narrative Mode for acquisition videos and non-technical buyer walkthroughs
 - Acquisition Readiness scorecard across product, security, compliance, deployment, monetization, and diligence
+- Active-passive HA pack with Redis/Postgres state sync runbook
+- Golden-image Terraform and CloudFormation deployment assets
 - Buyer replies, FAQ, listing copy, and price strategy
 
 ## Monetization Signal

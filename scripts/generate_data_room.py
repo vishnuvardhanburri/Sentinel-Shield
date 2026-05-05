@@ -81,6 +81,9 @@ def main() -> int:
         "docs/BUYER_REPLIES.md",
         "docs/API_INTEGRATION_EXAMPLES.md",
         "docs/RED_TEAM_TEST_PACK.md",
+        "docs/HA_RUNBOOK.md",
+        "docs/TIER3_SELF_HEALING.md",
+        "docs/SYSTEM_SNAPSHOT.md",
     ]
     for name in docs:
         copy_if_exists(ROOT / name, room / name)
@@ -134,6 +137,10 @@ def main() -> int:
     if screenshots_src.exists():
         shutil.copytree(screenshots_src, room / "screenshots", dirs_exist_ok=True)
 
+    iac_src = ROOT / "iac"
+    if iac_src.exists():
+        shutil.copytree(iac_src, room / "iac", dirs_exist_ok=True)
+
     api_spec = room / "api_docs_openapi.json"
     try:
         import sys
@@ -150,6 +157,12 @@ def main() -> int:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "disclaimer": "Demo usage metrics are simulated; no customer or revenue claims are made.",
         "contents": sorted(str(p.relative_to(room)) for p in room.rglob("*") if p.is_file()),
+        "tier3_self_healing": {
+            "guardian": "backend/llm_guardian.py",
+            "demo_endpoint": "GET /demo/tier3-self-healing",
+            "ha_runbook": "docs/HA_RUNBOOK.md",
+            "iac": ["iac/terraform/aws", "iac/cloudformation/sovereign-shield-ha.yaml"],
+        },
     }
     (room / "DATA_ROOM_MANIFEST.json").write_text(json.dumps(manifest, indent=2))
 

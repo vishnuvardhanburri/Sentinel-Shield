@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Sovereign Shield active-passive HA foundation for buyer-owned AWS accounts."
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  DBInstanceClass:
+    Type: String
+    Default: db.t4g.medium
+  RedisNodeType:
+    Type: String
+    Default: cache.t4g.small
+
+Resources:
+  ShieldSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Private Sovereign Shield API, Redis, and Postgres boundary
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          CidrIp: 10.0.0.0/8
+          Description: mTLS ingress from buyer load balancer only
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 10.0.0.0/8
+          Description: Private buyer network only
+
+  RedisSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: Sovereign Shield Redis subnet group
+      SubnetIds: !Ref PrivateSubnetIds
+
+  RedisRiskState:
+    Type: AWS::ElastiCache::ReplicationGroup
+    Properties:
+      ReplicationGroupDescription: JWT revocation, Oracle risk, and quarantine state
+      Engine: redis
+      CacheNodeType: !Ref RedisNodeType
+      NumCacheClusters: 2
+      AutomaticFailoverEnabled: true
+      TransitEncryptionEnabled: true
+      AtRestEncryptionEnabled: true
+      CacheSubnetGroupName: !Ref RedisSubnetGroup
+      SecurityGroupIds:
+        - !Ref ShieldSecurityGroup
+
+  PostgresSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Sovereign Shield metadata subnet group
+      SubnetIds: !Ref PrivateSubnetIds
+
+  MetadataDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: postgres
+      EngineVersion: "16"
+      DBInstanceClass: !Ref DBInstanceClass
+      AllocatedStorage: 50
+      StorageEncrypted: true
+      MasterUsername: sovereign_admin
+      ManageMasterUserPassword: true
+      DBSubnetGroupName: !Ref PostgresSubnetGroup
+      VPCSecurityGroups:
+        - !Ref ShieldSecurityGroup
+      BackupRetentionPeriod: 7
+      DeletionProtection: true
+
+Outputs:
+  RedisPrimaryEndpoint:
+    Description: Configure REDIS_URL with this endpoint.
+    Value: !GetAtt RedisRiskState.PrimaryEndPoint.Address
+  PostgresEndpoint:
+    Description: Configure DATABASE_URL with this endpoint.
+    Value: !GetAtt MetadataDatabase.Endpoint.Address
+  ShieldSecurityGroupId:
+    Description: Attach to active and passive Shield nodes.
+    Value: !Ref ShieldSecurityGroup
