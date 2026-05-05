@@ -51,6 +51,127 @@ Generate audit-ready DPDP/GDPR evidence from every AI request.
 | Enterprise Center | Model inventory, CISO alerts, report history, policy bundles, mTLS config, branding, firewall rules, and ledger anchoring |
 | Active-Passive HA Pack | Redis/Postgres state sync, failover runbook, Terraform, and CloudFormation for buyer-owned private cloud |
 
+## Enterprise Architecture
+
+### Control Plane
+
+```mermaid
+flowchart LR
+    apps["Enterprise apps<br/>Slack, Teams, CRM, internal tools"] --> proxy["Universal Proxy<br/>standard inspection hook"]
+    proxy --> shield["Zero-Trust API Shield<br/>mTLS, rate limits, request limits"]
+    shield --> policy["Policy Engine<br/>RBAC, department rules, model allowlist"]
+    policy --> dlp["Identity Masking + DLP<br/>India PII, global PII, semantic IP context"]
+    dlp --> guardian["LLM Guardian<br/>prompt injection, jailbreak, Base64 bypass"]
+    guardian --> router{"Sensitivity Score"}
+    router -->|"> 7"| local["Local AI<br/>Ollama private model"]
+    router -->|"allowed only if enabled"| cloud["Optional cloud adapter<br/>disabled by default"]
+    local --> response["Sanitized response"]
+    cloud --> response
+    response --> outbound["Outbound DLP<br/>response leak prevention"]
+    outbound --> apps
+
+    shield --> risk["Oracle Risk Engine<br/>actor scoring + quarantine"]
+    policy --> ledger["Obsidian Ledger<br/>hash-chained JSONL evidence"]
+    dlp --> ledger
+    guardian --> ledger
+    outbound --> ledger
+    ledger --> reports["Evidence PDF<br/>audit certificate"]
+    risk --> dashboard["CISO Dashboard<br/>heatmap, alerts, reports"]
+    reports --> dashboard
+```
+
+### Secure Request Pipeline
+
+```mermaid
+sequenceDiagram
+    participant User as Employee or App
+    participant Gateway as Sovereign Shield Gateway
+    participant Shield as Zero-Trust API Shield
+    participant DLP as PII + Semantic DLP
+    participant Guardian as LLM Guardian
+    participant Router as Sensitivity Router
+    participant Local as Local Ollama
+    participant Ledger as Obsidian Ledger
+    participant CISO as CISO Dashboard
+
+    User->>Gateway: Submit prompt
+    Gateway->>Shield: Validate auth, size, rate, mTLS context
+    Shield->>DLP: Scan Aadhaar, PAN, PHI, trade-secret context
+    DLP->>Guardian: Detect injection, roleplay, Base64 bypass
+    alt Malicious or policy-blocked
+        Guardian->>Ledger: Write blocked event + signature
+        Ledger->>CISO: Update alert and risk score
+        Gateway-->>User: 403 blocked with policy reason
+    else Approved with sensitive data
+        DLP->>Router: Send pseudonymized prompt
+        Router->>Local: Force local model when sensitivity is high
+        Local-->>Gateway: Model response
+        Gateway->>DLP: Outbound leak scan
+        Gateway->>Ledger: Write signed audit event
+        Gateway-->>User: Sanitized response
+    end
+```
+
+### Tamper-Evident Evidence Chain
+
+```mermaid
+flowchart TB
+    e1["Event 1<br/>prompt inspected"] --> h1["Hash 1<br/>sha256(event + previous_hash)"]
+    h1 --> e2["Event 2<br/>PII pseudonymized"]
+    e2 --> h2["Hash 2<br/>sha256(event + Hash 1)"]
+    h2 --> e3["Event 3<br/>jailbreak blocked"]
+    e3 --> h3["Hash 3<br/>sha256(event + Hash 2)"]
+    h3 --> anchor["Ledger Anchor<br/>root hash + timestamp"]
+    anchor --> pdf["Evidence PDF<br/>board and audit report"]
+```
+
+### Active-Passive HA Topology
+
+```mermaid
+flowchart LR
+    lb["Buyer Load Balancer<br/>health checks + mTLS"] --> active["Active Shield Node"]
+    lb -. failover .-> passive["Passive Shield Node"]
+    active --> redis["Redis<br/>sessions, revocation, risk, quarantine"]
+    passive --> redis
+    active --> pg["Postgres<br/>users, tenants, policies, licenses"]
+    passive --> pg
+    active --> storage["Immutable Ledger Storage<br/>JSONL + root anchors"]
+    passive --> storage
+    active --> ollama["Local Ollama Model<br/>private inference"]
+    passive --> ollama
+```
+
+### Buyer Diligence Mindmap
+
+```mermaid
+mindmap
+  root((Sovereign Shield))
+    Security Gateway
+      PII detection
+      Pseudonymization
+      Prompt injection blocking
+      Semantic DLP
+      Local model routing
+    Compliance Evidence
+      DPDP mapping
+      GDPR mapping
+      JSONL ledger
+      SHA-256 audit chain
+      Evidence PDF
+    Operations
+      One-command launch
+      Submit-ready verifier
+      Data-room generator
+      Active-passive HA pack
+      Terraform and CloudFormation
+    Buyer Value
+      Private LLM governance
+      Reduced data leak risk
+      Replaces 6-12 months engineering
+      No external LLM dependency by default
+      Acquisition-ready documentation
+```
+
 ## Local URLs
 
 ```text
