@@ -4,29 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "python3 ../scripts/serve_static_frontend.py",
-    "build": "node -e \"console.log('Static frontend build: ready')\"",
+    "build": "python3 ../scripts/build_static_frontend.py",
     "start": "python3 ../scripts/serve_static_frontend.py",
     "lint": "node -e \"console.log('Static frontend lint: ready')\""
   },
-  "dependencies": {
-    "axios": "^1.13.6",
-    "clsx": "^2.1.1",
-    "framer-motion": "^12.35.0",
-    "lucide-react": "^0.577.0",
-    "next": "16.1.6",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "recharts": "^3.8.0",
-    "tailwind-merge": "^3.5.0"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.1.6",
-    "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+  "dependencies": {},
+  "devDependencies": {}
 }

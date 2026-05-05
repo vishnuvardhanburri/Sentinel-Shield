@@ -2,11 +2,8 @@
   "version": 2,
   "public": false,
   "cleanUrls": true,
-  "framework": "nextjs",
+  "framework": null,
   "buildCommand": "npm run build",
   "installCommand": "npm install",
-  "outputDirectory": ".next",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
-  ]
+  "outputDirectory": "dist"
 }
