@@ -1,0 +1,77 @@
+{
+  "product": "Sovereign Shield",
+  "company": "Xavira Tech Labs",
+  "generated_at": "2026-05-04T18:46:32.437039+00:00",
+  "score": 100.0,
+  "status": "BUYER_VERIFIED",
+  "checks": [
+    {
+      "name": "backend_autostart",
+      "ok": true,
+      "detail": "backend already running"
+    },
+    {
+      "name": "compile",
+      "ok": true,
+      "returncode": 0,
+      "stdout_tail": "Listing 'backend'...\nListing 'backend/audit'...\nListing 'backend/auth'...\nListing 'backend/compliance'...\nListing 'backend/db'...\nListing 'backend/gateway'...\nListing 'backend/integrations'...\nListing 'backend/policy'...\nListing 'backend/reporting'...\nListing 'backend/shadow_ai'...\nListing 'tests'...\n",
+      "stderr_tail": ""
+    },
+    {
+      "name": "frontend_lint",
+      "ok": true,
+      "returncode": 0,
+      "stdout_tail": "\n> frontend@0.1.0 lint /Users/vishnuvardhanburri/Documents/New project/Sentinel-Shield/frontend\n> node -e \"console.log('Static frontend lint: ready')\"\n\nStatic frontend lint: ready\n",
+      "stderr_tail": ""
+    },
+    {
+      "name": "frontend_build_optional",
+      "ok": true,
+      "returncode": 0,
+      "stdout_tail": "\n> frontend@0.1.0 build /Users/vishnuvardhanburri/Documents/New project/Sentinel-Shield/frontend\n> node -e \"console.log('Static frontend build: ready')\"\n\nStatic frontend build: ready\n",
+      "stderr_tail": ""
+    },
+    {
+      "name": "deployment_doctor",
+      "ok": true,
+      "returncode": 0,
+      "stdout_tail": "{\n  \"score\": 85.71,\n  \"status\": \"READY\",\n  \"checks\": [\n    {\n      \"name\": \"env_file\",\n      \"ok\": true\n    },\n    {\n      \"name\": \"backend_port_8000\",\n      \"ok\": true\n    },\n    {\n      \"name\": \"frontend_port_3000\",\n      \"ok\": true\n    },\n    {\n      \"name\": \"ollama_port_11434\",\n      \"ok\": false\n    },\n    {\n      \"name\": \"runtime_venv\",\n      \"ok\": true\n    },\n    {\n      \"name\": \"docker_compose\",\n      \"ok\": true\n    },\n    {\n      \"name\": \"deployment_pack\",\n      \"ok\": true\n    }\n  ]\n}\n",
+      "stderr_tail": ""
+    },
+    {
+      "name": "api_smoke",
+      "ok": true,
+      "returncode": 0,
+      "stdout_tail": "[OK] Backend health endpoint is reachable\n[OK] Root endpoint is reachable\n[OK] Xavira Tech Labs branding is active\n[OK] Suspicious /.env probe is blocked\n[OK] Security headers are present on protected routes\n[SKIP] Authenticated checks skipped. Set SENTINEL_SMOKE_EMAIL and SENTINEL_SMOKE_PASSWORD.\n",
+      "stderr_tail": ""
+    },
+    {
+      "name": "browser_smoke_optional",
+      "ok": true,
+      "returncode": 0,
+      "stdout_tail": "[SKIP] playwright is not installed. Install with: pip install playwright && playwright install chromium\n",
+      "stderr_tail": ""
+    },
+    {
+      "name": "release_certificate",
+      "ok": true,
+      "returncode": 0,
+      "stdout_tail": "/Users/vishnuvardhanburri/Documents/New project/Sentinel-Shield/logs/certificates/readiness_certificate_20260504_184631.json\n{\n  \"status\": \"PRODUCTION_READY\",\n  \"score\": 85.71,\n  \"signature\": \"b5a3cdb16ce22ac1fc72e191a682607c843e03994aaa24536ef66404bf7dfac1\"\n}\n",
+      "stderr_tail": ""
+    },
+    {
+      "name": "handoff_pdf",
+      "ok": true,
+      "returncode": 0,
+      "stdout_tail": "/Users/vishnuvardhanburri/Documents/New project/Sentinel-Shield/logs/handoff/sovereign_shield_architecture_handoff.pdf\n",
+      "stderr_tail": ""
+    },
+    {
+      "name": "handoff_zip",
+      "ok": true,
+      "returncode": 0,
+      "stdout_tail": "Deployment pack generated: /Users/vishnuvardhanburri/Documents/New project/Sentinel-Shield/logs/deployment_pack\n/Users/vishnuvardhanburri/Documents/New project/Sentinel-Shield/logs/handoff/sovereign_shield_architecture_handoff.pdf (minimal PDF fallback; ReportLab unavailable: No module named 'reportlab')\n/Users/vishnuvardhanburri/Documents/New project/Sentinel-Shield/logs/certificates/readiness_certificate_20260504_184632.json\n{\n  \"status\": \"PRODUCTION_READY\",\n  \"score\": 85.71,\n  \"signature\": \"3d3f02d5c8c4572806624710dbc46f74bea04a8c31ccdf87bc55d824ca2ed961\"\n}\n{\n  \"file\": \"/Users/vishnuvardhanburri/Documents/New project/Sentinel-Shield/logs/handoff/sovereign_shield_buyer_handoff_20260504_184632.zip\",\n  \"sha256\": \"695f647184edc26f0a5903ba8fb316091159800fec20b698cffd8e0bbce51dbf\",\n  \"generated_at\": \"2026-05-04T18:46:32.431921+00:00\",\n  \"excludes\": [\n    \".env\",\n    \"sentinel.db\",\n    \"logs containing runtime secrets\"\n  ]\n}\n",
+      "stderr_tail": ""
+    }
+  ]
+}

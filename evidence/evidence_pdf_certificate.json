@@ -1,0 +1,13 @@
+{
+  "status": "EVIDENCE_CERTIFICATE_READY",
+  "disclaimer": "Synthetic evidence PDF for product diligence; no customer claim is made.",
+  "download_url": "/demo/evidence-certificate/download?file=sovereign_shield_buyer_evidence_20260505_091704.pdf",
+  "file": "/Users/vishnuvardhanburri/Documents/New project/Sentinel-Shield/logs/exports/sovereign_shield_buyer_evidence_20260505_091704.pdf",
+  "sha256_certificate": "f59ea15eab9eae938131ecf5c01a9a5c85d9f8297de3665246a3d509e9ced735",
+  "sha256_chain_valid": true,
+  "ledger_path": "/Users/vishnuvardhanburri/Documents/New project/Sentinel-Shield/logs/demo/buyer_evidence_ledger.jsonl",
+  "ledger_entries": 4,
+  "total_pii_blocked": 6,
+  "high_sensitivity_interceptions": 4,
+  "reportlab_available": true
+}

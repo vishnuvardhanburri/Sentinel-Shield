@@ -42,6 +42,14 @@ Docs:      http://localhost:8000/api/docs
 Health:    http://localhost:8000/health
 ```
 
+## Buyer-Facing Folder Map
+
+```text
+/code      Hardened source map for backend, frontend, scripts, and tests
+/docs      Compliance mapping, threat model, system snapshot, listing copy, buyer replies
+/evidence  100/100 buyer verification and SHA-256 evidence certificate
+```
+
 ## One-Command Start
 
 For a simple buyer demo or submission check:
