@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — PDF Report Generator
+Sovereign Shield v2 — PDF Report Generator
 Generates board-ready compliance reports and HIPAA BAA summaries.
 Wraps AuditExporter with compliance scoring and executive summary.
 """

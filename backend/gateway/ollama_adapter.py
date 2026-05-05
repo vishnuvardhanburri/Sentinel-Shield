@@ -1,4 +1,4 @@
-"""Sentinel Shield v2 — Ollama (Local) Adapter"""
+"""Sovereign Shield v2 — Ollama (Local) Adapter"""
 import os
 from typing import Dict, Any
 

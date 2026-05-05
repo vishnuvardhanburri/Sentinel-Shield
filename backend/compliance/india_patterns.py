@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — India-Specific PII Patterns
+Sovereign Shield v2 — India-Specific PII Patterns
 DPDP 2026 compliant regex patterns for Indian PII/sensitive data categories.
 
 Covers: Aadhaar, PAN, UHID, Indian phone, Indian driving license,

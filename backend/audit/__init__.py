@@ -1,4 +1,4 @@
-# Sentinel Shield v2 — Audit Module
+# Sovereign Shield v2 — Audit Module
 from .ledger import AuditLedger, audit_ledger
 from .hash_chain import HashChain
 from .export_engine import AuditExporter

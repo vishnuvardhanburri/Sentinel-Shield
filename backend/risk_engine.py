@@ -1,5 +1,5 @@
 """
-Sentinel Shield Enterprise — Oracle User Risk Scoring
+Sovereign Shield Enterprise — Oracle User Risk Scoring
 
 Maintains a real-time user/API-key risk profile. If an actor attempts to send
 PII more than three times in one hour, the actor is auto-quarantined and a CISO

@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Hash Chain Utilities
+Sovereign Shield v2 — Hash Chain Utilities
 SHA-256 chaining primitives used by the AuditLedger.
 """
 import hashlib

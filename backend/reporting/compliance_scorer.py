@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Compliance Scorer
+Sovereign Shield v2 — Compliance Scorer
 Calculates a unified compliance score (0–100) across HIPAA, DPDP, and GDPR dimensions.
 Used by the enterprise dashboard and board-ready PDF report.
 """

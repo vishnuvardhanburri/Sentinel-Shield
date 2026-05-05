@@ -6,7 +6,7 @@ import time
 
 # --- DESIGN & STYLE ---
 st.set_page_config(
-    page_title="Sentinel Shield v1.0 | Security Intelligence",
+    page_title="Sovereign Shield v1.0 | Security Intelligence",
     page_icon="🛡️",
     layout="wide"
 )
@@ -40,7 +40,7 @@ def get_status():
 status = get_status()
 
 # --- SIDEBAR & NAVIGATION ---
-st.sidebar.markdown("<h2 style='color: #10b981;'>SENTINEL SHIELD</h2>", unsafe_allow_html=True)
+st.sidebar.markdown("<h2 style='color: #10b981;'>SOVEREIGN SHIELD</h2>", unsafe_allow_html=True)
 st.sidebar.caption("v1.0.0 Production Build")
 st.sidebar.success("AIR-GAPPED: Operational")
 st.sidebar.markdown("---")

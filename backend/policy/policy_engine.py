@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Policy Engine
+Sovereign Shield v2 — Policy Engine
 Department-level, YAML-driven policy enforcement.
 
 Policies define per-department rules:

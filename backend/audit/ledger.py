@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Immutable Audit Ledger
+Sovereign Shield v2 — Immutable Audit Ledger
 Append-only audit log with SHA-256 hash chaining for tamper detection.
 
 Every event recorded = {timestamp, user, action, data_hash, prompt_hash, policy_triggered, prev_hash, entry_hash}

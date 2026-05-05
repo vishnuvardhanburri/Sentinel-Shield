@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Webhook & Integration Layer
+Sovereign Shield v2 — Webhook & Integration Layer
 REST API hooks and connectors for EMR, CRM, Slack/Teams, and Zapier.
 All traffic routed through Sentinel's scan → redact → govern pipeline.
 """
@@ -184,9 +184,9 @@ def send_slack_alert(webhook_url: str, message: str, severity: str = "info") -> 
     payload = {
         "attachments": [{
             "color": color_map.get(severity, "#10b981"),
-            "title": f"🛡️ Sentinel Shield Alert [{severity.upper()}]",
+            "title": f"🛡️ Sovereign Shield Alert [{severity.upper()}]",
             "text": message,
-            "footer": f"Sentinel Shield v2 · {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}",
+            "footer": f"Sovereign Shield v2 · {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}",
         }]
     }
     try:
@@ -238,7 +238,7 @@ def test_webhook(hook_id: str) -> Dict[str, Any]:
     test_event = WebhookPayload(
         event_type="TEST_PING",
         tenant_id="default",
-        payload={"message": "Sentinel Shield webhook test", "version": "2.0"},
+        payload={"message": "Sovereign Shield webhook test", "version": "2.0"},
     )
     dispatcher.dispatch(test_event)
     return {"status": "dispatched", "event": "TEST_PING"}

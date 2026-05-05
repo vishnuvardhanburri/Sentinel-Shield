@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Audit Ledger Tests
+Sovereign Shield v2 — Audit Ledger Tests
 Tests the hash chain integrity, tamper detection, and export functions.
 """
 import sys

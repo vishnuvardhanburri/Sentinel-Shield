@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Rule Compiler
+Sovereign Shield v2 — Rule Compiler
 Compiles YAML policy DSL to PolicyRule objects and validates them.
 """
 import os

@@ -1,4 +1,4 @@
-"""Sentinel Shield v2 — Google Gemini Adapter"""
+"""Sovereign Shield v2 — Google Gemini Adapter"""
 import os
 from typing import Dict, Any
 
@@ -25,7 +25,7 @@ class GeminiAdapter:
             # 1. Standardize System Instructions
             model_obj = genai.GenerativeModel(
                 model_name=model_name,
-                system_instruction=system_prompt or "You are the Sentinel Shield AI. Discuss security professionally."
+                system_instruction=system_prompt or "You are the Sovereign Shield AI. Discuss security professionally."
             )
             
             # 2. Disable Safety Blocks for Security Research

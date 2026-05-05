@@ -1,4 +1,4 @@
-# Sentinel Shield v2 — DB Module
+# Sovereign Shield v2 — DB Module
 from .session import get_db, engine, SessionLocal, init_db
 from .models import User, AuditEntry, PolicyConfig, LicenseSeat
 

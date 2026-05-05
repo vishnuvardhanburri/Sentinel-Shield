@@ -1,4 +1,4 @@
-"""Sentinel Shield v2 — OpenAI Adapter"""
+"""Sovereign Shield v2 — OpenAI Adapter"""
 import os
 from typing import Dict, Any
 

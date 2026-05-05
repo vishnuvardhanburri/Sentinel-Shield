@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Shadow AI Detection Engine
+Sovereign Shield v2 — Shadow AI Detection Engine
 Monitors DNS queries and network activity for unauthorized AI tool usage.
 Alerts when staff access ChatGPT, Gemini, Claude, Copilot, etc. directly.
 Optionally blocks via local DNS override.

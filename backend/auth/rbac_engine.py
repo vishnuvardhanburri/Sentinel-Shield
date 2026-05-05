@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — RBAC Engine
+Sovereign Shield v2 — RBAC Engine
 Defines roles, permissions, and enforcement decorators for the enterprise platform.
 
 Role Hierarchy (highest → lowest):

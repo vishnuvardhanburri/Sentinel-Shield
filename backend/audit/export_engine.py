@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Audit Export Engine
+Sovereign Shield v2 — Audit Export Engine
 Generates CSV and PDF compliance reports from the immutable audit ledger.
 Requires: reportlab (for PDF). Falls back to CSV-only if not installed.
 """
@@ -85,7 +85,7 @@ class AuditExporter:
         # ── Header ──────────────────────────────────────────────────────────
         title_style = ParagraphStyle("Title", parent=styles["Title"],
                                      fontSize=20, textColor=colors.HexColor("#10b981"))
-        story.append(Paragraph("🛡️ Sentinel Shield — Compliance Audit Report", title_style))
+        story.append(Paragraph("🛡️ Sovereign Shield — Compliance Audit Report", title_style))
         story.append(Spacer(1, 0.4*cm))
 
         sub_style = ParagraphStyle("Sub", parent=styles["Normal"],
@@ -157,7 +157,7 @@ class AuditExporter:
         footer_style = ParagraphStyle("Footer", parent=styles["Normal"],
                                       fontSize=7, textColor=colors.HexColor("#9ca3af"))
         story.append(Paragraph(
-            "Sentinel Shield v2 · Xavira Tech Labs · This report is cryptographically signed via SHA-256 hash chain. "
+            "Sovereign Shield v2 · Xavira Tech Labs · This report is cryptographically signed via SHA-256 hash chain. "
             "Tampering with audit logs invalidates the chain and is detectable.",
             footer_style
         ))

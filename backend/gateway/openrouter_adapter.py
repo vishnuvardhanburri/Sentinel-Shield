@@ -22,7 +22,7 @@ class OpenRouterAdapter:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "HTTP-Referer": "https://sentinel-shield-beta.vercel.app", # Clean Referer
-            "X-Title": "Sentinel Shield Xavira Tech Labs",
+            "X-Title": "Sovereign Shield Xavira Tech Labs",
             "Content-Type": "application/json"
         }
 

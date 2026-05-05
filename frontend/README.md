@@ -1,6 +1,6 @@
-# Sentinel Shield Frontend
+# Sovereign Shield Frontend
 
-Buyer-facing CISO dashboard for Sentinel Shield by Xavira Tech Labs.
+Buyer-facing CISO dashboard for Sovereign Shield by Xavira Tech Labs.
 
 ## Local Dashboard
 
@@ -14,7 +14,7 @@ Open:
 http://localhost:3000
 ```
 
-The dashboard connects to the Sentinel Shield FastAPI gateway at:
+The dashboard connects to the Sovereign Shield FastAPI gateway at:
 
 ```text
 http://localhost:8000

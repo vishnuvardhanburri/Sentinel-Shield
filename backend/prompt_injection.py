@@ -1,5 +1,5 @@
 """
-Sentinel Shield Enterprise — LLM Fingerprint Detector
+Sovereign Shield Enterprise — LLM Fingerprint Detector
 
 Local prompt-injection and jailbreak classifier. It uses deterministic pattern
 features so it can run in air-gapped environments before any model call.

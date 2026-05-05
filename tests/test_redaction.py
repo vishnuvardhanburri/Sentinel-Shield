@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Redaction Engine Tests
+Sovereign Shield v2 — Redaction Engine Tests
 Tests the core PII redaction pipeline: Presidio + India patterns.
 """
 import sys

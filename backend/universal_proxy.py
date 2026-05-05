@@ -1,5 +1,5 @@
 """
-Sentinel Shield Enterprise — Universal Proxy Hook
+Sovereign Shield Enterprise — Universal Proxy Hook
 
 Standard app-agnostic interface for Slack, Teams, CRMs, and custom tools.
 It returns raw-vs-protected text for localhost demonstrations and forwards the

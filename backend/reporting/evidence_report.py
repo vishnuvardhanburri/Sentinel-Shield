@@ -1,5 +1,5 @@
 """
-Sentinel Shield Enterprise — Evidence PDF Generator
+Sovereign Shield Enterprise — Evidence PDF Generator
 
 Builds a board-ready DPDP 2026/FedRAMP-style evidence report with Obsidian
 ledger integrity, top Oracle risk actors, and a tamper-proof certificate.
@@ -84,7 +84,7 @@ class EvidencePDFGenerator:
         mono = ParagraphStyle("Mono", parent=styles["Normal"], fontName="Courier", fontSize=7, textColor=colors.HexColor("#374151"))
         story: List[Any] = []
 
-        story.append(Paragraph("Sentinel Shield Evidence Report", title))
+        story.append(Paragraph("Sovereign Shield Evidence Report", title))
         story.append(Paragraph(f"{org_name} · Generated {datetime.now(timezone.utc).isoformat()}", styles["Normal"]))
         if compliance_frameworks:
             story.append(Paragraph("Frameworks: " + ", ".join(compliance_frameworks), styles["Normal"]))
@@ -162,7 +162,7 @@ class EvidencePDFGenerator:
     @staticmethod
     def _write_text_fallback(path: str, org_name: str, stats: Dict[str, Any], chain: Dict[str, Any], heatmap: Dict[str, Any], high_sensitivity: List[Dict[str, Any]], certificate: str) -> str:
         with open(path, "w", encoding="utf-8") as f:
-            f.write(f"Sentinel Shield Evidence Report\n{org_name}\n\n")
+            f.write(f"Sovereign Shield Evidence Report\n{org_name}\n\n")
             f.write(json.dumps({
                 "stats": stats,
                 "chain": chain,

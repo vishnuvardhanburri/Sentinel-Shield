@@ -1,1 +1,1 @@
-"""Sentinel Shield backend package."""
+"""Sovereign Shield backend package."""

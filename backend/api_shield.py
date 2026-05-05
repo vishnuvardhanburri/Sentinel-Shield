@@ -1,5 +1,5 @@
 """
-Sentinel Shield Enterprise — Zero-Trust API Shield
+Sovereign Shield Enterprise — Zero-Trust API Shield
 
 FastAPI middleware for service-to-service mTLS enforcement, rate limiting, and
 cost controls. In production, terminate TLS at Envoy/Nginx and forward verified

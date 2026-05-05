@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Consent Management (DPDP 2026 Sec 6-7)
+Sovereign Shield v2 — Consent Management (DPDP 2026 Sec 6-7)
 Records, validates, and manages Data Principal consent for all data processing activities.
 """
 import os

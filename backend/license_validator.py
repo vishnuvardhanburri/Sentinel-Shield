@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — License Validator (Client-Side)
+Sovereign Shield v2 — License Validator (Client-Side)
 Used by the Sentinel backend to validate a locally saved license on startup.
 Calls the license server (cloud mode) or uses offline validation (air-gap mode).
 """

@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — JWT Authentication Handler
+Sovereign Shield v2 — JWT Authentication Handler
 Handles JWT token creation, validation, and refresh for enterprise users.
 """
 import os

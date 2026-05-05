@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Automated License Server
+Sovereign Shield v2 — Automated License Server
 Handles license key generation, activation, validation, expiry, and seat tracking.
 Designed to replace the manual email → key workflow with a full API.
 """

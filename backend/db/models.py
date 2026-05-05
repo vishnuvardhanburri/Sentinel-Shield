@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Database Models (SQLAlchemy ORM)
+Sovereign Shield v2 — Database Models (SQLAlchemy ORM)
 Structured storage for users, audit entries, policy configs, and license seats.
 PostgreSQL in cloud mode; SQLite for air-gap/local installs.
 """

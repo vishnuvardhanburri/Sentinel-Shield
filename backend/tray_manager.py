@@ -77,7 +77,7 @@ def setup():
         pystray.MenuItem("Deactivate Shield", on_stop),
     )
 
-    icon = pystray.Icon("SentinelShield", image, "Sentinel Shield Active", menu)
+    icon = pystray.Icon("SovereignShield", image, "Sovereign Shield Active", menu)
     icon.run()
 
 

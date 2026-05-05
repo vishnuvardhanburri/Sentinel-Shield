@@ -1,5 +1,5 @@
 """
-Sentinel Shield Enterprise — Self-Diagnostic Bootstrapper
+Sovereign Shield Enterprise — Self-Diagnostic Bootstrapper
 
 Runs startup diagnostics before the gateway is considered buyer-ready:
 Ollama/model health, Obsidian ledger integrity, and scanner pattern accuracy.

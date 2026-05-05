@@ -29,7 +29,7 @@ def test_enterprise_model_center_and_version():
     assert c.get("/api/v2/enterprise/models").status_code == 200
     version = c.get("/api/v2/enterprise/version")
     assert version.status_code == 200
-    assert version.json()["product"] == "Sentinel Shield"
+    assert version.json()["product"] == "Sovereign Shield"
 
 
 def test_model_pull_is_disabled_by_default():

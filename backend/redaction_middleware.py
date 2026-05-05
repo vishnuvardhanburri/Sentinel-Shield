@@ -1,5 +1,5 @@
 """
-Sentinel Shield Enterprise — Identity Masking Proxy
+Sovereign Shield Enterprise — Identity Masking Proxy
 
 Stateless redaction middleware for LLM requests. It scans inbound prompts,
 replaces PII with contextual pseudonyms, and returns routing metadata without

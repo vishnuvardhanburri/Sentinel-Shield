@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — DPDP 2026 Compliance Engine
+Sovereign Shield v2 — DPDP 2026 Compliance Engine
 Digital Personal Data Protection Act 2026 (India) compliance layer.
 
 Handles:

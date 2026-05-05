@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Multi-Model Gateway (Router)
+Sovereign Shield v2 — Multi-Model Gateway (Router)
 Routes governed prompts to any AI model backend transparently.
 Deployment modes:
   - AIRGAP: Ollama local models only
@@ -154,7 +154,7 @@ class ModelRouter:
     @staticmethod
     def _default_system_prompt() -> str:
         return (
-            "You are Vault AI, the private local assistant inside Sentinel Shield by Xavira Tech Labs. "
+            "You are Vault AI, the private local assistant inside Sovereign Shield by Xavira Tech Labs. "
             "Answer like a capable general-purpose AI assistant: explain, plan, draft, reason, summarize, "
             "write code, analyze business/security questions, and help the user get work done. "
             "You run through the local sovereign AI gateway, so never claim to be an external cloud model. "

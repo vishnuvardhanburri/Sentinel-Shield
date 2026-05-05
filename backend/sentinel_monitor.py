@@ -1,4 +1,4 @@
-# XAVIRA TECH LABS - SENTINEL SHIELD VERSION 1
+# XAVIRA TECH LABS - SOVEREIGN SHIELD VERSION 1
 import os
 import time
 import sys
@@ -94,7 +94,7 @@ report_sent_log = os.path.join(LOGS_DIR, "report_sent.log")
 
 class SentinelMonitor:
     """
-    SENTINEL SHIELD - AUTONOMOUS DATA LEAK PREVENTION ENGINE
+    SOVEREIGN SHIELD - AUTONOMOUS DATA LEAK PREVENTION ENGINE
     
     This engine provides 24/7 background monitoring of sensitive document droplets.
     It implements a zero-trust architecture where all incoming data is scanned, 
@@ -199,7 +199,7 @@ class SentinelMonitor:
                     if SMTP_CONFIG["VALID"]:
                         try:
                             mime = MIMEText(f"{update_msg}\n\nDownload the new version from your client portal or contact support@xaviratechlabs.com.")
-                            mime["Subject"] = "Sentinel Shield: Lifetime Free Update Available"
+                            mime["Subject"] = "Sovereign Shield: Lifetime Free Update Available"
                             mime["From"] = ALERT_CONFIG['SENDER']
                             mime["To"] = ALERT_CONFIG['RECEIVER']
                             with smtplib.SMTP(SMTP_CONFIG["HOST"], SMTP_CONFIG["PORT"]) as s:
@@ -278,7 +278,7 @@ class SentinelMonitor:
             notification.notify(
                 title=title,
                 message=message,
-                app_name="Sentinel Shield Version 1",
+                app_name="Sovereign Shield Version 1",
                 timeout=10,
                 ticker="Sentinel Alert"
             )
@@ -296,7 +296,7 @@ class SentinelMonitor:
         
         # System Notification (Live popup)
         self.send_system_notification(
-            "⚠️ Sentinel Shield Version 1 Alert",
+            "⚠️ Sovereign Shield Version 1 Alert",
             f"⚠️ ALERT: Data leak risk in file {filename}. Do not share."
         )
         
@@ -313,7 +313,7 @@ class SentinelMonitor:
                 return
 
             email_body = f"""
-            Sentinel Shield Version 1 Security Alert
+            Sovereign Shield Version 1 Security Alert
             -------------------------------
             Type: CRITICAL LEAK BLOCKED
             File: {filename}
@@ -450,7 +450,7 @@ class SentinelMonitor:
         report_body = f"""
         <html>
         <body style='font-family: sans-serif; color: #333;'>
-            <h2 style='color: #10b981;'>Sentinel Shield Version 1 Monthly Intelligence Report</h2>
+            <h2 style='color: #10b981;'>Sovereign Shield Version 1 Monthly Intelligence Report</h2>
             <hr/>
             <h3>🛡️ Security Posture Summary</h3>
             <ul>
@@ -477,7 +477,7 @@ class SentinelMonitor:
                 return
 
             msg = MIMEText(report_body, 'html')
-            msg['Subject'] = f"Sentinel Shield Monthly Summary - {today.strftime('%B %Y')}"
+            msg['Subject'] = f"Sovereign Shield Monthly Summary - {today.strftime('%B %Y')}"
             msg['From'] = ALERT_CONFIG['SENDER']
             msg['To'] = ALERT_CONFIG['RECEIVER']
             
@@ -585,7 +585,7 @@ if __name__ == "__main__":
     # --- HARDWARE LICENSE GATE ---
     if not sentinel_crypto.is_licensed():
         print(f"\n{'-'*50}")
-        print("🚨 SENTINEL SHIELD: LICENSE REQUIRED")
+        print("🚨 SOVEREIGN SHIELD: LICENSE REQUIRED")
         print(f"Hardware ID: {sentinel_crypto.get_machine_id()}")
         print("-" * 50)
         logging.critical("System starting failed: No valid license found.")

@@ -1,5 +1,5 @@
 """
-Sentinel Shield Enterprise — Semantic DLP Hook
+Sovereign Shield Enterprise — Semantic DLP Hook
 
 Detects sensitive business context that does not have stable regex structure:
 M&A activity, trade secrets, unreleased financials, source code secrets, and

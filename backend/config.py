@@ -1,5 +1,5 @@
 """
-Sentinel Shield — fail-closed production configuration.
+Sovereign Shield — fail-closed production configuration.
 
 Security-sensitive values must be present and non-placeholder. This module is
 imported during app boot and by license/JWT modules, so missing secrets stop the

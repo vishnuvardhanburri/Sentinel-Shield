@@ -1,5 +1,5 @@
 """
-Sentinel Shield v2 — Policy Engine Tests
+Sovereign Shield v2 — Policy Engine Tests
 Tests YAML policy loading, rule compilation, and enforcement decisions.
 """
 import sys
