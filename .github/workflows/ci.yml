@@ -127,8 +127,12 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: frontend
 
-      - name: TypeScript type check
-        run: pnpm exec tsc --noEmit
+      - name: Static route check
+        run: |
+          test -f site/index.html
+          test -f site/ops/index.html
+          test -f site/demo/index.html
+          test -f site/pricing/index.html
         working-directory: frontend
 
       - name: Lint
@@ -139,16 +143,15 @@ jobs:
         run: pnpm build
         working-directory: frontend
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:8000
+          SOVEREIGN_STATIC_BUILD: "true"
 
-      - name: Upload frontend build trace
+      - name: Upload frontend build artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: frontend-build-artifacts
           path: |
-            frontend/.next/routes-manifest.json
-            frontend/.next/build-manifest.json
+            frontend/dist/**
           retention-days: 30
 
   # ────────────────────────────────────────────────────────────────────────
