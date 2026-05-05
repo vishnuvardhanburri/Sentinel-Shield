@@ -3,7 +3,7 @@ Sentinel Shield v2 — Multi-Model Gateway (Router)
 Routes governed prompts to any AI model backend transparently.
 Deployment modes:
   - AIRGAP: Ollama local models only
-  - CLOUD/HYBRID: Still default to the local Ollama model unless explicitly configured otherwise.
+  - CLOUD/HYBRID: Still default to the local Ollama model unless cloud adapters are explicitly enabled.
 """
 import os
 import logging
@@ -12,6 +12,7 @@ from typing import Optional, Dict, Any
 logger = logging.getLogger("sentinel.gateway")
 
 DEPLOYMENT_MODE = os.getenv("DEPLOYMENT_MODE", "airgap").lower()  # airgap | cloud | hybrid
+CLOUD_ADAPTERS_ENABLED = os.getenv("CLOUD_ADAPTERS_ENABLED", "false").lower() == "true"
 
 
 class ModelRouter:
@@ -44,7 +45,7 @@ class ModelRouter:
             except ImportError:
                 logger.warning("Ollama adapter unavailable")
 
-        if self.mode in ("cloud", "hybrid"):
+        if self.mode in ("cloud", "hybrid") and CLOUD_ADAPTERS_ENABLED:
             if os.getenv("OPENAI_API_KEY"):
                 try:
                     from .openai_adapter import OpenAIAdapter
@@ -72,6 +73,8 @@ class ModelRouter:
                     self._adapters["openrouter"] = OpenRouterAdapter()
                 except ImportError:
                     logger.warning("OpenRouter adapter unavailable")
+        elif self.mode in ("cloud", "hybrid"):
+            logger.info("Cloud adapters disabled; Sovereign Shield will use local AI only.")
         self._loaded = True
 
     def route(

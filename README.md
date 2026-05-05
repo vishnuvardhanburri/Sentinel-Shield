@@ -11,6 +11,16 @@
 
 The system is designed to run without external LLM API keys. Vault AI uses the buyer's own local Ollama model by default.
 
+Default deployment posture:
+
+```text
+DEPLOYMENT_MODE=airgap
+CLOUD_ADAPTERS_ENABLED=false
+DATABASE_URL=<buyer-owned database>
+```
+
+No OpenRouter, OpenAI, Anthropic, Gemini, or other third-party LLM key is required.
+
 ## High-Conversion Hook
 
 Secure private LLM adoption without leaking PII to external APIs.
@@ -151,6 +161,8 @@ ACTOR_HASH_SALT
 LEDGER_MASTER_SALT
 ALLOWED_ORIGINS
 ```
+
+For buyer deployments, the only required infrastructure dependency is the database. The AI path is local by default through Ollama; cloud LLM adapters stay disabled unless a buyer deliberately opts in with `CLOUD_ADAPTERS_ENABLED=true`.
 
 Generate secure values with:
 

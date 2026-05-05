@@ -19,15 +19,14 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-sqlite:////app/sentinel.db}
       - DEPLOYMENT_MODE=${DEPLOYMENT_MODE:-airgap}
+      - CLOUD_ADAPTERS_ENABLED=${CLOUD_ADAPTERS_ENABLED:-false}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required. Run pnpm production:seal}
       - LICENSE_MASTER_SECRET=${LICENSE_MASTER_SECRET:?LICENSE_MASTER_SECRET is required. Run pnpm production:seal}
       - ACTOR_HASH_SALT=${ACTOR_HASH_SALT:?ACTOR_HASH_SALT is required. Run pnpm production:seal}
       - LEDGER_MASTER_SALT=${LEDGER_MASTER_SALT:?LEDGER_MASTER_SALT is required. Run pnpm production:seal}
       - LICENSE_SERVER_URL=${LICENSE_SERVER_URL:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER:-}

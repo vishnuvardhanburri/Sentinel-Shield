@@ -25,6 +25,23 @@ Positioning: production-ready AI security infrastructure with full compliance, a
 | Target deployment time | Under 15 minutes on a prepared machine |
 | Data-room command | `pnpm generate:data-room` |
 
+## Required Runtime Variables
+
+Sovereign Shield is designed to depend on a buyer-owned database and local AI runtime by default.
+
+Required production variables:
+
+- `DATABASE_URL`
+- `JWT_SECRET_KEY`
+- `LICENSE_MASTER_SECRET`
+- `ACTOR_HASH_SALT`
+- `LEDGER_MASTER_SALT`
+- `ALLOWED_ORIGINS`
+- `DEPLOYMENT_MODE=airgap`
+- `CLOUD_ADAPTERS_ENABLED=false`
+
+No OpenRouter, OpenAI, Anthropic, Gemini, or other third-party LLM API key is required for the default buyer deployment.
+
 ## Security Controls Count
 
 18 core security controls are implemented or packaged for buyer deployment:

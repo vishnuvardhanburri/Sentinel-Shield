@@ -40,3 +40,13 @@ Expected proof:
 BUYER_VERIFIED
 score: 100.0
 ```
+
+## Runtime Dependency Posture
+
+Default deployment depends on:
+
+- buyer-owned `DATABASE_URL`
+- local Ollama runtime for AI
+- fail-closed security secrets
+
+It does not require OpenRouter or any external LLM provider key. Cloud adapters are opt-in only through `CLOUD_ADAPTERS_ENABLED=true`.
