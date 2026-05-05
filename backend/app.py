@@ -1842,6 +1842,8 @@ def release_version(current_user: TokenPayload = Depends(get_active_user)):
     if os.path.exists(release_path):
         with open(release_path, "r", encoding="utf-8") as f:
             data = json.load(f)
+    data["product"] = "Sovereign Shield"
+    data["company"] = "Xavira Tech Labs"
     try:
         import subprocess
         commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=BASE_DIR, text=True, timeout=2).strip()
