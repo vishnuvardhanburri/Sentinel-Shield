@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "python3 ../scripts/serve_static_frontend.py",
-    "build": "python3 ../scripts/build_static_frontend.py",
+    "build": "node ../scripts/build_static_frontend.mjs",
     "start": "python3 ../scripts/serve_static_frontend.py",
     "lint": "node -e \"console.log('Static frontend lint: ready')\""
   },
