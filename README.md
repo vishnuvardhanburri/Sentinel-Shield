@@ -9,6 +9,12 @@
 
 **Production-ready AI security infrastructure with full compliance, audit, and deployment stack—replacing 9–12 months of engineering.**
 
+## Enterprise Demo Video
+
+[![Watch the Sovereign Shield enterprise demo](docs/demo/sovereign-shield-enterprise-demo-poster.jpg)](docs/demo/sovereign-shield-enterprise-demo.mp4)
+
+[Watch the demo video](docs/demo/sovereign-shield-enterprise-demo.mp4) or open the [GitHub demo page](docs/demo/README.md).
+
 The system is designed to run without external LLM API keys. Vault AI uses the buyer's own local Ollama model by default.
 
 Default deployment posture:

@@ -137,6 +137,10 @@ def main() -> int:
     if screenshots_src.exists():
         shutil.copytree(screenshots_src, room / "screenshots", dirs_exist_ok=True)
 
+    demo_src = ROOT / "docs" / "demo"
+    if demo_src.exists():
+        shutil.copytree(demo_src, room / "demo", dirs_exist_ok=True)
+
     iac_src = ROOT / "iac"
     if iac_src.exists():
         shutil.copytree(iac_src, room / "iac", dirs_exist_ok=True)

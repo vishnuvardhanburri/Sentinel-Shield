@@ -25,6 +25,7 @@ Positioning: production-ready AI security infrastructure with full compliance, a
 | Tier 3 proof endpoint | `GET /demo/tier3-self-healing` |
 | Target deployment time | Under 15 minutes on a prepared machine |
 | Data-room command | `pnpm generate:data-room` |
+| Buyer demo video | `docs/demo/sovereign-shield-enterprise-demo.mp4` |
 
 ## Required Runtime Variables
 
@@ -131,3 +132,5 @@ score: 100.0
 ## Diligence Package
 
 The generated data room includes architecture, threat model, security controls, API docs, deployment guide, screenshots, compliance mapping, known limitations, listing copy, buyer replies, and verification artifacts.
+
+The GitHub demo video is available at `docs/demo/sovereign-shield-enterprise-demo.mp4`.
