@@ -48,6 +48,8 @@ No fake customers or revenue claims are included. Demo metrics are simulated and
 - One-command enterprise deploy and buyer verification
 - Demo Narrative Mode for acquisition videos and non-technical buyer walkthroughs
 - Acquisition Readiness scorecard across product, security, compliance, deployment, monetization, and diligence
+- Cross-platform web, desktop, and mobile operator-console foundation
+- Shared TypeScript SDK for API, refresh-token, device-session, RBAC, and audit access
 - Active-passive HA pack with Redis/Postgres state sync runbook
 - Golden-image Terraform and CloudFormation deployment assets
 - Buyer replies, FAQ, listing copy, and price strategy

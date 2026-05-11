@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Sovereign Shield",
+    "slug": "sovereign-shield",
+    "version": "0.1.0",
+    "owner": "xavira-tech-labs",
+    "scheme": "sovereignshield",
+    "orientation": "portrait",
+    "ios": {
+      "bundleIdentifier": "labs.xavira.sovereignshield",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "labs.xavira.sovereignshield"
+    },
+    "extra": {
+      "apiUrl": "https://gateway.internal.example"
+    }
+  }
+}

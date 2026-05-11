@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from fastapi import FastAPI, HTTPException, Depends, Security, Header
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Literal
 import platform
 import shutil
@@ -37,7 +37,16 @@ except ImportError:
     from .vault_crypto import sentinel_crypto
 
 # ── V2 modules ───────────────────────────────────────────────────────────────
-from auth.jwt_handler import get_current_user, create_access_token, revoke_token_id, TokenPayload, verify_token, security_scheme
+from auth.jwt_handler import (
+    get_current_user,
+    create_access_token,
+    create_refresh_token,
+    revoke_token_id,
+    TokenPayload,
+    verify_token,
+    verify_refresh_token,
+    security_scheme,
+)
 from fastapi.security import HTTPAuthorizationCredentials
 from auth.rbac_engine import rbac, Permission
 from audit.ledger import AuditLedger, audit_ledger
@@ -50,7 +59,7 @@ from license_server import router as license_router
 from integrations.webhook_engine import router as integrations_router
 from shadow_ai.detector import router as shadow_ai_router, shadow_detector
 from db.session import init_db, get_db, pwd_context
-from db.models import User, APIKey
+from db.models import User, APIKey, UserSession
 from reporting.compliance_scorer import ComplianceScorer
 from redaction_middleware import IdentityMaskingProxy
 from api_shield import ZeroTrustAPIShieldMiddleware
@@ -207,10 +216,23 @@ async def startup():
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
+class DeviceContextRequest(BaseModel):
+    model_config = {"populate_by_name": True}
+
+    device_id: str = Field("web-console", alias="deviceId")
+    platform: Literal["web", "macos", "windows", "linux", "android", "ios"] = "web"
+    app_version: Optional[str] = Field(None, alias="appVersion")
+    device_name: Optional[str] = Field(None, alias="deviceName")
+
 class LoginRequest(BaseModel):
     email: str
     password: str
     department: Optional[str] = None
+    device: Optional[DeviceContextRequest] = None
+
+class RefreshSessionRequest(BaseModel):
+    refresh_token: str
+    device: Optional[DeviceContextRequest] = None
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
@@ -225,6 +247,18 @@ class MFAVerifyRequest(BaseModel):
 
 class LogoutRequest(BaseModel):
     revoke_current: bool = True
+
+class DeviceSessionRevokeRequest(BaseModel):
+    session_id: str
+
+class QuarantineActionRequest(BaseModel):
+    actor_hash: str
+    action: Literal["release", "extend", "deny"] = "release"
+    reason: Optional[str] = None
+
+class EmergencyKillSwitchRequest(BaseModel):
+    scope: Literal["tenant", "gateway", "model-routing"] = "tenant"
+    reason: str
 
 class UserCreateRequest(BaseModel):
     email: str
@@ -364,6 +398,80 @@ class ThreatModelRequest(BaseModel):
     mTLS_enforced: bool = True
 
 
+def _token_claims_for_user(user: User, force_password_change: bool) -> dict:
+    return {
+        "sub": user.email,
+        "email": user.email,
+        "role": user.role,
+        "department": user.department,
+        "tenant_id": user.tenant_id,
+        "force_password_change": force_password_change,
+    }
+
+
+def _issue_token_bundle(user: User, force_password_change: bool) -> dict:
+    claims = _token_claims_for_user(user, force_password_change)
+    access_token = create_access_token(data=claims)
+    refresh_token = create_refresh_token(data=claims)
+    now = datetime.now(timezone.utc)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_at": (now + timedelta(hours=int(os.getenv("JWT_EXPIRY_HOURS", "8")))).isoformat(),
+        "refresh_expires_at": (now + timedelta(days=int(os.getenv("JWT_REFRESH_DAYS", "7")))).isoformat(),
+    }
+
+
+def _public_device_session(session: UserSession) -> dict:
+    return {
+        "id": session.id,
+        "tenant_id": session.tenant_id,
+        "device_id": session.device_id,
+        "device_name": session.device_name,
+        "platform": session.platform,
+        "app_version": session.app_version,
+        "started_at": session.started_at.isoformat() if session.started_at else None,
+        "ended_at": session.ended_at.isoformat() if session.ended_at else None,
+        "revoked_at": session.revoked_at.isoformat() if session.revoked_at else None,
+        "queries_run": session.queries_run,
+        "total_redactions": session.total_redactions,
+        "max_risk_score": session.max_risk_score,
+    }
+
+
+def _record_device_session(
+    db: Session,
+    user: User,
+    device: Optional[DeviceContextRequest],
+    refresh_token: str,
+) -> dict:
+    device = device or DeviceContextRequest()
+    refresh_payload = verify_refresh_token(refresh_token)
+    session = db.query(UserSession).filter(
+        UserSession.user_id == user.id,
+        UserSession.device_id == device.device_id,
+        UserSession.revoked_at.is_(None),
+        UserSession.ended_at.is_(None),
+    ).first()
+    if not session:
+        session = UserSession(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            tenant_id=user.tenant_id,
+            started_at=datetime.now(timezone.utc),
+        )
+    session.device_id = device.device_id[:128]
+    session.device_name = (device.device_name or device.platform)[:255]
+    session.platform = device.platform
+    session.app_version = (device.app_version or "unknown")[:50]
+    session.refresh_jti = refresh_payload.jti
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return _public_device_session(session)
+
+
 # ── Auth Endpoints (V2 Professional) ──────────────────────────────────────────
 @app.post("/api/v2/auth/login")
 def login(req: LoginRequest, db: Session = Depends(get_db)):
@@ -379,24 +487,84 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     db.commit()
 
     force_password_change = bool((getattr(user, "metadata_", None) or {}).get("force_password_change"))
-    token = create_access_token(data={
-        "sub": user.email,
-        "email": user.email,
-        "role": user.role,
-        "department": user.department,
-        "tenant_id": user.tenant_id,
-        "force_password_change": force_password_change,
-    })
+    tokens = _issue_token_bundle(user, force_password_change)
+    device_session = _record_device_session(db, user, req.device, tokens["refresh_token"])
     return {
-        "access_token": token,
+        "access_token": tokens["access_token"],
+        "refresh_token": tokens["refresh_token"],
         "token_type": "bearer",
         "force_password_change": force_password_change,
+        "tokens": {
+            "accessToken": tokens["access_token"],
+            "refreshToken": tokens["refresh_token"],
+            "expiresAt": tokens["expires_at"],
+            "refreshExpiresAt": tokens["refresh_expires_at"],
+        },
+        "device_session": device_session,
         "user": {
+            "id": user.id,
+            "sub": user.email,
             "email": user.email,
             "role": user.role,
             "name": user.full_name,
-            "dept": user.department
+            "full_name": user.full_name,
+            "dept": user.department,
+            "department": user.department,
+            "tenant_id": user.tenant_id,
+            "tenantId": user.tenant_id,
+            "forcePasswordChange": force_password_change,
         }
+    }
+
+@app.post("/api/v2/auth/refresh")
+def refresh_session(req: RefreshSessionRequest, db: Session = Depends(get_db)):
+    """Rotate a refresh token and return a fresh access token for operator consoles."""
+    payload = verify_refresh_token(req.refresh_token)
+    user = db.query(User).filter(User.email == payload.sub).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=403, detail="USER_DISABLED_OR_NOT_FOUND")
+
+    force_password_change = bool((getattr(user, "metadata_", None) or {}).get("force_password_change"))
+    tokens = _issue_token_bundle(user, force_password_change)
+    if payload.jti:
+        revoke_token_id(payload.jti, payload.exp)
+    device_session = _record_device_session(db, user, req.device, tokens["refresh_token"])
+    audit_ledger.log(
+        action="DEVICE_SESSION_REFRESHED",
+        user_id=user.email,
+        user_role=user.role,
+        tenant_id=user.tenant_id,
+        metadata={
+            "device_id": device_session.get("device_id"),
+            "platform": device_session.get("platform"),
+            "session_id": device_session.get("id"),
+        },
+    )
+    return {
+        "access_token": tokens["access_token"],
+        "refresh_token": tokens["refresh_token"],
+        "token_type": "bearer",
+        "force_password_change": force_password_change,
+        "tokens": {
+            "accessToken": tokens["access_token"],
+            "refreshToken": tokens["refresh_token"],
+            "expiresAt": tokens["expires_at"],
+            "refreshExpiresAt": tokens["refresh_expires_at"],
+        },
+        "device_session": device_session,
+        "user": {
+            "id": user.id,
+            "sub": user.email,
+            "email": user.email,
+            "role": user.role,
+            "name": user.full_name,
+            "full_name": user.full_name,
+            "dept": user.department,
+            "department": user.department,
+            "tenant_id": user.tenant_id,
+            "tenantId": user.tenant_id,
+            "forcePasswordChange": force_password_change,
+        },
     }
 
 @app.post("/api/v2/auth/register")
@@ -433,6 +601,52 @@ def logout(current_user: TokenPayload = Depends(get_active_user)):
     if current_user.jti:
         revoke_token_id(current_user.jti, current_user.exp)
     return {"status": "SUCCESS", "message": "Session revoked."}
+
+
+@app.get("/api/v2/devices/sessions")
+def device_sessions(
+    current_user: TokenPayload = Depends(get_active_user),
+    db: Session = Depends(get_db),
+):
+    """List active operator-console device sessions for desktop, mobile, and web."""
+    rbac.enforce(current_user.role, Permission.VIEW_OWN_SESSIONS)
+    query = db.query(UserSession).join(User).filter(UserSession.tenant_id == current_user.tenant_id)
+    if not rbac.has_permission(current_user.role, Permission.VIEW_ALL_SESSIONS):
+        query = query.filter(User.email == current_user.sub)
+    sessions = query.order_by(UserSession.started_at.desc()).limit(250).all()
+    return {"sessions": [_public_device_session(session) for session in sessions], "total": len(sessions)}
+
+
+@app.post("/api/v2/devices/sessions/revoke")
+def revoke_device_session(
+    req: DeviceSessionRevokeRequest,
+    current_user: TokenPayload = Depends(get_active_user),
+    db: Session = Depends(get_db),
+):
+    """Revoke one tracked device session and its refresh token lineage."""
+    rbac.enforce(current_user.role, Permission.VIEW_OWN_SESSIONS)
+    session = db.query(UserSession).join(User).filter(
+        UserSession.id == req.session_id,
+        UserSession.tenant_id == current_user.tenant_id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="SESSION_NOT_FOUND")
+    if not rbac.has_permission(current_user.role, Permission.VIEW_ALL_SESSIONS) and session.user.email != current_user.sub:
+        raise HTTPException(status_code=403, detail="SESSION_SCOPE_DENIED")
+    session.revoked_at = datetime.now(timezone.utc)
+    session.ended_at = session.revoked_at
+    if session.refresh_jti:
+        revoke_token_id(session.refresh_jti)
+    db.commit()
+    audit_ledger.log(
+        action="DEVICE_SESSION_REVOKED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+        policy_triggered="ZERO_TRUST_SESSION_CONTROL",
+        metadata={"session_id": req.session_id, "device_id": session.device_id, "platform": session.platform},
+    )
+    return {"status": "REVOKED", "session": _public_device_session(session)}
 
 
 def _public_user(user: User) -> dict:
@@ -1983,6 +2197,60 @@ def release_quarantine(actor_hash: str, current_user: TokenPayload = Depends(get
         metadata={"actor_hash": actor_hash, "mode": "review_recorded"},
     )
     return {"status": "REVIEW_RECORDED", "actor_hash": actor_hash, "note": "Risk quarantine expires as the one-hour window decays."}
+
+
+@app.post("/api/v2/enterprise/quarantine/action")
+def quarantine_action(req: QuarantineActionRequest, current_user: TokenPayload = Depends(get_active_user)):
+    """Cross-platform quarantine approval endpoint for web, desktop, and mobile consoles."""
+    rbac.enforce(current_user.role, Permission.MANAGE_USERS)
+    audit_ledger.log(
+        action="QUARANTINE_ACTION_REVIEWED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+        policy_triggered="MANUAL_QUARANTINE_REVIEW",
+        risk_score=7.5 if req.action != "release" else 4.0,
+        metadata={
+            "actor_hash": req.actor_hash,
+            "action": req.action,
+            "reason": req.reason,
+            "operator_console": "cross_platform",
+        },
+    )
+    return {
+        "status": "REVIEW_RECORDED",
+        "actor_hash": req.actor_hash,
+        "action": req.action,
+        "note": "Oracle risk state is server-owned; quarantine windows decay or extend according to policy.",
+    }
+
+
+@app.post("/api/v2/enterprise/kill-switch")
+def emergency_kill_switch(req: EmergencyKillSwitchRequest, current_user: TokenPayload = Depends(get_active_user)):
+    """Audit-backed emergency control for executive mobile approvals and CISO consoles."""
+    rbac.enforce(current_user.role, Permission.MANAGE_USERS)
+    record = {
+        "scope": req.scope,
+        "reason": req.reason,
+        "requested_by": current_user.sub,
+        "tenant_id": current_user.tenant_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "mode": "audit_recorded_fail_closed",
+    }
+    path = os.path.join(LOGS_DIR, "kill_switch.jsonl")
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record) + "\n")
+    audit_ledger.log(
+        action="EMERGENCY_KILL_SWITCH_RECORDED",
+        user_id=current_user.sub,
+        user_role=current_user.role,
+        tenant_id=current_user.tenant_id,
+        policy_triggered="EXECUTIVE_EMERGENCY_CONTROL",
+        risk_score=10.0,
+        metadata=record,
+    )
+    return {"status": "RECORDED", "enforcement": "fail_closed_policy_review_required", "record": record}
 
 @app.post("/api/v2/enterprise/policy-bundles/sign")
 def sign_policy_bundle(req: PolicyBundleRequest, current_user: TokenPayload = Depends(get_active_user)):

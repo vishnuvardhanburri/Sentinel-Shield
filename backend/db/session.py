@@ -47,6 +47,7 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     _ensure_user_metadata_column()
     _ensure_api_key_table()
+    _ensure_user_session_device_columns()
     seed_db()
 
 
@@ -99,6 +100,29 @@ def _ensure_api_key_table():
     if not DATABASE_URL.startswith("sqlite"):
         return
     Base.metadata.tables["api_keys"].create(bind=engine, checkfirst=True)
+
+
+def _ensure_user_session_device_columns():
+    """Best-effort SQLite migration for cross-platform device sessions."""
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+    inspector = inspect(engine)
+    if not inspector.has_table("user_sessions"):
+        Base.metadata.tables["user_sessions"].create(bind=engine, checkfirst=True)
+        return
+    columns = {col["name"] for col in inspector.get_columns("user_sessions")}
+    additions = {
+        "device_id": "VARCHAR(128)",
+        "device_name": "VARCHAR(255)",
+        "platform": "VARCHAR(50)",
+        "app_version": "VARCHAR(50)",
+        "refresh_jti": "VARCHAR(128)",
+        "revoked_at": "DATETIME",
+    }
+    with engine.begin() as conn:
+        for column, column_type in additions.items():
+            if column not in columns:
+                conn.execute(text(f"ALTER TABLE user_sessions ADD COLUMN {column} {column_type}"))
 
 
 def get_db() -> Generator[Session, None, None]:

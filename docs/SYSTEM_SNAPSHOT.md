@@ -15,9 +15,9 @@ Positioning: production-ready AI security infrastructure with full compliance, a
 | Product | Sovereign Shield |
 | Company | Xavira Tech Labs |
 | Category | Enterprise AI Security Gateway for Private LLM Deployments |
-| API endpoints | 96 total routes / 58 API routes |
+| API endpoints | 80 declared app routes / 61 API route decorators |
 | Backend Python modules | 50 |
-| Buyer UI pages/assets | 6 static frontend files |
+| Buyer UI pages/assets | Static buyer dashboard plus web, desktop, and mobile operator shells |
 | Simulated validation events | 1,200 |
 | Demo event disclaimer | Simulated system validation data; not customer usage, revenue, or traction |
 | Deployment command | `pnpm deploy:enterprise` |
@@ -46,7 +46,7 @@ No OpenRouter, OpenAI, Anthropic, Gemini, or other third-party LLM API key is re
 
 ## Security Controls Count
 
-22 core security controls are implemented or packaged for buyer deployment:
+28 core security controls are implemented or packaged for buyer deployment:
 
 1. JWT authentication
 2. RBAC permissions
@@ -70,6 +70,12 @@ No OpenRouter, OpenAI, Anthropic, Gemini, or other third-party LLM API key is re
 20. Base64/adversarial suffix bypass detection
 21. Active-passive HA state-sync package
 22. Golden-image Terraform/CloudFormation deployment pack
+23. Refresh-token rotation
+24. Device session tracking
+25. Device session revocation
+26. Shared TypeScript SDK contract
+27. Tauri secure IPC boundary
+28. Mobile encrypted token storage posture
 
 ## Components
 
@@ -94,6 +100,13 @@ No OpenRouter, OpenAI, Anthropic, Gemini, or other third-party LLM API key is re
 | Buyer verifier | `scripts/verify_buyer.py` |
 | Active-passive HA runbook | `docs/HA_RUNBOOK.md` |
 | Golden-image IaC | `iac/terraform/aws/`, `iac/cloudformation/sovereign-shield-ha.yaml` |
+| Shared TypeScript SDK | `packages/sdk/` |
+| Shared design system | `packages/design-system/` |
+| Next.js operator shell | `apps/web/` |
+| Tauri desktop shell | `apps/desktop/` |
+| React Native mobile shell | `apps/mobile/` |
+| Cross-platform release workflow | `.github/workflows/cross-platform-release.yml` |
+| Cross-platform architecture | `docs/CROSS_PLATFORM_ARCHITECTURE.md` |
 
 ## Buyer Proof Commands
 
@@ -109,7 +122,7 @@ pnpm generate:data-room
 Recommended file name:
 
 ```text
-sentinel_shield_enterprise_demo.mp4
+sovereign_shield_enterprise_demo.mp4
 ```
 
 Recommended 5–6 minute flow:

@@ -2,7 +2,7 @@
 
 ## Acquisition-Grade Security Posture
 
-Sentinel Shield is an enterprise AI security gateway for private LLM deployments. The production posture is designed for buyer-owned environments where secrets, salts, audit logs, model endpoints, databases, and backups remain under the buyer's control.
+Sovereign Shield is an enterprise AI security gateway for private LLM deployments. The production posture is designed for buyer-owned environments where secrets, salts, audit logs, model endpoints, databases, and backups remain under the buyer's control.
 
 This document is written for CISO, CTO, security engineering, and M&A diligence review. It is not a certification claim and does not replace a buyer's legal or compliance review.
 
@@ -15,6 +15,7 @@ Production buyers should run the latest sealed commit on `main` and keep a priva
 | Area | Control | Implementation |
 | --- | --- | --- |
 | Auth | JWT auth, RBAC roles, token revocation | `backend/auth/jwt_handler.py`, `backend/auth/rbac_engine.py` |
+| Sessions | Refresh-token rotation and device session tracking | `backend/app.py`, `backend/db/models.py` |
 | Admin | Super Admin, Admin, Auditor, Staff, API Client roles | `backend/db/models.py`, RBAC permissions |
 | Secrets | Fail-closed config, no placeholder fallback | `backend/config.py` |
 | CORS | Explicit origin allowlist, no wildcard | `ALLOWED_ORIGINS`, FastAPI CORS middleware |
@@ -30,6 +31,7 @@ Production buyers should run the latest sealed commit on `main` and keep a priva
 | Risk | Oracle risk scoring and quarantine | `backend/risk_engine.py` |
 | Audit | Hash-chained JSONL ledger with salted signatures | `backend/audit/ledger.py` |
 | Evidence | PDF report with SHA-256 certificate | `backend/reporting/evidence_report.py`, `/demo/evidence-certificate` |
+| Cross-Platform Clients | Thin operator consoles with no business logic duplication | `apps/`, `packages/sdk/` |
 
 ## Secret Handling
 
@@ -61,6 +63,10 @@ ALLOWED_ORIGINS=https://your-dashboard.example.com
 ## Data Residency
 
 Air-gap mode routes high-risk AI requests through local Ollama. Sensitive prompts are scanned, pseudonymized, policy-checked, and audit-logged before model inference. Cloud adapters are optional and should only be enabled by buyer policy.
+
+## Cross-Platform Client Security
+
+Web, desktop, and mobile clients are operator consoles only. They never embed LLM keys, database URLs, license secrets, ledger salts, or direct Ollama endpoints. Desktop uses a deny-by-default Tauri IPC surface. Mobile stores tokens through encrypted platform storage and requires certificate pinning for production native builds. All high-risk actions still require FastAPI RBAC and ledger audit.
 
 ## Production Defaults
 

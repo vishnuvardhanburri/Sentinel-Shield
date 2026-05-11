@@ -22,6 +22,11 @@ The production code remains in the root-level application folders so existing co
 | Tamper-evident audit ledger | `../backend/audit/` |
 | Evidence PDF reporting | `../backend/reporting/` |
 | Buyer dashboard | `../frontend/site/` |
+| Next.js operator console | `../apps/web/` |
+| Tauri desktop console | `../apps/desktop/` |
+| React Native mobile console | `../apps/mobile/` |
+| Shared TypeScript SDK | `../packages/sdk/` |
+| Shared design system | `../packages/design-system/` |
 | Enterprise scripts | `../scripts/` |
 | Tests | `../tests/` |
 | Golden-image IaC | `../iac/` |

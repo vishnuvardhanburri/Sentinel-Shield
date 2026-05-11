@@ -1,6 +1,6 @@
 # Sovereign Shield
 
-[![Sovereign Shield v2 — CI Pipeline](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml/badge.svg)](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml)
+[![Sovereign Shield v2 CI Pipeline](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml/badge.svg)](https://github.com/vishnuvardhanburri/Sovereign-Shield/actions/workflows/ci.yml)
 
 > **Enterprise Acquisition Ready — Verified Build**
 > Includes: Security Hardening, Compliance Mapping, Data Room, Deployment Pack
@@ -171,6 +171,32 @@ mindmap
       No external LLM dependency by default
       Acquisition-ready documentation
 ```
+
+## Cross-Platform Enterprise Consoles
+
+Sovereign Shield now includes a backend-first cross-platform product structure. The FastAPI gateway remains the source of truth, while every client behaves as a secure operator console.
+
+```text
+apps/web        Next.js CISO console
+apps/desktop    Tauri console for macOS, Windows, and Linux
+apps/mobile     React Native console for Android and iOS
+packages/sdk    Shared API, JWT refresh, device sessions, RBAC, and audit client
+packages/design-system  Shared Xavira/Sovereign UI tokens
+```
+
+Supported operator surfaces:
+
+- Web dashboard for security operations and buyer demos
+- macOS, Windows, and Linux desktop console with native alert posture and secure IPC
+- Android and iOS executive console with encrypted token storage and approval workflows
+
+Core cross-platform docs:
+
+- `docs/CROSS_PLATFORM_ARCHITECTURE.md`
+- `docs/cross-platform/API_CONTRACT.md`
+- `docs/cross-platform/SECURITY_HARDENING_CHECKLIST.md`
+- `docs/cross-platform/RELEASE_WORKFLOW.md`
+- `docs/cross-platform/MIGRATION_PLAN.md`
 
 ## Local URLs
 

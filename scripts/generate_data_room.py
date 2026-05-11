@@ -84,6 +84,12 @@ def main() -> int:
         "docs/HA_RUNBOOK.md",
         "docs/TIER3_SELF_HEALING.md",
         "docs/SYSTEM_SNAPSHOT.md",
+        "docs/CROSS_PLATFORM_ARCHITECTURE.md",
+        "docs/cross-platform/API_CONTRACT.md",
+        "docs/cross-platform/SECURITY_HARDENING_CHECKLIST.md",
+        "docs/cross-platform/RELEASE_WORKFLOW.md",
+        "docs/cross-platform/MIGRATION_PLAN.md",
+        "docs/cross-platform/PACKAGING_MATRIX.md",
     ]
     for name in docs:
         copy_if_exists(ROOT / name, room / name)
@@ -94,6 +100,7 @@ def main() -> int:
         [
             "Category: Enterprise AI Security Gateway for Private LLM Deployments.",
             "Core path: enterprise app -> Sovereign Shield proxy -> redaction/DLP/prompt-injection checks -> local/cloud router -> model.",
+            "Client path: Next.js web, Tauri desktop, and React Native mobile consoles -> shared TypeScript SDK -> FastAPI gateway.",
             "Default positioning: local-first AI using Ollama, with high-sensitivity prompts forced to private inference.",
             "Evidence path: every security decision can be written to a tamper-evident JSONL ledger and summarized into PDF reports.",
         ],
@@ -103,6 +110,7 @@ def main() -> int:
         "Security Controls Checklist",
         [
             "Auth: JWT, RBAC, token revocation, disabled-user enforcement.",
+            "Cross-platform auth: refresh-token rotation, device session tracking, and device revocation.",
             "Gateway: rate limiting, cost controls, request size limits, suspicious path blocking.",
             "Network: strict CORS, secure headers, mTLS support via Nginx/Envoy verified headers.",
             "AI Security: PII detection, pseudonymization, prompt injection blocking, semantic DLP, local routing.",
@@ -166,6 +174,14 @@ def main() -> int:
             "demo_endpoint": "GET /demo/tier3-self-healing",
             "ha_runbook": "docs/HA_RUNBOOK.md",
             "iac": ["iac/terraform/aws", "iac/cloudformation/sovereign-shield-ha.yaml"],
+        },
+        "cross_platform": {
+            "web": "apps/web",
+            "desktop": "apps/desktop",
+            "mobile": "apps/mobile",
+            "shared_sdk": "packages/sdk",
+            "design_system": "packages/design-system",
+            "release_workflow": ".github/workflows/cross-platform-release.yml",
         },
     }
     (room / "DATA_ROOM_MANIFEST.json").write_text(json.dumps(manifest, indent=2))

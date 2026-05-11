@@ -26,6 +26,14 @@
     "handoff:zip": "python3 scripts/buyer_handoff_zip.py",
     "generate:data-room": "python3 scripts/generate_data_room.py",
     "screenshots:capture": "python3 scripts/capture_dashboard_screenshots.py",
-    "production:seal": "bash scripts/production_seal.sh"
+    "production:seal": "bash scripts/production_seal.sh",
+    "cross:check": "pnpm --filter @sovereign-shield/sdk check && pnpm --filter @sovereign-shield/design-system check",
+    "cross:doctor": "python3 scripts/cross_platform_doctor.py",
+    "desktop:dev": "pnpm --filter @sovereign-shield/desktop dev",
+    "desktop:build": "pnpm --filter @sovereign-shield/desktop build",
+    "mobile:dev": "pnpm --filter @sovereign-shield/mobile dev",
+    "mobile:check": "pnpm --filter @sovereign-shield/mobile check",
+    "web:dev": "pnpm --filter @sovereign-shield/web dev",
+    "web:build": "pnpm --filter @sovereign-shield/web build"
   }
 }

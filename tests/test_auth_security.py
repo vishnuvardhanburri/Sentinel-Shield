@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../backend"))
 
-from auth.jwt_handler import JWT_ALGORITHM, JWT_SECRET, JWTHandler, revoke_token_id
+from auth.jwt_handler import JWT_ALGORITHM, JWT_SECRET, JWTHandler, revoke_token_id, verify_refresh_token
 
 
 def test_access_tokens_include_unique_jti():
@@ -46,3 +46,16 @@ def test_revoked_token_is_rejected():
 
     assert exc.value.status_code == 401
     assert exc.value.detail == "Token revoked"
+
+
+def test_refresh_token_verifier_accepts_only_refresh_tokens():
+    handler = JWTHandler()
+    refresh = handler.create_refresh_token({"sub": "a@example.com", "email": "a@example.com", "role": "STAFF"})
+    access = handler.create_access_token({"sub": "a@example.com", "email": "a@example.com", "role": "STAFF"})
+
+    assert verify_refresh_token(refresh).sub == "a@example.com"
+    with pytest.raises(HTTPException) as exc:
+        verify_refresh_token(access)
+
+    assert exc.value.status_code == 401
+    assert exc.value.detail == "Invalid token type"

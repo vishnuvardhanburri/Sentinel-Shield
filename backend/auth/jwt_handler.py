@@ -87,6 +87,31 @@ class JWTHandler:
         except jwt.InvalidTokenError:
             raise HTTPException(status_code=401, detail="Invalid token")
 
+    def verify_refresh_token(self, token: str) -> TokenPayload:
+        """Validates a refresh token and returns the decoded payload."""
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            if payload.get("type") != "refresh":
+                raise HTTPException(status_code=401, detail="Invalid token type")
+            jti = payload.get("jti")
+            if jti and is_token_revoked(jti):
+                raise HTTPException(status_code=401, detail="Token revoked")
+            return TokenPayload(
+                sub=payload.get("sub", ""),
+                email=payload.get("email", ""),
+                role=payload.get("role", "STAFF"),
+                department=payload.get("department"),
+                tenant_id=payload.get("tenant_id", "default"),
+                force_password_change=bool(payload.get("force_password_change", False)),
+                exp=payload.get("exp"),
+                iat=payload.get("iat"),
+                jti=jti,
+            )
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token expired")
+        except jwt.InvalidTokenError:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
     def get_current_user(
         self,
         credentials: Optional[HTTPAuthorizationCredentials] = Security(security_scheme)
@@ -148,6 +173,10 @@ def create_refresh_token(data: Dict[str, Any]) -> str:
 
 def verify_token(token: str) -> TokenPayload:
     return _handler.verify_token(token)
+
+
+def verify_refresh_token(token: str) -> TokenPayload:
+    return _handler.verify_refresh_token(token)
 
 
 def get_current_user(

@@ -12,3 +12,4 @@ Sovereign Shield is acquisition-ready as a product foundation, but buyers should
 6. Local LLM quality, latency, and model governance depend on the buyer's Ollama model and hardware.
 7. Cloud LLM adapters are present but optional; high-sensitivity routing should remain local unless buyer policy allows cloud processing.
 8. Buyers should run their own penetration test, dependency review, and legal compliance review before processing real regulated data.
+9. Cross-platform desktop and mobile builds require buyer-owned signing, notarization, app-store, and certificate-pinning configuration before external distribution.

@@ -1,4 +1,4 @@
-name: Sentinel Shield v2 — CI Pipeline
+name: Sovereign Shield v2 — CI Pipeline
 
 on:
   push:
@@ -124,7 +124,7 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install frontend dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --ignore-workspace --frozen-lockfile
         working-directory: frontend
 
       - name: Static route check
@@ -207,7 +207,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build backend image
-        run: docker build -f Dockerfile.backend -t sentinel-backend:test .
+        run: docker build -f Dockerfile.backend -t sovereign-backend:test .
 
       - name: Build frontend image
-        run: docker build -f Dockerfile.frontend -t sentinel-frontend:test .
+        run: docker build -f Dockerfile.frontend -t sovereign-frontend:test .
