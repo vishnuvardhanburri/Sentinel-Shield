@@ -32,11 +32,14 @@ pack_for_client.sh
 
 # --- SYSTEM & ENVIRONMENT ---
 venv/
+.qa_venv/
 .buyer_venv/
 .runtime_venv/
 node_modules/
 __pycache__/
 *.pyc
+**/.next/
+*.tsbuildinfo
 .coverage
 coverage.xml
 .pytest_cache/

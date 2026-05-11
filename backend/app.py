@@ -2937,4 +2937,4 @@ def get_recovery_info(current_user: TokenPayload = Depends(get_active_user)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
+    uvicorn.run(app, host=os.getenv("HOST", "127.0.0.1"), port=8000, reload=False)

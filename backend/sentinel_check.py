@@ -6,6 +6,7 @@ Ollama/model health, Obsidian ledger integrity, and scanner pattern accuracy.
 """
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -58,6 +59,11 @@ class SentinelCheck:
         self.enterprise_scanner = enterprise_scanner or EnterpriseScanner()
         self.india_scanner = india_scanner or IndiaPIIScanner()
         self.ollama_base_url = (ollama_base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")).rstrip("/")
+        self.allowed_ollama_hosts = {
+            host.strip().lower()
+            for host in os.getenv("OLLAMA_ALLOWED_HOSTS", "localhost,127.0.0.1,::1,ollama").split(",")
+            if host.strip()
+        }
         self.model_name = model_name or os.getenv("OLLAMA_MODEL", "llama3.1")
 
     def run_all(self) -> Dict[str, Any]:
@@ -128,7 +134,9 @@ class SentinelCheck:
         )
 
     def _get_json(self, path: str, timeout: float) -> Dict[str, Any]:
-        with urllib.request.urlopen(f"{self.ollama_base_url}{path}", timeout=timeout) as response:
+        url = self._validated_ollama_url(path)
+        # URL is constrained by _validated_ollama_url before the request.
+        with urllib.request.urlopen(url, timeout=timeout) as response:  # nosec B310
             import json
             return json.loads(response.read().decode("utf-8"))
 
@@ -142,17 +150,29 @@ class SentinelCheck:
             "options": {"num_predict": 8},
         }).encode("utf-8")
         request = urllib.request.Request(
-            f"{self.ollama_base_url}/api/generate",
+            self._validated_ollama_url("/api/generate"),
             data=payload,
             headers={"Content-Type": "application/json"},
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=8) as response:
+            # URL is constrained by _validated_ollama_url before the request.
+            with urllib.request.urlopen(request, timeout=8) as response:  # nosec B310
                 body = json.loads(response.read().decode("utf-8"))
             return "SENTINEL" in str(body.get("response", "")).upper()
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
             return False
+
+    def _validated_ollama_url(self, path: str) -> str:
+        if not path.startswith("/") or ".." in path:
+            raise ValueError("Invalid Ollama diagnostic path")
+        parsed = urllib.parse.urlparse(self.ollama_base_url)
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme not in {"http", "https"} or not host:
+            raise ValueError("OLLAMA_BASE_URL must be http(s) with a hostname")
+        if host not in self.allowed_ollama_hosts:
+            raise ValueError(f"Ollama host '{host}' is not in OLLAMA_ALLOWED_HOSTS")
+        return urllib.parse.urljoin(f"{self.ollama_base_url}/", path.lstrip("/"))
 
     @staticmethod
     def _certificate(checks: List[DiagnosticCheck]) -> str:

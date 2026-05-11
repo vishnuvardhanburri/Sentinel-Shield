@@ -1,9 +1,9 @@
-# Sentinel Shield v2 — Backend Dockerfile
+# Sovereign Shield v2 — Backend Dockerfile
 FROM python:3.11-slim
 
 LABEL maintainer="Xavira Tech Labs <support@xaviratechlabs.com>"
 LABEL version="2.0"
-LABEL description="Sentinel Shield v2 — Enterprise AI Data Governance Backend"
+LABEL description="Sovereign Shield v2 — Enterprise AI Security Gateway Backend"
 
 # Install system deps for Presidio + unstructured
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -36,7 +36,7 @@ RUN mkdir -p /app/logs/audit /app/logs/exports /app/logs/dpdp \
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD curl -f http://localhost:8000/status || exit 1
+  CMD curl -f http://localhost:8000/health || exit 1
 
 EXPOSE 8000
 

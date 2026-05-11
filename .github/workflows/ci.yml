@@ -9,6 +9,7 @@ on:
 env:
   PYTHON_VERSION: "3.11"
   NODE_VERSION: "20"
+  PNPM_VERSION: "9.15.5"
   DEPLOYMENT_MODE: airgap
   DATABASE_URL: "sqlite:///./test_sentinel.db"
   JWT_SECRET_KEY: "ci_jwt_secret_64_chars_minimum_for_fail_closed_loader_2026_xavira"
@@ -114,7 +115,7 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: ${{ env.PNPM_VERSION }}
 
       - name: Set up Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
@@ -153,6 +154,49 @@ jobs:
           path: |
             frontend/dist/**
           retention-days: 30
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Cross-Platform Contract Validation
+  # ────────────────────────────────────────────────────────────────────────
+  cross-platform-validation:
+    name: 🧭 Cross-Platform Static Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Type-check shared contracts
+        run: pnpm cross:check
+
+      - name: Type-check web operator console
+        run: pnpm --filter @sovereign-shield/web check
+
+      - name: Type-check desktop operator console
+        run: pnpm --filter @sovereign-shield/desktop check
+
+      - name: Type-check mobile executive console
+        run: pnpm --filter @sovereign-shield/mobile check
+
+      - name: Build web operator console
+        run: pnpm --filter @sovereign-shield/web build
+
+      - name: Cross-platform architecture doctor
+        run: python3 scripts/cross_platform_doctor.py
 
   # ────────────────────────────────────────────────────────────────────────
   # Policy YAML Validation
