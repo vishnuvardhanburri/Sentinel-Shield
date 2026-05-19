@@ -14,7 +14,7 @@
         <div class="badge">Sovereign Shield Operations | Xavira Tech Labs</div>
         <div class="navlinks">
           <a class="btn-secondary" href="/">Dashboard</a>
-          <a class="btn-secondary" href="/demo/">Buyer Demo</a>
+          <a class="btn-secondary" href="/demo/">System Check</a>
           <a class="btn-secondary" href="/proof/">Visual Proof</a>
           <a class="btn" href="/pricing/">Pricing</a>
         </div>
@@ -42,17 +42,17 @@
         <div class="panel">
           <div class="small">Security Events Blocked</div>
           <div class="metric" id="blocked-count">--</div>
-          <p>Demo event stream from the gateway proof system.</p>
+          <p>High-risk events from the real localhost ledger and policy engine.</p>
         </div>
         <div class="panel">
           <div class="small">PII Detections</div>
           <div class="metric" id="pii-count">--</div>
-          <p>Aadhaar, PAN, bank, and other sensitive identifier detections.</p>
+          <p>Real masking activity from Aadhaar, PAN, banking, and regulated data checks.</p>
         </div>
         <div class="panel">
-          <div class="small">Local Routes</div>
+          <div class="small">Quarantined Actors</div>
           <div class="metric" id="local-routes">--</div>
-          <p>High-sensitivity prompts forced to local-owned model path.</p>
+          <p>Users or API actors isolated by the Oracle risk engine.</p>
         </div>
       </section>
 
@@ -62,7 +62,7 @@
             <p class="eyebrow">Risk Event Logs</p>
             <h2 style="margin:0;">Recent security events</h2>
           </div>
-          <code>GET /demo/metrics</code>
+          <code>GET /api/v2/local/control-room</code>
         </div>
         <div class="table-wrap">
           <table>
@@ -85,20 +85,20 @@
       <section class="cards">
         <div class="panel">
           <div class="topbar" style="margin-bottom:12px;">
-            <div>
-              <p class="eyebrow">Detection Classes</p>
-              <h2 style="margin:0;">What the gateway blocks</h2>
-            </div>
-            <code>GET /demo/metrics</code>
+          <div>
+            <p class="eyebrow">Risk Actors</p>
+            <h2 style="margin:0;">Who the gateway is watching</h2>
+          </div>
+          <code>GET /api/v2/local/control-room</code>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Type</th>
-                  <th>Count</th>
-                  <th>Action</th>
-                  <th>Sample Token</th>
+                  <th>Actor</th>
+                  <th>Risk</th>
+                  <th>PII Attempts</th>
+                  <th>Labels</th>
                 </tr>
               </thead>
               <tbody id="detections-body">
@@ -139,55 +139,84 @@
     </main>
 
     <script>
-      async function loadOps() {
-        const host = window.location.hostname || "localhost";
+      let opsStream;
+      const host = window.location.hostname || "localhost";
+      const controlRoomUrl = `http://${host}:8000/api/v2/local/control-room`;
+      const controlRoomStreamUrl = `http://${host}:8000/api/v2/local/control-room/stream?interval_seconds=8&max_events=0`;
+
+      function compactHash(value) {
+        if (!value) return "--";
+        return value.slice(0, 12) + "...";
+      }
+
+      function renderOps(snapshot, live = false) {
         const now = new Date();
+        const gateway = snapshot.gateway || {};
+        const readiness = snapshot.readiness || {};
+        const summary = snapshot.summary || {};
+        const actors = (snapshot.risk && snapshot.risk.actors) || [];
+        const recentEvents = snapshot.recent_events || [];
+
+        document.getElementById("backend-state").textContent = gateway.status + " / " + (gateway.engine || "Sovereign Shield");
+        document.getElementById("readiness-score").textContent = (readiness.score ?? "--") + "/100";
+        document.getElementById("blocked-count").textContent = summary.high_risk_events ?? "--";
+        document.getElementById("pii-count").textContent = summary.total_redactions ?? "--";
+        document.getElementById("local-routes").textContent = summary.quarantined_users ?? "--";
+        document.getElementById("metrics-json").textContent = JSON.stringify(snapshot, null, 2);
+        document.getElementById("metrics-run").textContent = (live ? "Live stream: " : "Loaded: ") + now.toLocaleTimeString();
         document.getElementById("last-refresh").textContent = now.toLocaleTimeString();
+
+        document.getElementById("events-body").innerHTML = recentEvents.length ? recentEvents.map((event) => `
+          <tr>
+            <td>${new Date(event.timestamp).toLocaleTimeString()}</td>
+            <td>${compactHash(event.actor_hash)}</td>
+            <td>${event.action}</td>
+            <td>${event.policy_triggered || "None"}</td>
+            <td>${event.risk_score}/10</td>
+          </tr>
+        `).join("") : `<tr><td colspan="5">No recent events yet.</td></tr>`;
+
+        document.getElementById("detections-body").innerHTML = actors.length ? actors.map((actor) => `
+          <tr>
+            <td><code>${compactHash(actor.actor_hash)}</code></td>
+            <td>${actor.risk_score}/100</td>
+            <td>${actor.pii_attempts_last_hour}</td>
+            <td>${(actor.labels || []).join(", ") || "None"}</td>
+          </tr>
+        `).join("") : `<tr><td colspan="4">No active risk actors.</td></tr>`;
+      }
+
+      async function loadOps() {
         try {
-          const [healthRes, metricsRes, readinessRes] = await Promise.all([
-            fetch(`http://${host}:8000/health`),
-            fetch(`http://${host}:8000/demo/metrics`),
-            fetch(`http://${host}:8000/demo/acquisition-readiness`)
-          ]);
-          const health = await healthRes.json();
-          const metrics = await metricsRes.json();
-          const readiness = await readinessRes.json();
-
-          document.getElementById("backend-state").textContent = health.status + " / " + health.engine;
-          document.getElementById("readiness-score").textContent = readiness.score + "/100";
-          document.getElementById("blocked-count").textContent = metrics.summary.security_events_blocked;
-          document.getElementById("pii-count").textContent = metrics.summary.pii_detections;
-          document.getElementById("local-routes").textContent = metrics.summary.high_sensitivity_local_routes;
-          document.getElementById("metrics-json").textContent = JSON.stringify({ health, metrics, readiness }, null, 2);
-          document.getElementById("metrics-run").textContent = "Loaded: " + now.toLocaleTimeString();
-
-          document.getElementById("events-body").innerHTML = metrics.recent_events.map((event) => `
-            <tr>
-              <td>${new Date(event.timestamp).toLocaleTimeString()}</td>
-              <td>${event.actor}</td>
-              <td>${event.event}</td>
-              <td>${event.policy}</td>
-              <td>${event.risk_score}/10</td>
-            </tr>
-          `).join("");
-
-          document.getElementById("detections-body").innerHTML = metrics.detections.map((item) => `
-            <tr>
-              <td>${item.type}</td>
-              <td>${item.count}</td>
-              <td>${item.action}</td>
-              <td><code>${item.sample_token}</code></td>
-            </tr>
-          `).join("");
+          const response = await fetch(controlRoomUrl);
+          const snapshot = await response.json();
+          renderOps(snapshot, false);
         } catch (error) {
           document.getElementById("backend-state").textContent = "Offline";
           document.getElementById("metrics-json").textContent = "ERROR: " + error.message + "\nRun: pnpm launch";
         }
       }
 
+      function connectOpsStream() {
+        if (typeof EventSource === "undefined") return;
+        if (opsStream) opsStream.close();
+        opsStream = new EventSource(controlRoomStreamUrl);
+        opsStream.addEventListener("control-room", (event) => {
+          try {
+            renderOps(JSON.parse(event.data), true);
+          } catch (error) {
+            console.error("Invalid control-room event", error);
+          }
+        });
+        opsStream.onerror = () => {
+          document.getElementById("backend-state").textContent = "Stream reconnecting";
+        };
+      }
+
       document.getElementById("refresh").addEventListener("click", loadOps);
       loadOps();
-      setInterval(loadOps, 15000);
+      connectOpsStream();
+      setInterval(loadOps, 30000);
     </script>
   </body>
 </html>

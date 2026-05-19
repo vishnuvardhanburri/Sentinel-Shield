@@ -1,6 +1,7 @@
 import { SESSION_STORAGE_KEYS } from "./storage";
 import type {
   AuditEntry,
+  ControlRoomSnapshot,
   DeviceSession,
   DeviceContext,
   EvidenceReportResponse,
@@ -59,6 +60,10 @@ export class SovereignShieldClient {
 
   async riskHeatmap(): Promise<RiskHeatmap> {
     return this.request<RiskHeatmap>("/api/v2/risk/heatmap");
+  }
+
+  async controlRoom(): Promise<ControlRoomSnapshot> {
+    return this.request<ControlRoomSnapshot>("/api/v2/enterprise/control-room");
   }
 
   async auditTrail(): Promise<AuditEntry[]> {

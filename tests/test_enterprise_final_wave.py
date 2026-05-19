@@ -58,6 +58,14 @@ def test_deployment_doctor_license_usage_and_model_benchmark(monkeypatch):
     assert bench.status_code == 200
     assert len(bench.json()["results"]) == 3
 
+    demo_control_room = c.get("/demo/control-room")
+    assert demo_control_room.status_code == 200
+    assert demo_control_room.json()["mode"] == "SIMULATED_ENTERPRISE_CONTROL_ROOM"
+
+    with c.stream("GET", "/demo/control-room/stream?max_events=1&interval_seconds=1") as response:
+        payload = response.read().decode()
+    assert "event: control-room" in payload
+
 
 def test_break_glass_tenant_export_import_and_policy_versions():
     c = client()

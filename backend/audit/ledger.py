@@ -8,6 +8,7 @@ The chain is broken if any entry is modified, giving cryptographic proof of inte
 import os
 import json
 import hashlib
+import shutil
 import threading
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
@@ -21,7 +22,7 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 AUDIT_DIR = os.path.join(BASE_DIR, "logs", "audit")
 AUDIT_LEDGER_FILE = os.path.join(AUDIT_DIR, "audit_ledger.jsonl")
 
-_lock = threading.Lock()
+_lock = threading.RLock()
 
 
 class AuditLedger:
@@ -42,6 +43,14 @@ class AuditLedger:
         canonical = json.dumps(payload, sort_keys=True, ensure_ascii=True)
         salt = security_settings()["ledger_master_salt"]
         return hashlib.sha256(f"{salt}:{canonical}".encode()).hexdigest()
+
+    @staticmethod
+    def _sha256_file(path: str) -> str:
+        digest = hashlib.sha256()
+        with open(path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(8192), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
 
     def _get_last_hash(self) -> str:
         """Read the hash of the last entry in the ledger."""
@@ -190,6 +199,88 @@ class AuditLedger:
 
         except Exception as e:
             return {"valid": False, "total_entries": 0, "corrupted_at": f"Parse error: {e}"}
+
+    def reseal_corrupted_chain(
+        self,
+        triggered_by: str = "SYSTEM",
+        user_role: str = "SUPER_ADMIN",
+        tenant_id: str = "default",
+        archive_dir: Optional[str] = None,
+        reason: str = "LEDGER_CHAIN_RESEAL",
+    ) -> Dict[str, Any]:
+        """
+        Archive a corrupted active ledger, emit an incident report, and start a fresh chain.
+
+        This preserves the previous ledger bytes for forensic review instead of rewriting
+        history with the current salt.
+        """
+        with _lock:
+            chain_status_before = self.verify_chain()
+            if chain_status_before.get("valid"):
+                return {
+                    "resealed": False,
+                    "reason": "ledger already valid",
+                    "chain_status_before": chain_status_before,
+                    "chain_status_after": chain_status_before,
+                }
+
+            os.makedirs(os.path.dirname(self.ledger_path), exist_ok=True)
+            archive_root = archive_dir or os.path.join(os.path.dirname(self.ledger_path), "archived")
+            os.makedirs(archive_root, exist_ok=True)
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+
+            previous_last_hash = self._get_last_hash()
+            archived_ledger_path = os.path.join(archive_root, f"audit_ledger_corrupted_{timestamp}.jsonl")
+            if os.path.exists(self.ledger_path):
+                shutil.copy2(self.ledger_path, archived_ledger_path)
+                with open(self.ledger_path, "w", encoding="utf-8") as handle:
+                    handle.write("")
+            else:
+                open(self.ledger_path, "a", encoding="utf-8").close()
+
+            incident_report = {
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "reason": reason,
+                "triggered_by": triggered_by,
+                "user_role": user_role,
+                "tenant_id": tenant_id,
+                "previous_ledger_path": self.ledger_path,
+                "archived_ledger_path": archived_ledger_path,
+                "archived_ledger_sha256": self._sha256_file(archived_ledger_path) if os.path.exists(archived_ledger_path) else None,
+                "previous_last_hash": previous_last_hash,
+                "chain_status_before": chain_status_before,
+                "active_salt_fingerprint": hashlib.sha256(security_settings()["ledger_master_salt"].encode()).hexdigest()[:16],
+            }
+            incident_report_path = os.path.join(archive_root, f"ledger_incident_{timestamp}.json")
+            with open(incident_report_path, "w", encoding="utf-8") as handle:
+                json.dump(incident_report, handle, indent=2)
+
+            self.log(
+                action="LEDGER_RESEALED",
+                user_id=triggered_by,
+                user_role=user_role,
+                department="SECURITY",
+                tenant_id=tenant_id,
+                policy_triggered="LEDGER_RESEAL",
+                risk_score=9.9,
+                metadata={
+                    "reason": reason,
+                    "archived_ledger_path": archived_ledger_path,
+                    "incident_report_path": incident_report_path,
+                    "chain_status_before": chain_status_before,
+                    "previous_last_hash": previous_last_hash,
+                },
+            )
+
+            chain_status_after = self.verify_chain()
+            return {
+                "resealed": True,
+                "reason": reason,
+                "archived_ledger_path": archived_ledger_path,
+                "incident_report_path": incident_report_path,
+                "chain_status_before": chain_status_before,
+                "chain_status_after": chain_status_after,
+            }
 
     def log_llm_request(
         self,

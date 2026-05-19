@@ -14,7 +14,6 @@
         <div class="badge">Enterprise Acquisition Ready — Verified Build</div>
         <div class="navlinks">
           <a class="btn-secondary" href="/ops/">Ops Logs</a>
-          <a class="btn-secondary" href="/demo/">Buyer Proof</a>
           <a class="btn-secondary" href="/proof/">Visual Proof</a>
           <a class="btn-secondary" href="http://localhost:8000/api/docs">API Docs</a>
           <a class="btn" href="/pricing/">Pricing</a>
@@ -63,23 +62,23 @@
       <section class="proof-matrix">
         <div class="proof-card">
           <p class="eyebrow">Governance Layer</p>
-          <h3>CISO View</h3>
+          <h3>Live Policy Surface</h3>
         <div class="proof-list">
-            <div class="proof-item"><span>DPDP / HIPAA</span><strong id="gov-patterns">Loading India + health patterns...</strong></div>
-            <div class="proof-item"><span>Oracle Risk Engine</span><strong id="gov-quarantine">Loading quarantine proof...</strong></div>
-            <div class="proof-item"><span>Evidence PDF</span><strong id="gov-evidence">Ready to generate</strong></div>
+            <div class="proof-item"><span>DPDP / HIPAA</span><strong id="gov-patterns">Loading local pattern inventory...</strong></div>
+            <div class="proof-item"><span>Oracle Risk Engine</span><strong id="gov-quarantine">Loading live quarantine state...</strong></div>
+            <div class="proof-item"><span>Evidence PDF</span><strong id="gov-evidence">Ready to generate from real ledger</strong></div>
           </div>
           <button class="btn" id="generate-evidence" type="button" style="margin-top:14px;">Generate Evidence PDF</button>
         </div>
 
         <div class="proof-card">
           <p class="eyebrow">Security Layer</p>
-          <h3>Auditor View</h3>
+          <h3>Device and Shield</h3>
           <div class="proof-list">
-            <div class="proof-item"><span>Air-Gapped Sovereignty</span><strong id="sec-airgap">Loading...</strong></div>
-            <div class="proof-item"><span>Identity Masking</span><strong id="sec-masking">Loading...</strong></div>
-            <div class="proof-item"><span>Zero-Trust API Shield</span><strong id="sec-zerotrust">Loading...</strong></div>
-            <div class="proof-item"><span>Probe Defense</span><strong>GET /.env -> 404 NOT_FOUND</strong></div>
+            <div class="proof-item"><span>Air-Gapped Sovereignty</span><strong id="sec-airgap">Loading live local model path...</strong></div>
+            <div class="proof-item"><span>Identity Masking</span><strong id="sec-masking">Loading real masking sample...</strong></div>
+            <div class="proof-item"><span>Zero-Trust API Shield</span><strong id="sec-zerotrust">Loading readiness controls...</strong></div>
+            <div class="proof-item"><span>Device Health</span><strong id="sec-device">Loading this machine...</strong></div>
           </div>
         </div>
 
@@ -137,7 +136,7 @@
               <p class="eyebrow">Live Risk Logs</p>
               <h2 style="margin:0;">Recent security events</h2>
             </div>
-            <code>GET /demo/metrics</code>
+            <code>GET /api/v2/local/control-room</code>
           </div>
           <div class="table-wrap">
             <table>
@@ -189,37 +188,38 @@
 
     <script>
       const host = window.location.hostname || "localhost";
+      const localControlRoomUrl = `http://${host}:8000/api/v2/local/control-room`;
+      const localProofUrl = `http://${host}:8000/api/v2/local/proxy/proof`;
+      const localEvidenceUrl = `http://${host}:8000/api/v2/local/evidence-certificate`;
+
+      function compactHash(value) {
+        if (!value) return "--";
+        return value.slice(0, 12) + "...";
+      }
 
       async function loadControlRoom() {
         const now = new Date();
         document.getElementById("last-refresh").textContent = now.toLocaleTimeString();
         try {
-          const [healthRes, metricsRes, readinessRes, proofRes] = await Promise.all([
-            fetch(`http://${host}:8000/health`),
-            fetch(`http://${host}:8000/demo/metrics`),
-            fetch(`http://${host}:8000/demo/acquisition-readiness`),
-            fetch(`http://${host}:8000/demo/institutional-proof`)
-          ]);
-          const health = await healthRes.json();
-          const metrics = await metricsRes.json();
-          const readiness = await readinessRes.json();
-          const proof = await proofRes.json();
-          document.getElementById("backend-state").textContent = health.status + " / " + health.engine;
-          document.getElementById("readiness-score").textContent = readiness.score + "/100";
-          document.getElementById("blocked-count").textContent = metrics.summary.security_events_blocked;
-          document.getElementById("pii-count").textContent = metrics.summary.pii_detections;
-          document.getElementById("local-routes").textContent = metrics.summary.high_sensitivity_local_routes;
-          document.getElementById("gov-patterns").textContent = proof.governance_layer.dpdp_hipaa.india_stack_patterns.join(", ") + " + HIPAA PHI";
-          document.getElementById("gov-quarantine").textContent = proof.governance_layer.oracle_risk_engine.quarantined ? "Auto-quarantined after 4 attempts" : "Monitoring";
-          document.getElementById("sec-airgap").textContent = proof.security_layer.air_gapped_sovereignty.route + " / " + proof.security_layer.air_gapped_sovereignty.model;
-          document.getElementById("sec-masking").textContent = proof.security_layer.identity_masking.example;
-          document.getElementById("sec-zerotrust").textContent = "mTLS + /.env shield + rate/cost limits";
-          document.getElementById("ops-dr").textContent = "Backup + restore drill endpoints implemented";
-          document.getElementById("events-body").innerHTML = metrics.recent_events.map((event) => `
+          const response = await fetch(localControlRoomUrl);
+          const snapshot = await response.json();
+          document.getElementById("backend-state").textContent = snapshot.gateway.status + " / " + (snapshot.gateway.engine || "Sovereign Shield");
+          document.getElementById("readiness-score").textContent = snapshot.readiness.score + "/100";
+          document.getElementById("blocked-count").textContent = snapshot.ledger.stats.high_risk_events;
+          document.getElementById("pii-count").textContent = snapshot.ledger.stats.total_redactions;
+          document.getElementById("local-routes").textContent = snapshot.risk.quarantined_users;
+          document.getElementById("gov-patterns").textContent = snapshot.policy_surface.india_patterns_supported.join(", ");
+          document.getElementById("gov-quarantine").textContent = snapshot.risk.quarantined_users ? snapshot.risk.quarantined_users + " actor(s) quarantined" : "No actors quarantined";
+          document.getElementById("sec-airgap").textContent = "ollama/local-airgapped / " + snapshot.policy_surface.ollama_target;
+          document.getElementById("sec-masking").textContent = snapshot.policy_surface.identity_masking_example;
+          document.getElementById("sec-zerotrust").textContent = snapshot.readiness.controls.filter((item) => item.ok).length + " readiness controls passing";
+          document.getElementById("sec-device").textContent = snapshot.device.platform + " / " + snapshot.device.hostname;
+          document.getElementById("ops-dr").textContent = snapshot.operations.restore_drill.ready_for_restore ? "Restore drill ready" : "Restore drill needs backup";
+          document.getElementById("events-body").innerHTML = snapshot.recent_events.map((event) => `
             <tr>
-              <td>${event.actor}</td>
-              <td>${event.event}</td>
-              <td>${event.policy}</td>
+              <td>${compactHash(event.actor_hash)}</td>
+              <td>${event.action}</td>
+              <td>${event.policy_triggered || "None"}</td>
               <td>${event.risk_score}/10</td>
             </tr>
           `).join("");
@@ -233,9 +233,9 @@
         const target = document.getElementById("gov-evidence");
         target.textContent = "Generating PDF...";
         try {
-          const res = await fetch(`http://${host}:8000/demo/evidence-certificate`);
+          const res = await fetch(localEvidenceUrl);
           const data = await res.json();
-          target.textContent = "SHA-256 " + data.sha256_certificate.slice(0, 18) + "... / certificate valid";
+          target.textContent = "SHA-256 " + data.certificate.slice(0, 18) + "... / live ledger";
           document.getElementById("raw-json").textContent = JSON.stringify(data, null, 2);
           document.getElementById("last-run").textContent = "Evidence generated: " + new Date().toLocaleTimeString();
         } catch (error) {
@@ -248,13 +248,13 @@
         const input = document.getElementById("proof-input").value;
         document.getElementById("before-text").textContent = input;
         document.getElementById("after-text").textContent = "Running through Sovereign Shield...";
-        document.getElementById("raw-json").textContent = `POST http://${host}:8000/demo/redaction-proof`;
+        document.getElementById("raw-json").textContent = `POST ${localProofUrl}`;
         document.getElementById("backend-proof").textContent = "Calling";
         for (const id of ["pipe-intercept", "pipe-mask", "pipe-injection", "pipe-route", "pipe-audit"]) {
           document.getElementById(id).textContent = "Running";
         }
         try {
-          const res = await fetch(`http://${host}:8000/demo/redaction-proof`, {
+          const res = await fetch(localProofUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text: input, actor: "sovereign-dashboard", source_app: "command-center" })
@@ -264,11 +264,11 @@
           document.getElementById("after-text").textContent = data.protected_prompt;
           document.getElementById("sensitivity").textContent = data.sensitivity_score + "/10";
           document.getElementById("route").textContent = data.route;
-          document.getElementById("prompt-shield").textContent = data.prompt_injection.blocked ? "Blocked" : "Clean";
+          document.getElementById("prompt-shield").textContent = data.prompt_injection.blocked || data.guardian.blocked ? "Blocked" : "Clean";
           document.getElementById("signature").textContent = data.ledger_certificate.signature.slice(0, 16) + "...";
           document.getElementById("pipe-intercept").textContent = "Captured";
           document.getElementById("pipe-mask").textContent = data.pseudonyms.length ? data.pseudonyms.join(", ") : "Clean";
-          document.getElementById("pipe-injection").textContent = data.prompt_injection.blocked ? "Blocked" : "Clean";
+          document.getElementById("pipe-injection").textContent = data.prompt_injection.blocked || data.guardian.blocked ? "Blocked" : "Clean";
           document.getElementById("pipe-route").textContent = data.route.includes("local") ? "Local only" : "Hybrid";
           document.getElementById("pipe-audit").textContent = "Signed";
           document.getElementById("raw-json").textContent = JSON.stringify(data, null, 2);

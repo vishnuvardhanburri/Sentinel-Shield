@@ -125,3 +125,36 @@ class TestAuditLedger:
         stats = ledger.get_summary_stats()
         assert stats["total_events"] == 3
         assert stats["total_redactions"] == 6
+
+    def test_reseal_corrupted_ledger_archives_old_chain_and_starts_clean(self, ledger, tmp_path):
+        ledger.log(action="QUERY", user_id="user1", user_role="STAFF")
+        ledger.log(action="EXPORT", user_id="admin", user_role="AUDITOR")
+
+        with open(ledger.ledger_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        first = json.loads(lines[0])
+        first["action"] = "HACKED"
+        lines[0] = json.dumps(first) + "\n"
+        with open(ledger.ledger_path, "w", encoding="utf-8") as f:
+            f.writelines(lines)
+
+        assert ledger.verify_chain()["valid"] is False
+
+        result = ledger.reseal_corrupted_chain(
+            triggered_by="repair-admin",
+            archive_dir=str(tmp_path / "archived"),
+        )
+
+        assert result["resealed"] is True
+        assert os.path.exists(result["archived_ledger_path"])
+        assert os.path.exists(result["incident_report_path"])
+        assert ledger.verify_chain()["valid"] is True
+
+        new_entries = ledger.get_entries(limit=5)
+        assert new_entries[0]["action"] == "LEDGER_RESEALED"
+        assert new_entries[0]["prev_hash"] == "GENESIS"
+        assert new_entries[0]["metadata"]["archived_ledger_path"] == result["archived_ledger_path"]
+
+        incident = json.loads(open(result["incident_report_path"], encoding="utf-8").read())
+        assert incident["chain_status_before"]["valid"] is False
+        assert incident["archived_ledger_path"] == result["archived_ledger_path"]

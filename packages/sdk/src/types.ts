@@ -91,6 +91,35 @@ export interface EvidenceReportResponse {
   sha256?: string;
 }
 
+export interface ControlRoomSnapshot {
+  generated_at: string;
+  gateway: {
+    status: string;
+    service?: string;
+    engine?: string;
+    deployment_mode?: string;
+    startup_completed_at?: string | null;
+  };
+  summary?: Record<string, unknown>;
+  readiness?: {
+    score?: number;
+    status?: string;
+  };
+  risk?: RiskHeatmap;
+  alerts?: {
+    total?: number;
+    items?: Array<Record<string, unknown>>;
+  };
+  quarantine?: {
+    total?: number;
+    actors?: RiskActor[];
+  };
+  ledger?: Record<string, unknown>;
+  operations?: Record<string, unknown>;
+  recent_events?: Array<Record<string, unknown>>;
+  live_stream_url?: string;
+}
+
 export interface SDKStorage {
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<void>;

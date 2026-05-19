@@ -26,6 +26,7 @@
     "handoff:pdf": "python3 scripts/generate_handoff_pdf.py",
     "handoff:zip": "python3 scripts/buyer_handoff_zip.py",
     "generate:data-room": "python3 scripts/generate_data_room.py",
+    "ledger:reseal": "python3 scripts/reseal_ledger.py",
     "screenshots:capture": "python3 scripts/capture_dashboard_screenshots.py",
     "production:seal": "bash scripts/production_seal.sh",
     "cross:check": "pnpm --filter @sovereign-shield/sdk check && pnpm --filter @sovereign-shield/design-system check",

@@ -3,8 +3,10 @@ Sovereign Shield v2 — Upgraded FastAPI Backend
 Wires together: RBAC auth, audit ledger, policy engine, model gateway,
 license server, DPDP compliance, and the original vault/RAG functionality.
 """
+import asyncio
 import os
 import sys
+from contextlib import asynccontextmanager
 # Ensure the current directory is in the path for cloud imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import base64
@@ -15,6 +17,7 @@ import hashlib
 import uuid
 import zipfile
 from datetime import datetime, timezone, timedelta
+import socket
 from sqlalchemy.orm import Session
 from fastapi import FastAPI, HTTPException, Depends, Security, Header
 from fastapi.responses import FileResponse, StreamingResponse
@@ -52,7 +55,7 @@ from auth.rbac_engine import rbac, Permission
 from audit.ledger import AuditLedger, audit_ledger
 from audit.export_engine import AuditExporter
 from compliance.dpdp_engine import DPDPEngine
-from compliance.india_patterns import IndiaPIIScanner
+from compliance.india_patterns import IndiaPIIScanner, INDIA_PATTERNS
 from policy.policy_engine import policy_engine, EnforcementLevel
 from gateway.model_router import model_router
 from license_server import router as license_router
@@ -81,6 +84,72 @@ alert_log = os.path.join(LOGS_DIR, "alerts.log")
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
 SECURITY_SETTINGS = security_settings()
 
+# ── Shared instances ──────────────────────────────────────────────────────────
+scanner = EnterpriseScanner()
+india_scanner = IndiaPIIScanner()
+identity_proxy = IdentityMaskingProxy(scanner, india_scanner)
+semantic_dlp = SemanticDLP()
+prompt_injection_detector = PromptInjectionDetector()
+llm_guardian = HallucinationJailbreakGuardian()
+sentinel_check = SentinelCheck(scanner, india_scanner)
+universal_proxy = UniversalProxy(identity_proxy)
+evidence_reporter = EvidencePDFGenerator()
+dpdp_engine = DPDPEngine()
+exporter = AuditExporter()
+startup_diagnostics_cache: dict = {
+    "ready": False,
+    "checks": [],
+    "certificate": None,
+    "error": None,
+}
+startup_completed_at: Optional[str] = None
+
+
+def _run_startup_bootstrap() -> None:
+    global vectorstore, embeddings, startup_diagnostics_cache, startup_completed_at
+
+    init_db()
+    policy_engine.reload()
+
+    vectorstore = None
+    embeddings = None
+    enable_vectorstore = os.getenv("ENABLE_VECTORSTORE_BOOT", "false").strip().lower() in {"1", "true", "yes", "on"}
+    if enable_vectorstore and os.path.exists(CHROMA_DIR):
+        try:
+            from langchain_ollama import OllamaEmbeddings
+            from langchain_chroma import Chroma
+
+            embeddings = OllamaEmbeddings(model=os.getenv("OLLAMA_MODEL", "llama3.1"))
+            vectorstore = Chroma(persist_directory=CHROMA_DIR, embedding_function=embeddings)
+        except Exception:
+            vectorstore = None
+
+    startup_completed_at = datetime.now(timezone.utc).isoformat()
+    audit_ledger.log(
+        action="SYSTEM_STARTUP",
+        user_id="SYSTEM",
+        user_role="SUPER_ADMIN",
+        metadata={"version": "2.0.0", "started_at": startup_completed_at},
+    )
+
+    diagnostics = sentinel_check.run_all()
+    startup_diagnostics_cache = diagnostics
+    audit_ledger.log(
+        action="SELF_DIAGNOSTIC_BOOTSTRAP",
+        user_id="SYSTEM",
+        user_role="SUPER_ADMIN",
+        policy_triggered=None if diagnostics.get("ready") else "BOOTSTRAP_DIAGNOSTIC_FAILURE",
+        risk_score=0.0 if diagnostics.get("ready") else 9.0,
+        metadata=diagnostics,
+    )
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    _run_startup_bootstrap()
+    yield
+
+
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Sovereign Shield v2",
@@ -88,6 +157,7 @@ app = FastAPI(
     version="2.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    lifespan=lifespan,
 )
 
 # Explicitly allow Vercel origins to talk to the Cloud Backend
@@ -105,19 +175,6 @@ app.add_middleware(ZeroTrustAPIShieldMiddleware)
 app.include_router(license_router)
 app.include_router(integrations_router)
 app.include_router(shadow_ai_router)
-
-# ── Shared instances ──────────────────────────────────────────────────────────
-scanner = EnterpriseScanner()
-india_scanner = IndiaPIIScanner()
-identity_proxy = IdentityMaskingProxy(scanner, india_scanner)
-semantic_dlp = SemanticDLP()
-prompt_injection_detector = PromptInjectionDetector()
-llm_guardian = HallucinationJailbreakGuardian()
-sentinel_check = SentinelCheck(scanner, india_scanner)
-universal_proxy = UniversalProxy(identity_proxy)
-evidence_reporter = EvidencePDFGenerator()
-dpdp_engine = DPDPEngine()
-exporter = AuditExporter()
 
 
 def enforce_password_rotation(current_user: TokenPayload):
@@ -180,41 +237,6 @@ embeddings = None
 
 
 # ── Startup ───────────────────────────────────────────────────────────────────
-@app.on_event("startup")
-async def startup():
-    global vectorstore, embeddings
-    init_db()
-    policy_engine.reload()  # Load all YAML presets
-
-    enable_vectorstore = os.getenv("ENABLE_VECTORSTORE_BOOT", "false").strip().lower() in {"1", "true", "yes", "on"}
-    if enable_vectorstore and os.path.exists(CHROMA_DIR):
-        try:
-            from langchain_ollama import OllamaEmbeddings
-            from langchain_chroma import Chroma
-
-            embeddings = OllamaEmbeddings(model=os.getenv("OLLAMA_MODEL", "llama3.1"))
-            vectorstore = Chroma(persist_directory=CHROMA_DIR, embedding_function=embeddings)
-        except Exception:
-            vectorstore = None
-
-    audit_ledger.log(
-        action="SYSTEM_STARTUP",
-        user_id="SYSTEM",
-        user_role="SUPER_ADMIN",
-        metadata={"version": "2.0.0"},
-    )
-
-    diagnostics = sentinel_check.run_all()
-    audit_ledger.log(
-        action="SELF_DIAGNOSTIC_BOOTSTRAP",
-        user_id="SYSTEM",
-        user_role="SUPER_ADMIN",
-        policy_triggered=None if diagnostics.get("ready") else "BOOTSTRAP_DIAGNOSTIC_FAILURE",
-        risk_score=0.0 if diagnostics.get("ready") else 9.0,
-        metadata=diagnostics,
-    )
-
-
 # ── Schemas ───────────────────────────────────────────────────────────────────
 class DeviceContextRequest(BaseModel):
     model_config = {"populate_by_name": True}
@@ -1061,10 +1083,393 @@ def chat_stream(req: ChatRequest, current_user: TokenPayload = Depends(get_activ
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _health_payload() -> dict:
+    return {
+        "status": "awake",
+        "service": "sovereign-shield",
+        "engine": "Sovereign Shield v2.0",
+        "deployment_mode": os.getenv("DEPLOYMENT_MODE", "airgap"),
+        "startup_completed_at": startup_completed_at,
+    }
+
+
+def _latest_export_reports(limit: int = 5) -> list[dict]:
+    export_dir = os.path.join(BASE_DIR, "logs", "exports")
+    os.makedirs(export_dir, exist_ok=True)
+    reports = []
+    for name in sorted(os.listdir(export_dir), reverse=True):
+        path = os.path.join(export_dir, name)
+        if not os.path.isfile(path):
+            continue
+        stat = os.stat(path)
+        reports.append(
+            {
+                "name": name,
+                "path": path,
+                "size_bytes": stat.st_size,
+                "generated_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                "certificate": hashlib.sha256(open(path, "rb").read()).hexdigest(),
+                "download_url": f"/api/v2/enterprise/reports/{name}",
+            }
+        )
+        if len(reports) >= limit:
+            break
+    return reports
+
+
+def _restore_drill_snapshot() -> dict:
+    backup_dir = os.path.join(BASE_DIR, "logs", "backups")
+    latest = None
+    if os.path.isdir(backup_dir):
+        files = [os.path.join(backup_dir, f) for f in os.listdir(backup_dir) if f.endswith(".zip")]
+        latest = max(files, key=os.path.getmtime) if files else None
+    zip_ok = False
+    zip_entries: list[str] = []
+    if latest:
+        try:
+            with zipfile.ZipFile(latest, "r") as archive:
+                bad = archive.testzip()
+                zip_ok = bad is None
+                zip_entries = archive.namelist()
+        except zipfile.BadZipFile:
+            zip_ok = False
+    chain = audit_ledger.verify_chain()
+    return {
+        "ready_for_restore": bool(latest and zip_ok and chain.get("valid")),
+        "latest_backup": latest,
+        "backup_valid": zip_ok,
+        "backup_entries": zip_entries,
+        "ledger_valid": chain.get("valid"),
+        "checked_at": _now_iso(),
+    }
+
+
+def _deployment_doctor_snapshot() -> dict:
+    import socket
+
+    checks = []
+    for name, ok, detail in [
+        ("env_secrets", all(os.getenv(k) for k in ("JWT_SECRET_KEY", "LICENSE_MASTER_SECRET", "ACTOR_HASH_SALT", "LEDGER_MASTER_SALT")), "Required fail-closed secrets present"),
+        ("cors_locked", "*" not in SECURITY_SETTINGS["allowed_origins"], f"Origins: {', '.join(SECURITY_SETTINGS['allowed_origins'])}"),
+        ("ledger_chain", audit_ledger.verify_chain().get("valid", False), "Obsidian ledger chain verification"),
+        ("redis", bool(os.getenv("REDIS_URL")), "REDIS_URL configured for distributed risk state"),
+        ("backup_encryption", bool(os.getenv("BACKUP_ENCRYPTION_PASSPHRASE")), "Encrypted backup passphrase configured"),
+        ("mtls_enforced", os.getenv("API_SHIELD_ENFORCE_MTLS", "false").lower() == "true", "mTLS enforcement flag"),
+    ]:
+        checks.append({"name": name, "ok": bool(ok), "detail": detail})
+    for port in (8000, 3000, 11434):
+        sock = socket.socket()
+        sock.settimeout(0.3)
+        ok = sock.connect_ex(("127.0.0.1", port)) == 0
+        sock.close()
+        checks.append({"name": f"port_{port}", "ok": ok, "detail": f"localhost:{port}"})
+    score = round((sum(1 for c in checks if c["ok"]) / len(checks)) * 100, 2)
+    return {"score": score, "status": "READY" if score >= 75 else "ACTION_REQUIRED", "checks": checks}
+
+
+def _enterprise_readiness_snapshot(diagnostics: Optional[dict] = None) -> dict:
+    diagnostics = diagnostics or startup_diagnostics_cache
+    chain = audit_ledger.verify_chain()
+    policies = policy_engine.list_policies()
+    settings = security_settings()
+    controls = [
+        {"name": "fail_closed_secrets", "ok": all(settings.get(k) for k in ("jwt_secret", "license_master_secret", "actor_hash_salt", "ledger_master_salt"))},
+        {"name": "cors_wildcard_blocked", "ok": "*" not in settings.get("allowed_origins", [])},
+        {"name": "ledger_integrity", "ok": bool(chain.get("valid"))},
+        {"name": "pii_pattern_accuracy", "ok": any(c.get("name") == "Pattern Accuracy" and c.get("ok") for c in diagnostics.get("checks", []))},
+        {"name": "policy_inventory_loaded", "ok": policies.get("total_rules", 0) > 0},
+        {"name": "security_headers_enabled", "ok": True},
+        {"name": "local_model_ready", "ok": any(c.get("name") == "Local Model Health" and c.get("ok") for c in diagnostics.get("checks", []))},
+    ]
+    passed = sum(1 for control in controls if control["ok"])
+    score = round((passed / len(controls)) * 100, 2)
+    return {
+        "score": score,
+        "status": "PRODUCTION_READY" if score >= 85 else "ACTION_REQUIRED",
+        "controls": controls,
+        "ledger": chain,
+        "diagnostics_certificate": diagnostics.get("certificate"),
+        "generated_at": _now_iso(),
+    }
+
+
+def _alerts_from_heatmap(heatmap: dict) -> list[dict]:
+    alerts = []
+    for actor in heatmap.get("actors", []):
+        if actor.get("quarantined") or actor.get("risk_score", 0) >= 50 or actor.get("injection_attempts_last_hour", 0):
+            alerts.append(
+                {
+                    "id": actor.get("actor_hash"),
+                    "severity": "CRITICAL" if actor.get("quarantined") else "HIGH",
+                    "type": "AUTO_QUARANTINE" if actor.get("quarantined") else "RISK_SPIKE",
+                    "actor_hash": actor.get("actor_hash"),
+                    "risk_score": actor.get("risk_score"),
+                    "reason": actor.get("quarantine_reason") or "High-risk activity detected",
+                    "created_at": actor.get("last_seen"),
+                    "status": "OPEN",
+                }
+            )
+    return alerts
+
+
+def _recent_audit_activity(tenant_id: str, limit: int = 12) -> list[dict]:
+    entries = audit_ledger.get_entries(limit=limit, tenant_id=tenant_id)
+    return [
+        {
+            "timestamp": entry.get("timestamp"),
+            "action": entry.get("action"),
+            "policy_triggered": entry.get("policy_triggered"),
+            "risk_score": entry.get("risk_score"),
+            "model_queried": entry.get("model_queried"),
+            "actor_hash": entry.get("actor_hash"),
+            "entry_hash": entry.get("entry_hash"),
+        }
+        for entry in entries
+    ]
+
+
+def _enterprise_badge_payload() -> dict:
+    chain = audit_ledger.verify_chain()
+    try:
+        risk = oracle_risk_engine.heatmap(limit=25)
+        quarantined = risk.get("quarantined_users", 0)
+        actors = len(risk.get("actors", []))
+    except Exception:
+        quarantined = 0
+        actors = 0
+    release_path = os.path.join(BASE_DIR, "release.json")
+    version = "2.1.0"
+    if os.path.exists(release_path):
+        try:
+            version = json.load(open(release_path, encoding="utf-8")).get("version", version)
+        except Exception:
+            pass
+    ledger_valid = bool(chain.get("valid"))
+    return {
+        "schemaVersion": 1,
+        "label": "Sovereign Shield",
+        "message": "ready" if ledger_valid else "audit-review",
+        "color": "brightgreen" if ledger_valid else "yellow",
+        "ready": True,
+        "ledger_valid": ledger_valid,
+        "risk_actors": actors,
+        "quarantined": quarantined,
+        "version": version,
+        "company": "Xavira Tech Labs",
+    }
+
+
+def _enterprise_control_room_snapshot(tenant_id: str, refresh_diagnostics: bool = False) -> dict:
+    global startup_diagnostics_cache
+
+    diagnostics = sentinel_check.run_all() if refresh_diagnostics else startup_diagnostics_cache
+    if refresh_diagnostics:
+        startup_diagnostics_cache = diagnostics
+    readiness = _enterprise_readiness_snapshot(diagnostics)
+    heatmap = oracle_risk_engine.heatmap(tenant_id=tenant_id)
+    alerts = _alerts_from_heatmap(heatmap)
+    quarantine = [actor for actor in heatmap.get("actors", []) if actor.get("quarantined")]
+    ledger_stats = audit_ledger.get_summary_stats(tenant_id=tenant_id)
+    chain = audit_ledger.verify_chain()
+    reports = _latest_export_reports()
+    recent_events = _recent_audit_activity(tenant_id=tenant_id)
+    return {
+        "generated_at": _now_iso(),
+        "tenant_id": tenant_id,
+        "gateway": _health_payload(),
+        "summary": {
+            "open_alerts": len(alerts),
+            "quarantined_users": heatmap.get("quarantined_users", 0),
+            "high_risk_events": ledger_stats.get("high_risk_events", 0),
+            "total_redactions": ledger_stats.get("total_redactions", 0),
+            "reports_available": len(reports),
+        },
+        "readiness": readiness,
+        "diagnostics": diagnostics,
+        "risk": heatmap,
+        "alerts": {"total": len(alerts), "items": alerts[:25]},
+        "quarantine": {"total": len(quarantine), "actors": quarantine[:25]},
+        "ledger": {
+            "valid": chain.get("valid"),
+            "total_entries": chain.get("total_entries"),
+            "corrupted_at": chain.get("corrupted_at"),
+            "last_entry_hash": recent_events[0].get("entry_hash") if recent_events else None,
+            "stats": ledger_stats,
+        },
+        "operations": {
+            "badge": _enterprise_badge_payload(),
+            "restore_drill": _restore_drill_snapshot(),
+            "deployment_doctor": _deployment_doctor_snapshot(),
+            "policy_inventory": policy_engine.list_policies(),
+            "model_routing": {
+                "default_model": os.getenv("OLLAMA_MODEL", "llama3.1"),
+                "ollama_base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+                "available_adapters": model_router.list_available(),
+            },
+            "latest_reports": reports,
+        },
+        "recent_events": recent_events,
+        "live_stream_url": "/api/v2/enterprise/control-room/stream",
+    }
+
+
+def _demo_actor_heatmap(events: list[dict]) -> dict:
+    actors: dict[str, dict] = {}
+    for event in events:
+        actor = event.get("actor", "demo-actor")
+        profile = actors.setdefault(
+            actor,
+            {
+                "actor_hash": hashlib.sha256(actor.encode()).hexdigest(),
+                "risk_score": 0.0,
+                "pii_attempts_last_hour": 0,
+                "injection_attempts_last_hour": 0,
+                "semantic_hits_last_hour": 0,
+                "quarantined": False,
+                "quarantine_reason": None,
+                "last_seen": event.get("timestamp"),
+                "labels": [],
+            },
+        )
+        score = float(event.get("risk_score") or 0.0)
+        profile["risk_score"] = min(100.0, round(profile["risk_score"] + (score * 5.0), 2))
+        profile["last_seen"] = max(profile["last_seen"] or event.get("timestamp"), event.get("timestamp"))
+        profile["pii_attempts_last_hour"] += int(event.get("pii_count") or 0)
+        if event.get("detection_type") == "Prompt Injection":
+            profile["injection_attempts_last_hour"] += 1
+        if event.get("detection_type") == "Trade Secret Context":
+            profile["semantic_hits_last_hour"] += 1
+        if event.get("event") == "AUTO_QUARANTINE":
+            profile["quarantined"] = True
+            profile["quarantine_reason"] = event.get("policy")
+        if event.get("detection_type") not in profile["labels"]:
+            profile["labels"].append(event.get("detection_type"))
+    ranked = sorted(actors.values(), key=lambda item: item["risk_score"], reverse=True)
+    return {
+        "generated_at": _now_iso(),
+        "window": "1h",
+        "tenant_id": "buyer-demo",
+        "quarantined_users": sum(1 for actor in ranked if actor.get("quarantined")),
+        "actors": ranked[:10],
+    }
+
+
+def _demo_control_room_snapshot() -> dict:
+    metrics = demo_metrics()
+    readiness = demo_acquisition_readiness()
+    evidence = _build_demo_evidence_ledger()
+    risk = _demo_actor_heatmap(metrics.get("recent_events", []))
+    return {
+        "mode": "SIMULATED_ENTERPRISE_CONTROL_ROOM",
+        "disclaimer": "Synthetic control-room validation data for product demonstration only; not customer usage, customer traction, or revenue.",
+        "generated_at": _now_iso(),
+        "gateway": _health_payload(),
+        "summary": metrics.get("summary", {}),
+        "detections": metrics.get("detections", []),
+        "recent_events": metrics.get("recent_events", []),
+        "risk": risk,
+        "readiness": {
+            "score": readiness.get("score"),
+            "status": readiness.get("status"),
+            "target_price": readiness.get("target_price"),
+            "proof_type": readiness.get("proof_type"),
+        },
+        "evidence": {
+            "sha256_certificate": evidence.get("certificate"),
+            "ledger_entries": evidence.get("chain", {}).get("total_entries"),
+            "chain_valid": evidence.get("chain", {}).get("valid"),
+            "download_url": "/demo/evidence-certificate",
+        },
+        "live_stream_url": "/demo/control-room/stream",
+    }
+
+
+def _sse_frame(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
+
+
+def _port_open(port: int) -> bool:
+    sock = socket.socket()
+    sock.settimeout(0.2)
+    try:
+        return sock.connect_ex(("127.0.0.1", port)) == 0
+    finally:
+        sock.close()
+
+
+def _device_snapshot() -> dict:
+    total, used, free = shutil.disk_usage(BASE_DIR)
+    device = {
+        "hostname": socket.gethostname(),
+        "platform": platform.system(),
+        "platform_release": platform.release(),
+        "machine": platform.machine(),
+        "python": platform.python_version(),
+        "machine_id_preview": sentinel_crypto.get_machine_id()[:12] + "...",
+        "disk": {
+            "used_gb": round(used / (1024 ** 3), 2),
+            "free_gb": round(free / (1024 ** 3), 2),
+            "used_pct": round((used / total) * 100, 1) if total else 0.0,
+        },
+        "services": {
+            "frontend_port_3000": _port_open(3000),
+            "backend_port_8000": _port_open(8000),
+            "ollama_port_11434": _port_open(11434),
+        },
+    }
+    try:
+        import psutil
+
+        memory = psutil.virtual_memory()
+        device["cpu"] = {
+            "logical_cores": psutil.cpu_count() or os.cpu_count() or 0,
+            "usage_pct": round(psutil.cpu_percent(interval=0.05), 1),
+        }
+        device["memory"] = {
+            "total_gb": round(memory.total / (1024 ** 3), 2),
+            "available_gb": round(memory.available / (1024 ** 3), 2),
+            "used_pct": round(memory.percent, 1),
+        }
+    except Exception:
+        device["cpu"] = {
+            "logical_cores": os.cpu_count() or 0,
+            "usage_pct": None,
+        }
+        device["memory"] = {
+            "total_gb": None,
+            "available_gb": None,
+            "used_pct": None,
+        }
+    return device
+
+
+def _local_control_room_snapshot() -> dict:
+    snapshot = _enterprise_control_room_snapshot(tenant_id="default", refresh_diagnostics=True)
+    masking_example = identity_proxy.govern(
+        "Aadhaar 2345 6789 0123 and PAN ABCDE1234F must stay local.",
+        department="LOCALHOST",
+    )
+    snapshot["mode"] = "LOCAL_REALTIME_CONTROL_ROOM"
+    snapshot["device"] = _device_snapshot()
+    snapshot["policy_surface"] = {
+        "india_patterns_supported": list(INDIA_PATTERNS.keys())[:8],
+        "identity_masking_example": masking_example.protected_prompt,
+        "ollama_target": os.getenv("OLLAMA_MODEL", "llama3.1"),
+        "evidence_endpoint": "/api/v2/local/evidence-certificate",
+    }
+    snapshot["live_stream_url"] = "/api/v2/local/control-room/stream"
+    snapshot["disclaimer"] = "Live localhost system view using your current device, real ledger state, and active diagnostics."
+    return snapshot
+
+
 @app.get("/health")
 def health():
     """Instant awake signal for Cloud monitoring."""
-    return {"status": "awake", "service": "sovereign-shield", "engine": "Sovereign Shield v2.0"}
+    return _health_payload()
 
 # ── Vault / Status Endpoints ──────────────────────────────────────────────────
 @app.get("/")
@@ -1667,6 +2072,34 @@ def demo_evidence_certificate_download(file: str):
     media_type = "application/pdf" if safe_name.lower().endswith(".pdf") else "text/plain"
     return FileResponse(path, media_type=media_type, filename=safe_name)
 
+
+@app.get("/demo/control-room")
+def demo_control_room():
+    """Unified public control-room proof for buyer demos and visual walkthroughs."""
+    return _demo_control_room_snapshot()
+
+
+@app.get("/demo/control-room/stream")
+async def demo_control_room_stream(interval_seconds: float = 6.0, max_events: int = 120):
+    """Public synthetic live stream so buyers can see a moving control plane without auth setup."""
+    interval = max(1.0, min(interval_seconds, 30.0))
+
+    async def event_stream():
+        yield "retry: 10000\n\n"
+        sent = 0
+        while max_events <= 0 or sent < max_events:
+            yield _sse_frame("control-room", _demo_control_room_snapshot())
+            sent += 1
+            if max_events > 0 and sent >= max_events:
+                break
+            await asyncio.sleep(interval)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
 @app.get("/status")
 def get_status(current_user: TokenPayload = Depends(get_active_user)):
     """System status + infra health. Requires valid JWT."""
@@ -1720,7 +2153,198 @@ def get_status(current_user: TokenPayload = Depends(get_active_user)):
 def system_diagnostics(current_user: TokenPayload = Depends(get_active_user)):
     """Single localhost proof point for local LLM, ledger, and scanner readiness."""
     rbac.enforce(current_user.role, Permission.VIEW_VAULT_STATUS)
-    return sentinel_check.run_all()
+    global startup_diagnostics_cache
+    startup_diagnostics_cache = sentinel_check.run_all()
+    return startup_diagnostics_cache
+
+
+@app.get("/api/v2/local/control-room")
+def local_control_room():
+    """Unauthenticated localhost-safe operator snapshot using the real device and live backend state."""
+    return _local_control_room_snapshot()
+
+
+@app.get("/api/v2/local/control-room/stream")
+async def local_control_room_stream(interval_seconds: float = 2.0, max_events: int = 120):
+    """Live localhost SSE stream for the real control-room surface."""
+    interval = max(0.5, min(interval_seconds, 30.0))
+
+    async def event_stream():
+        yield "retry: 10000\n\n"
+        sent = 0
+        while max_events <= 0 or sent < max_events:
+            yield _sse_frame("control-room", _local_control_room_snapshot())
+            sent += 1
+            if max_events > 0 and sent >= max_events:
+                break
+            await asyncio.sleep(interval)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/api/v2/local/proxy/proof")
+def local_proxy_proof(req: DemoRedactionRequest):
+    """Real localhost proof surface using the actual masking, DLP, guardian, and ledger stack."""
+    now = _now_iso()
+    governed = identity_proxy.govern(req.text, department="LOCALHOST")
+    semantic_findings = semantic_dlp.scan(req.text)
+    injection_findings = prompt_injection_detector.scan(req.text)
+    guardian_verdict = llm_guardian.validate(req.text)
+    semantic_score = semantic_dlp.sensitivity_score(semantic_findings)
+    injection_score = prompt_injection_detector.risk_score(injection_findings)
+    sensitivity_score = max(governed.sensitivity_score, semantic_score, injection_score, float(guardian_verdict.get("score", 0.0)))
+    route = "ollama/local-airgapped" if sensitivity_score >= 7 else "cloud_or_hybrid_allowed"
+    findings = list(governed.findings) + semantic_findings + injection_findings
+    if guardian_verdict.get("blocked"):
+        findings.extend(
+            {"type": "PROMPT_INJECTION", "label": label, "score": guardian_verdict.get("score")}
+            for label in guardian_verdict.get("labels", [])
+        )
+    risk_event = oracle_risk_engine.record_interception(
+        actor_id=req.actor or "localhost-operator",
+        findings=findings,
+        sensitivity_score=sensitivity_score,
+        policy_triggered="LOCAL_REALTIME_PROOF",
+        tenant_id="default",
+    )
+    signature_payload = {
+        "timestamp": now,
+        "actor": req.actor,
+        "protected_prompt": governed.protected_prompt,
+        "route": route,
+        "previous_hash": audit_ledger._get_last_hash(),
+    }
+    signature = hashlib.sha256(json.dumps(signature_payload, sort_keys=True).encode()).hexdigest()
+    audit_ledger.log(
+        action="LOCAL_REALTIME_PROOF",
+        user_id=req.actor or "localhost-operator",
+        user_role="LOCAL_OPERATOR",
+        department="LOCALHOST",
+        tenant_id="default",
+        prompt_text=req.text,
+        redactions_applied=list(governed.pseudonyms),
+        policy_triggered="LOCAL_REALTIME_PROOF",
+        model_queried=route,
+        risk_score=sensitivity_score,
+        metadata={
+            "source_app": req.source_app,
+            "semantic_findings": semantic_findings,
+            "prompt_injection_findings": injection_findings,
+            "guardian": guardian_verdict,
+            "oracle_risk": risk_event,
+            "device": _device_snapshot(),
+        },
+    )
+    return {
+        "mode": "LOCAL_REALTIME_PROOF",
+        "timestamp": now,
+        "source_app": req.source_app,
+        "raw_prompt": req.text,
+        "protected_prompt": governed.protected_prompt,
+        "detections": sorted({str(f.get("label", "UNKNOWN")) for f in findings}),
+        "pseudonyms": governed.pseudonyms,
+        "sensitivity_score": round(sensitivity_score, 2),
+        "semantic_dlp": {"score": semantic_score, "findings": semantic_findings},
+        "prompt_injection": {"blocked": bool(injection_findings) or bool(guardian_verdict.get("blocked")), "score": injection_score, "findings": injection_findings},
+        "guardian": guardian_verdict,
+        "route": route,
+        "device": _device_snapshot(),
+        "oracle_risk": risk_event,
+        "ledger_certificate": {
+            "actor_hash": risk_event.get("actor_hash"),
+            "policy_triggered": "LOCAL_REALTIME_PROOF",
+            "previous_hash": signature_payload["previous_hash"],
+            "signature": signature,
+        },
+    }
+
+
+@app.get("/api/v2/local/evidence-certificate")
+def local_evidence_certificate():
+    """Generate evidence from the real local ledger and active risk state without synthetic buyer data."""
+    result = evidence_reporter.generate(
+        org_name=f"{socket.gethostname()} Localhost Audit",
+        tenant_id="default",
+        limit=250,
+        primary_color="#047857",
+        compliance_frameworks=["DPDP_2026", "GDPR", "FedRAMP"],
+    )
+    audit_ledger.log(
+        action="LOCAL_EVIDENCE_CERTIFICATE_GENERATED",
+        user_id="localhost-operator",
+        user_role="LOCAL_OPERATOR",
+        department="LOCALHOST",
+        tenant_id="default",
+        policy_triggered="LOCAL_REALTIME_EVIDENCE",
+        risk_score=0.0,
+        metadata={"file": result.get("file"), "certificate": result.get("certificate"), "device": _device_snapshot()},
+    )
+    filename = os.path.basename(result.get("file", "")) if result.get("file") else None
+    return {
+        "mode": "LOCAL_REALTIME_EVIDENCE",
+        **result,
+        "download_url": f"/api/v2/local/evidence-certificate/download?file={filename}" if filename else None,
+        "device": _device_snapshot(),
+    }
+
+
+@app.get("/api/v2/local/evidence-certificate/download")
+def local_evidence_certificate_download(file: str):
+    safe_name = os.path.basename(file)
+    path = os.path.join(BASE_DIR, "logs", "exports", safe_name)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="EVIDENCE_CERTIFICATE_NOT_FOUND")
+    media_type = "application/pdf" if safe_name.lower().endswith(".pdf") else "text/plain"
+    return FileResponse(path, media_type=media_type, filename=safe_name)
+
+
+@app.get("/api/v2/enterprise/control-room")
+def enterprise_control_room(
+    refresh_diagnostics: bool = False,
+    current_user: TokenPayload = Depends(get_active_user),
+):
+    """Single operator snapshot for dashboards, desktop, mobile, and buyer walkthroughs."""
+    rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
+    return _enterprise_control_room_snapshot(
+        tenant_id=current_user.tenant_id,
+        refresh_diagnostics=refresh_diagnostics,
+    )
+
+
+@app.get("/api/v2/enterprise/control-room/stream")
+async def enterprise_control_room_stream(
+    interval_seconds: float = 2.0,
+    max_events: int = 120,
+    refresh_diagnostics: bool = False,
+    current_user: TokenPayload = Depends(get_active_user),
+):
+    """Server-sent control-room stream for live dashboards and desktop/mobile operator consoles."""
+    rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
+    interval = max(0.5, min(interval_seconds, 30.0))
+
+    async def event_stream():
+        yield "retry: 10000\n\n"
+        sent = 0
+        while max_events <= 0 or sent < max_events:
+            payload = _enterprise_control_room_snapshot(
+                tenant_id=current_user.tenant_id,
+                refresh_diagnostics=refresh_diagnostics if sent == 0 else False,
+            )
+            yield _sse_frame("control-room", payload)
+            sent += 1
+            if max_events > 0 and sent >= max_events:
+                break
+            await asyncio.sleep(interval)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/api/v2/proxy/inspect")
@@ -2074,34 +2698,7 @@ def release_version(current_user: TokenPayload = Depends(get_active_user)):
 @app.get("/api/v2/enterprise/badge")
 def enterprise_health_badge():
     """Compact unauthenticated health badge for monitors and buyer status pages."""
-    chain = audit_ledger.verify_chain()
-    try:
-        risk = oracle_risk_engine.heatmap(limit=25)
-        quarantined = risk.get("quarantined_users", 0)
-        actors = len(risk.get("actors", []))
-    except Exception:
-        quarantined = 0
-        actors = 0
-    release_path = os.path.join(BASE_DIR, "release.json")
-    version = "2.1.0"
-    if os.path.exists(release_path):
-        try:
-            version = json.load(open(release_path, encoding="utf-8")).get("version", version)
-        except Exception:
-            pass
-    ledger_valid = bool(chain.get("valid"))
-    return {
-        "schemaVersion": 1,
-        "label": "Sovereign Shield",
-        "message": "ready" if ledger_valid else "audit-review",
-        "color": "brightgreen" if ledger_valid else "yellow",
-        "ready": True,
-        "ledger_valid": ledger_valid,
-        "risk_actors": actors,
-        "quarantined": quarantined,
-        "version": version,
-        "company": "Xavira Tech Labs",
-    }
+    return _enterprise_badge_payload()
 
 @app.get("/api/v2/enterprise/reports")
 def evidence_report_history(current_user: TokenPayload = Depends(get_active_user)):
@@ -2140,19 +2737,7 @@ def ciso_alert_center(current_user: TokenPayload = Depends(get_active_user)):
     """CISO Alert Center: high-risk actors, prompt injections, and quarantine alerts."""
     rbac.enforce(current_user.role, Permission.VIEW_AUDIT_LOG)
     heatmap = oracle_risk_engine.heatmap(tenant_id=current_user.tenant_id)
-    alerts = []
-    for actor in heatmap.get("actors", []):
-        if actor.get("quarantined") or actor.get("risk_score", 0) >= 50 or actor.get("injection_attempts_last_hour", 0):
-            alerts.append({
-                "id": actor.get("actor_hash"),
-                "severity": "CRITICAL" if actor.get("quarantined") else "HIGH",
-                "type": "AUTO_QUARANTINE" if actor.get("quarantined") else "RISK_SPIKE",
-                "actor_hash": actor.get("actor_hash"),
-                "risk_score": actor.get("risk_score"),
-                "reason": actor.get("quarantine_reason") or "High-risk activity detected",
-                "created_at": actor.get("last_seen"),
-                "status": "OPEN",
-            })
+    alerts = _alerts_from_heatmap(heatmap)
     return {"alerts": alerts, "total": len(alerts)}
 
 @app.post("/api/v2/enterprise/alerts/export")
@@ -2401,28 +2986,7 @@ def enterprise_readiness(current_user: TokenPayload = Depends(get_active_user)):
     """Buyer due-diligence readiness score across secrets, ledger, CORS, policies, and local model posture."""
     rbac.enforce(current_user.role, Permission.VIEW_VAULT_STATUS)
     diagnostics = sentinel_check.run_all()
-    chain = audit_ledger.verify_chain()
-    policies = policy_engine.list_policies()
-    settings = security_settings()
-    controls = [
-        {"name": "fail_closed_secrets", "ok": all(settings.get(k) for k in ("jwt_secret", "license_master_secret", "actor_hash_salt", "ledger_master_salt"))},
-        {"name": "cors_wildcard_blocked", "ok": "*" not in settings.get("allowed_origins", [])},
-        {"name": "ledger_integrity", "ok": bool(chain.get("valid"))},
-        {"name": "pii_pattern_accuracy", "ok": any(c.get("name") == "Pattern Accuracy" and c.get("ok") for c in diagnostics.get("checks", []))},
-        {"name": "policy_inventory_loaded", "ok": policies.get("total_rules", 0) > 0},
-        {"name": "security_headers_enabled", "ok": True},
-        {"name": "local_model_ready", "ok": any(c.get("name") == "Local Model Health" and c.get("ok") for c in diagnostics.get("checks", []))},
-    ]
-    passed = sum(1 for control in controls if control["ok"])
-    score = round((passed / len(controls)) * 100, 2)
-    return {
-        "score": score,
-        "status": "PRODUCTION_READY" if score >= 85 else "ACTION_REQUIRED",
-        "controls": controls,
-        "ledger": chain,
-        "diagnostics_certificate": diagnostics.get("certificate"),
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-    }
+    return _enterprise_readiness_snapshot(diagnostics)
 
 
 @app.post("/api/v2/enterprise/backup")
@@ -2468,30 +3032,7 @@ def create_evidence_backup(current_user: TokenPayload = Depends(get_active_user)
 def restore_drill(current_user: TokenPayload = Depends(get_active_user)):
     """Non-destructive disaster recovery drill: verify latest backup and ledger chain."""
     rbac.enforce(current_user.role, Permission.EXPORT_AUDIT_PDF)
-    backup_dir = os.path.join(BASE_DIR, "logs", "backups")
-    latest = None
-    if os.path.isdir(backup_dir):
-        files = [os.path.join(backup_dir, f) for f in os.listdir(backup_dir) if f.endswith(".zip")]
-        latest = max(files, key=os.path.getmtime) if files else None
-    zip_ok = False
-    zip_entries = []
-    if latest:
-        try:
-            with zipfile.ZipFile(latest, "r") as archive:
-                bad = archive.testzip()
-                zip_ok = bad is None
-                zip_entries = archive.namelist()
-        except zipfile.BadZipFile:
-            zip_ok = False
-    chain = audit_ledger.verify_chain()
-    result = {
-        "ready_for_restore": bool(latest and zip_ok and chain.get("valid")),
-        "latest_backup": latest,
-        "backup_valid": zip_ok,
-        "backup_entries": zip_entries,
-        "ledger_valid": chain.get("valid"),
-        "checked_at": datetime.now(timezone.utc).isoformat(),
-    }
+    result = _restore_drill_snapshot()
     audit_ledger.log(
         action="RESTORE_DRILL_EXECUTED",
         user_id=current_user.sub,
@@ -2551,25 +3092,7 @@ def threat_model(req: ThreatModelRequest, current_user: TokenPayload = Depends(g
 def deployment_doctor(current_user: TokenPayload = Depends(get_active_user)):
     """One-shot production environment doctor for demos and buyer handoff."""
     rbac.enforce(current_user.role, Permission.VIEW_VAULT_STATUS)
-    import socket
-    checks = []
-    for name, ok, detail in [
-        ("env_secrets", all(os.getenv(k) for k in ("JWT_SECRET_KEY", "LICENSE_MASTER_SECRET", "ACTOR_HASH_SALT", "LEDGER_MASTER_SALT")), "Required fail-closed secrets present"),
-        ("cors_locked", "*" not in SECURITY_SETTINGS["allowed_origins"], f"Origins: {', '.join(SECURITY_SETTINGS['allowed_origins'])}"),
-        ("ledger_chain", audit_ledger.verify_chain().get("valid", False), "Obsidian ledger chain verification"),
-        ("redis", bool(os.getenv("REDIS_URL")), "REDIS_URL configured for distributed risk state"),
-        ("backup_encryption", bool(os.getenv("BACKUP_ENCRYPTION_PASSPHRASE")), "Encrypted backup passphrase configured"),
-        ("mtls_enforced", os.getenv("API_SHIELD_ENFORCE_MTLS", "false").lower() == "true", "mTLS enforcement flag"),
-    ]:
-        checks.append({"name": name, "ok": bool(ok), "detail": detail})
-    for port in (8000, 3000, 11434):
-        sock = socket.socket()
-        sock.settimeout(0.3)
-        ok = sock.connect_ex(("127.0.0.1", port)) == 0
-        sock.close()
-        checks.append({"name": f"port_{port}", "ok": ok, "detail": f"localhost:{port}"})
-    score = round((sum(1 for c in checks if c["ok"]) / len(checks)) * 100, 2)
-    return {"score": score, "status": "READY" if score >= 75 else "ACTION_REQUIRED", "checks": checks}
+    return _deployment_doctor_snapshot()
 
 
 @app.post("/api/v2/enterprise/model-benchmark")

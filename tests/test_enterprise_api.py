@@ -78,6 +78,23 @@ def test_enterprise_reports_alerts_and_quarantine_lists():
     assert c.get("/api/v2/enterprise/quarantine").status_code == 200
 
 
+def test_enterprise_control_room_snapshot_and_stream():
+    c = client()
+    snapshot = c.get("/api/v2/enterprise/control-room")
+    assert snapshot.status_code == 200
+    body = snapshot.json()
+    assert body["gateway"]["status"] == "awake"
+    assert "readiness" in body
+    assert "risk" in body
+    assert "recent_events" in body
+    assert body["live_stream_url"] == "/api/v2/enterprise/control-room/stream"
+
+    with c.stream("GET", "/api/v2/enterprise/control-room/stream?max_events=1&interval_seconds=0.5") as response:
+        payload = response.read().decode()
+    assert "event: control-room" in payload
+    assert "\"gateway\"" in payload
+
+
 def test_enterprise_readiness_backup_restore_and_threat_model():
     c = client()
     readiness = c.get("/api/v2/enterprise/readiness")
