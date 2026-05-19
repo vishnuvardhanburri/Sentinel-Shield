@@ -15,7 +15,7 @@ if (!fs.existsSync(siteDir)) {
 fs.rmSync(outDir, { recursive: true, force: true });
 fs.cpSync(siteDir, outDir, { recursive: true });
 
-for (const route of ["demo", "ops", "pricing"]) {
+for (const route of ["demo", "ops", "pricing", "proof"]) {
   const indexFile = path.join(outDir, route, "index.html");
   if (!fs.existsSync(indexFile)) {
     throw new Error(`Missing route index: ${indexFile}`);

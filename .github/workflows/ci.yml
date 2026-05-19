@@ -134,6 +134,7 @@ jobs:
           test -f site/ops/index.html
           test -f site/demo/index.html
           test -f site/pricing/index.html
+          test -f site/proof/index.html
         working-directory: frontend
 
       - name: Lint

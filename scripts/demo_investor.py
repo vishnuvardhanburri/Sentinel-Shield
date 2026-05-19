@@ -17,8 +17,8 @@ def main() -> int:
     time.sleep(3)
     print("Opening dashboard at http://localhost:3000")
     webbrowser.open("http://localhost:3000")
-    print("Opening operations logs at http://localhost:3000/ops/")
-    webbrowser.open("http://localhost:3000/ops/")
+    print("Opening visual proof theater at http://localhost:3000/proof/")
+    webbrowser.open("http://localhost:3000/proof/")
     return launch.wait()
 
 

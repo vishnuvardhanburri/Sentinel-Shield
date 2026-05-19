@@ -40,17 +40,19 @@ def main() -> int:
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
         page.goto(base, wait_until="networkidle", timeout=30000)
         page.screenshot(path=str(OUT / "01-login.png"), full_page=True)
+        page.goto(f"{base.rstrip('/')}/proof/", wait_until="networkidle", timeout=30000)
+        page.screenshot(path=str(OUT / "02-visual-proof.png"), full_page=True)
         if email and password:
             page.fill("#login-email", email)
             page.fill("#login-password", password)
             page.click("#login-btn")
             page.wait_for_timeout(1500)
             tabs = [
-                ("overview", "02-overview.png"),
-                ("proxy", "03-proxy.png"),
-                ("risk", "04-risk.png"),
-                ("audit", "05-audit.png"),
-                ("enterprise", "06-enterprise.png"),
+                ("overview", "03-overview.png"),
+                ("proxy", "04-proxy.png"),
+                ("risk", "05-risk.png"),
+                ("audit", "06-audit.png"),
+                ("enterprise", "07-enterprise.png"),
             ]
             for tab, filename in tabs:
                 locator = f"#nav-{tab}"
